@@ -1,0 +1,3 @@
+[submodule "src/deeplatform"]
+	path = src/deeplatform
+	url = https://github.com/JiaweiLab-HFUT/deeplatform
