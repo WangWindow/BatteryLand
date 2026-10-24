@@ -9,8 +9,8 @@
 
 # Environment
 .env
-.venv
-venv
+.venv/
+venv/
 
 # Python
 __pycache__
@@ -21,4 +21,13 @@ uv.lock
 .ruff_cache
 
 # Data & Logs
-temp
+temp/
+data/
+
+# Backend runtime and checks
+var/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
