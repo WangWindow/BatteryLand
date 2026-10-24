@@ -1,0 +1,128 @@
+一、数据对象
+1.数据集划分的json文件
+2.一个实验的config文件
+3.实验产物，包括checkpoint, log, result等
+
+
+二、mapper层
+mapper层就是操作数据对象的增删改查
+
+
+三、训练功能层
+1.输入config文件进行
+
+
+四、service层
+调用Mapper、训练功能等，以完成各种业务
+例子：一个创建实验的业务
+1.检查config合法
+2.调用Mapper,去储存这个配置
+
+
+五、Controller层
+用于和前端通信，调用serverce完成，并向前端返回数据
+
+
+
+数据对象
+1.数据划分的json文件
+保存在特定目录里面、MongoDB
+2.config对象
+a MongGoDB数据库：config_id , config
+b Mysql：config_id， is_template,  is_done,  path(文件夹地址),  type
+3.实验产物
+Mysql: pretrain_checkpoint_id  name  path  model  config_id
+MongoDB：config_id， test_result
+4.redis
+储存执行实验的pid
+
+Mapper
+1.对MongoDB进行增删改查时，同时保证json文件同步更改，保证事务一致性
+	2.对上述表进行增删改查功能
+
+Service
+1.creat_experiment
+把传进来的用户表单转成yaml格式
+做config文件的校验，是否通过编译
+如果通过编译，进行储存:
+生成uuid, 存到表a
+创建实验目录，把config文件放入目录下
+用这个uuid储存到表b
+
+2.invoke_exp
+3.stop_exp
+4.delete_exp
+
+5.creat_dataset
+6.delete_dataset
+7.change_dataset
+8.get_dataset
+
+9.show_differences
+10.add_components
+11.get_templates_names
+12.get_template
+13.set_template
+14.get_all_chechpoints ->[source: “”， checkpointname]
+15.get_log
+16.
+
+
+
+
+
+功能部分：
+1.训练框架：‘
+提供：组件的上传 组件的预览  执行训练
+2.显示差异：
+输入：若干个电池集合，用户想要的图类型
+输出：图，能显示这n个电池集合的差异
+3.实验调度：
+(1)输入实验待执行列表
+(2)输入config的device可能是’auto’, 但输出的config文件不能是’auto’.
+如果输入config的device是’cuda:1’,输出的config的device也必须是’cuda:1’
+(3)可以串行策略、多卡并行策略
+(4)提供终止实验的接口
+4.绘制图表：
+多个实验结果进行比较，提供多种类型的图。这些图是网页绘制的，不是图像文件。给出这些图的绘制代码。
+输入n个实验的结果，每个实验的结果分为两个部分：1.mape, acc15, mae等。2.每个电池的具体预测值和真实值
+第一个部分可能没有，第二个部分的真实值可能没有，每个实验结果的第二部分电池名称列表也可能会不同，每个实验结果的第一部分也可能不同(有的可能没有MAPE，有的可能是用户自定义的指标’ABC’)，绘制图表时要考虑进去
+
+
+Controller
+{
+code: 0,
+message: “”，
+data:{
+
+}
+}
+
+
+
+
+#result
+{
+_id:
+MAPE:  0.1,
+acc15: 90，
+mae: 0.01,
+battery:{
+A: {true, pred},
+}
+}
+# 预训练
+创建一个config(用户界面表单)-修改字段->
+config.yaml-保存->db（该实验（config）对应id）
+
+运行实验-->输出log、只包含每一轮指标的json，训练的权重文件(.pt)
+如果固定文件名：无须记录文件位置字段
+如果自定义产物路径等信息（通过插件）：按照插件拼接
+
+
+# 评估
+模型checkpoint-->config中的评估数据集-->结果.json
+
+
+
+# 迁移学习
