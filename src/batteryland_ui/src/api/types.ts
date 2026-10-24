@@ -22,6 +22,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/data-sources/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source Options */
+        get: operations["source_options_api_v1_data_sources_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/data-sources/{source_id}/import": {
         parameters: {
             query?: never;
@@ -1446,6 +1463,22 @@ export interface components {
             /** Data */
             data: components["schemas"]["Experiment"][];
         };
+        /** Envelope[list[SourceOption]] */
+        Envelope_list_SourceOption__: {
+            /**
+             * Code
+             * @default 0
+             * @constant
+             */
+            code: 0;
+            /**
+             * Message
+             * @default ok
+             */
+            message: string;
+            /** Data */
+            data: components["schemas"]["SourceOption"][];
+        };
         /** ErrorData */
         ErrorData: {
             /** Error */
@@ -1815,6 +1848,13 @@ export interface components {
              */
             partitions: ("train" | "val" | "test")[];
         };
+        /** SourceOption */
+        SourceOption: {
+            /** Root Alias */
+            root_alias: string;
+            /** Availability */
+            availability: string;
+        };
         /** Split */
         Split: {
             /** Id */
@@ -2055,6 +2095,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_DataSource_"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    source_options_api_v1_data_sources_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_SourceOption__"];
                 };
             };
             /** @description Not Found */

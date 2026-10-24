@@ -14,9 +14,8 @@ SQLite, JSON documents, run directories, or provider internals.
 - `src/i18n/`: simplified Chinese and English catalogs and language state.
 - `src/hooks/`: abortable query lifecycle and incremental log cursor polling.
 
-The scheduler is a separate process at `src/simple_impl/scheduler`. It only uses
-public queue and dispatch endpoints. Replacing scheduling policy does not require
-changing the engine, database, UI, or training provider.
+The backend runs scheduling internally through a replaceable policy interface.
+Only the backend and frontend need to be started.
 
 ## Commands
 
@@ -26,11 +25,11 @@ bun run dev                 # http://127.0.0.1:5173, proxies /api to :8000
 bun run typecheck
 bun run check               # Biome + i18n contract
 bun run test                # Vitest + React Testing Library
-bun run test:e2e            # real HTTP backend + controlled training + scheduler + Chromium
-bun run test:e2e:real       # real deeplatform MyTask + real backend + scheduler + Chromium
+bun run test:e2e            # real HTTP backend + controlled training + integrated scheduler + Chromium
+bun run test:e2e:real       # real deeplatform MyTask + real backend + integrated scheduler + Chromium
 bun run build
 bun run verify              # typecheck + check + test + build
-bun run generate:api        # regenerate src/api/types.ts from the 003 OpenAPI snapshot
+bun run generate:api        # regenerate src/api/types.ts from the current 004 OpenAPI snapshot
 ```
 
 `E2E_BACKEND_PORT` defaults to `8010`; `E2E_BASE_URL` can point Playwright at an

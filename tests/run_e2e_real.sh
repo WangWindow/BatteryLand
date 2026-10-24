@@ -27,7 +27,7 @@ for _ in $(seq 1 300); do
 done
 
 (
-  cd "$ROOT/src/simple_impl/ui"
+  cd "$ROOT/src/batteryland_ui"
   VITE_PROXY_TARGET="http://127.0.0.1:${BACKEND_PORT}" \
     bun run dev -- --host 127.0.0.1 --port "$FRONTEND_PORT" \
     >"$LOG_DIR/batteryland-e2e-real-vite.log" 2>&1
@@ -41,6 +41,6 @@ for _ in $(seq 1 300); do
   sleep 0.2
 done
 
-cd "$ROOT/src/simple_impl/ui"
+cd "$ROOT/src/batteryland_ui"
 E2E_BASE_URL="http://127.0.0.1:${FRONTEND_PORT}" E2E_REAL_TRAINING=1 \
   bunx playwright test e2e/real-mytask.spec.ts

@@ -19,7 +19,7 @@ export default defineConfig({
     : [
         {
           command: "bash tests/e2e_stack.sh",
-          cwd: "../../..",
+          cwd: "../..",
           url: `${backendUrl}/api/v1/capabilities`,
           env: { E2E_BACKEND_PORT: backendPort },
           reuseExistingServer: true,
