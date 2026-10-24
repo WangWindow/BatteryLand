@@ -1,6 +1,7 @@
 # Plan: 一键启动
 
 - 使用Bash脚本，基于`BASH_SOURCE`定位项目根目录，默认路径及相对配置均以此目录为基准。
+- 前端监听`0.0.0.0`，脚本与Vite默认开发配置一致；前端代理连接本机后端。
 - 复用现有Python CLI和Bun/Vite入口，直接启动已安装的环境；不增加依赖管理或常驻服务。
 - Linux `setsid`隔离两个服务的进程组；信号及子进程退出统一触发清理，Vite使用strictPort。
 - 环境变量：`BATTERYLAND_BACKEND_PORT`、`BATTERYLAND_UI_PORT`、既有`BATTERYLAND_DATA_DIR`及`BATTERYLAND_TRAINING_PYTHON`。

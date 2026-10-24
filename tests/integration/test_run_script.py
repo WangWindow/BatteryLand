@@ -120,6 +120,7 @@ def test_launcher_uses_project_paths_and_cleans_service_groups_on_interrupt(
         assert backend["sources"] == '{"demo":"/example/source"}'
         assert backend["args"][-2:] == ["--port", "8123"]
         assert frontend["proxy"] == "http://127.0.0.1:8123"
+        assert frontend["args"][frontend["args"].index("--host") + 1] == "0.0.0.0"
         assert "5123" in frontend["args"] and "--strictPort" in frontend["args"]
         process.send_signal(signal.SIGINT)
         process.wait(timeout=5)

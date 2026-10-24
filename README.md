@@ -29,6 +29,7 @@ export BATTERYLAND_SOURCE_ROOTS='{"battery-life":"/data/BatteryLife_Processed"}'
 ```
 
 打开<http://127.0.0.1:5173>，API文档位于<http://127.0.0.1:8000/docs>。Ctrl+C停止前后端。
+前端监听`0.0.0.0`，也可通过`http://服务器IP:5173`访问；直接运行`bun run dev`沿用相同监听地址。
 脚本以自身位置确定项目根目录，从其他目录调用也可运行；相对数据目录和训练解释器路径以项目根目录为基准。
 启动复用已安装依赖，不自动安装或升级。前端代理随本次后端端口自动配置。
 

@@ -21,7 +21,7 @@ export default defineConfig({
       "@": resolve(import.meta.dirname, "./src"),
     },
   },
-  server: { proxy },
+  server: { host: "0.0.0.0", proxy },
   preview: { proxy },
   build: {
     outDir: "dist",

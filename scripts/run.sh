@@ -68,7 +68,7 @@ setsid "$python" -m batteryland.main serve \
 pids+=("$!")
 (
   cd -- "$ui_root"
-  exec setsid bun run dev -- --host 127.0.0.1 --port "$ui_port" --strictPort
+  exec setsid bun run dev -- --host 0.0.0.0 --port "$ui_port" --strictPort
 ) &
 pids+=("$!")
 
