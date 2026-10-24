@@ -1,6 +1,6 @@
 # Tasks: SQLite JSON 文档存储
 
-**Status**: Implementation complete; the existing API test suite is blocked by the installed TestClient stack.
+**Status**: Merged to local `main`; existing API tests remain blocked by the installed TestClient stack.
 
 - [x] T001 [US1] Add SQLite repository tests for JSON document round-trip, immutable identity, invalid finite JSON, reference validation, and transactional rollback in `tests/integration/test_storage.py`; establish failing behavior before implementation.
 - [x] T002 [US2] Add legacy JSON migration tests for complete import, metadata/checksum mismatch, idempotent retry, incomplete rows, and recoverable backup behavior.
@@ -9,7 +9,7 @@
 - [x] T005 [US2] Implement `SQLiteDocumentStore` and safe, restartable legacy directory migration; wire it into application startup after schema initialization.
 - [x] T006 [US1] Run storage and unit tests, `ty check`, Ruff checks, and formatting; inspect migration and final diff.
 - [ ] T007 Run the existing API integration suite after resolving the current TestClient environment hang.
-- [ ] T008 Commit specification/constitution separately from code; commit the implementation, fast-forward merge the completed feature into local `main`, and remove the feature branch.
+- [x] T008 Commit specification/constitution separately from code; commit the implementation, fast-forward merge the completed feature into local `main`, and remove the feature branch.
 
 ## Verification
 
