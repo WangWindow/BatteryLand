@@ -1,0 +1,194 @@
+openapi: 3.1.0
+info:
+  title: BatteryLand graphical datasets contract
+  version: 1.0.0
+paths:
+  /api/v1/data-sources:
+    get:
+      summary: List dataset sources with registered battery counts
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: page_size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: Paged source records; each source includes battery_count and revision.
+  /api/v1/splits/preview:
+    post:
+      summary: Preview a source-scoped dataset partition without saving it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SplitPreviewRequest"
+      responses:
+        "200":
+          description: Exact server-generated partition counts and source revision.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SplitPreviewResponse"
+        "409":
+          description: Source changed after the user prepared a save request.
+  /api/v1/splits:
+    post:
+      summary: Create a versioned logical dataset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SplitWrite"
+      responses:
+        "201": { description: Created split and versioned statistics profile. }
+  /api/v1/splits/{split_id}:
+    get:
+      summary: Read a logical dataset version and its statistics profile
+      parameters:
+        - name: split_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: version
+          in: query
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Split details with statistics for the requested immutable version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SplitDetailResponse"
+    put:
+      summary: Create a new version from an edited logical dataset
+      parameters:
+        - name: split_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SplitUpdate"
+      responses:
+        "200": { description: Updated split version with matching profile. }
+components:
+  schemas:
+    SplitSelection:
+      type: object
+      required: [source_id, method]
+      properties:
+        source_id: { type: string, format: uuid }
+        battery_ids:
+          type: array
+          items: { type: string, format: uuid }
+        include_all_source: { type: boolean, default: false }
+        method: { type: string, enum: [manual, random, hybrid] }
+        partitions:
+          type: object
+          properties:
+            train: { type: array, items: { type: string, format: uuid } }
+            val: { type: array, items: { type: string, format: uuid } }
+            test: { type: array, items: { type: string, format: uuid } }
+        ratios:
+          type: object
+          properties:
+            train: { type: number, minimum: 0, maximum: 1 }
+            val: { type: number, minimum: 0, maximum: 1 }
+            test: { type: number, minimum: 0, maximum: 1 }
+        seed: { type: integer, minimum: 0, maximum: 4294967295 }
+    SplitPreviewRequest:
+      allOf:
+        - $ref: "#/components/schemas/SplitSelection"
+        - type: object
+          required: [name]
+          properties:
+            name: { type: string, minLength: 1, maxLength: 200 }
+    SplitWrite:
+      allOf:
+        - $ref: "#/components/schemas/SplitPreviewRequest"
+        - type: object
+          required: [expected_source_revision]
+          properties:
+            expected_source_revision: { type: integer, minimum: 1 }
+    SplitUpdate:
+      allOf:
+        - $ref: "#/components/schemas/SplitWrite"
+        - type: object
+          required: [expected_revision]
+          properties:
+            expected_revision: { type: integer, minimum: 1 }
+    SplitPreviewResponse:
+      type: object
+      required: [source_revision, counts]
+      properties:
+        source_revision: { type: integer, minimum: 1 }
+        counts:
+          type: object
+          required: [all, train, val, test]
+          properties:
+            all: { type: integer, minimum: 0 }
+            train: { type: integer, minimum: 0 }
+            val: { type: integer, minimum: 0 }
+            test: { type: integer, minimum: 0 }
+    AttributeStatistics:
+      type: object
+      required: [kind, valid_count, missing_count, unsupported_count]
+      properties:
+        kind: { type: string, enum: [numeric, categorical] }
+        valid_count: { type: integer, minimum: 0 }
+        missing_count: { type: integer, minimum: 0 }
+        unsupported_count: { type: integer, minimum: 0 }
+        min: { type: number }
+        max: { type: number }
+        mean: { type: number }
+        categories:
+          type: array
+          items:
+            type: object
+            required: [value, count]
+            properties:
+              value: {}
+              count: { type: integer, minimum: 0 }
+    StatisticsScope:
+      type: object
+      required: [sample_count, attributes]
+      properties:
+        sample_count: { type: integer, minimum: 0 }
+        attributes:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/AttributeStatistics"
+    DatasetStatistics:
+      type: object
+      required: [schema_version, scopes]
+      properties:
+        schema_version: { const: 1 }
+        scopes:
+          type: object
+          required: [all, train, val, test]
+          properties:
+            all: { $ref: "#/components/schemas/StatisticsScope" }
+            train: { $ref: "#/components/schemas/StatisticsScope" }
+            val: { $ref: "#/components/schemas/StatisticsScope" }
+            test: { $ref: "#/components/schemas/StatisticsScope" }
+    SplitDetailResponse:
+      type: object
+      required: [id, name, source_id, revision, head_version, version, counts, payload, statistics, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        source_id: { type: string, format: uuid }
+        revision: { type: integer }
+        head_version: { type: integer }
+        version: { type: integer }
+        counts: { type: object, additionalProperties: { type: integer } }
+        payload: { type: object }
+        statistics: { $ref: "#/components/schemas/DatasetStatistics" }
+        created_at: { type: string, format: date-time }
