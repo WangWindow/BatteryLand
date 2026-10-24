@@ -94,6 +94,17 @@ class DeeplatformGateway:
             raise DomainError(
                 "provider_unavailable", "Training control response was unavailable"
             ) from exc
+        if (
+            not isinstance(response, dict)
+            or not isinstance(response.get("runtime"), dict)
+            or response["runtime"].get("prefix") != sys.prefix
+        ):
+            raise DomainError(
+                "needs_reconciliation"
+                if operation in {"prepare", "upload"}
+                else "provider_unavailable",
+                "Training worker environment does not match the API environment",
+            )
         if not response.get("ok"):
             error = response.get("error", {})
             raise DomainError(

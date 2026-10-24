@@ -1,5 +1,8 @@
 # Capability Contracts: 训练、调度、分析与图表
 
+环境选择条款已由[共享运行时契约](../../002-shared-training-runtime/contracts/runtime.md)覆盖；
+当前使用同一环境的独立子进程，其他能力语义保持。
+
 **Version**: 1
 **Date**: 2026-10-23
 **Provider**: deeplatform `6b4c76d6e639ddaf9db9c15bf04771179a68d988`
