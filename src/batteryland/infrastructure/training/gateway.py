@@ -1,12 +1,14 @@
 """Adapt static component operations and independently configured training workers."""
 
 import base64
+import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+import threading
 from copy import deepcopy
 from pathlib import Path
 from typing import cast
@@ -30,6 +32,8 @@ class DeeplatformGateway:
         self.runtime = settings.data_dir.resolve() / "plugins"
         self.supervisor = ProcessSupervisor()
         self.worker = TrainingRuntime(settings.training_python)
+        self._component_lock = threading.Lock()
+        self._component_snapshot: tuple[str, list[Record]] | None = None
 
     def identity(self) -> str:
         try:
@@ -128,12 +132,31 @@ class DeeplatformGateway:
             not isinstance(data, dict) or data.get("runtime") != expected_runtime
         ):
             raise DomainError(
-                "needs_reconciliation", "Prepared environment does not match the selected environment"
+                "needs_reconciliation",
+                "Prepared environment does not match the selected environment",
             )
         return data
 
     def components(self, scope: str | None = None) -> list[Record]:
-        result = cast(list[Record], self._control("inspect", {}))
+        with self._component_lock:
+            self.identity()
+            digest = hashlib.sha256()
+            try:
+                for root in (self.settings.provider_root, self.runtime):
+                    digest.update(os.fsencode(root) + b"\0")
+                    for folder in ("components", "task"):
+                        for path in sorted((root / folder).rglob("*.py")):
+                            digest.update(os.fsencode(path.relative_to(root)) + b"\0")
+                            digest.update(hashlib.sha256(path.read_bytes()).digest())
+            except OSError as exc:
+                raise DomainError(
+                    "provider_unavailable", "Component sources cannot be read"
+                ) from exc
+            fingerprint = digest.hexdigest()
+            if self._component_snapshot is None or self._component_snapshot[0] != fingerprint:
+                values = cast(list[Record], self._control("inspect", {}))
+                self._component_snapshot = (fingerprint, values)
+            result = deepcopy(self._component_snapshot[1])
         return [
             item | {"provider_commit": PROVIDER_COMMIT}
             for item in result
@@ -144,18 +167,21 @@ class DeeplatformGateway:
         return cast(Record, self._control("catalog", {"scope": scope, "type": name}))
 
     def upload(self, scope: str, filename: str, content: bytes) -> Record:
-        return cast(
-            Record,
-            self._control(
-                "upload",
-                {
-                    "scope": scope,
-                    "filename": filename,
-                    "content": base64.b64encode(content).decode(),
-                    "limit": self.settings.component_limit,
-                },
-            ),
-        )
+        with self._component_lock:
+            result = cast(
+                Record,
+                self._control(
+                    "upload",
+                    {
+                        "scope": scope,
+                        "filename": filename,
+                        "content": base64.b64encode(content).decode(),
+                        "limit": self.settings.component_limit,
+                    },
+                ),
+            )
+            self._component_snapshot = None
+            return result
 
     def _preflight(self, config: Record, resources: Record) -> None:
         mate = config.get("mate")
