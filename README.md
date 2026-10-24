@@ -20,22 +20,23 @@ bun install --frozen-lockfile
 
 ## 启动
 
-在仓库根启动后端，调度器随服务运行：
+一条命令启动后端、内置调度器和前端：
 
 ```bash
-# 使用真实数据时配置允许的来源别名
+# 使用真实数据时，先配置数据来源别名
 export BATTERYLAND_SOURCE_ROOTS='{"battery-life":"/data/BatteryLife_Processed"}'
-uv run batteryland serve --data-dir ./var --host 127.0.0.1 --port 8000
+./scripts/run.sh
 ```
 
-在另一个终端启动前端：
+打开<http://127.0.0.1:5173>，API文档位于<http://127.0.0.1:8000/docs>。Ctrl+C停止前后端。
+脚本以自身位置确定项目根目录，从其他目录调用也可运行；相对数据目录和训练解释器路径以项目根目录为基准。
+启动复用已安装依赖，不自动安装或升级。前端代理随本次后端端口自动配置。
 
 ```bash
-cd src/batteryland_ui
-bun run dev
+BATTERYLAND_BACKEND_PORT=8001 BATTERYLAND_UI_PORT=5174 ./scripts/run.sh
 ```
 
-打开<http://127.0.0.1:5173>；API文档位于<http://127.0.0.1:8000/docs>。自定义后端端口时通过`VITE_PROXY_TARGET`配置前端代理。
+通过`BATTERYLAND_DATA_DIR`指定数据目录；其他选项见`./scripts/run.sh --help`。
 
 ## 使用
 
