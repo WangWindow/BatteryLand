@@ -29,7 +29,6 @@ export const commonMessages = defineMessages({
       lazyLoadFailedDescription: "网络或资源错误导致界面模块未能加载，请重试。",
       retryLoad: "重新加载",
       skipToContent: "跳到主内容",
-      engineNote: "数据由引擎保存；调度器与前端仅通过公开 HTTP 接口通信。",
       language: "语言",
       chinese: "简体中文",
       english: "English",
@@ -138,8 +137,6 @@ export const commonMessages = defineMessages({
         "A network or resource error prevented the interface module from loading. Please retry.",
       retryLoad: "Reload",
       skipToContent: "Skip to main content",
-      engineNote:
-        "Data is owned by the engine; the scheduler and UI communicate only through public HTTP APIs.",
       language: "Language",
       chinese: "简体中文",
       english: "English",

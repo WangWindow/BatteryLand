@@ -16,11 +16,12 @@ import { endpoints } from "@/api/endpoints"
 import type { Template } from "@/api/models"
 import { ConfirmButton } from "@/components/confirm-button"
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state"
-import { JsonEditor, type JsonEditorState, parseJsonObject } from "@/components/json-editor"
+import { type JsonEditorState, parseJsonObject } from "@/components/json-editor"
 import { PageHeader } from "@/components/page-header"
 import { PaginationControls } from "@/components/pagination-controls"
+import { TrainingConfigEditor } from "@/components/training-config-editor"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -168,7 +169,6 @@ export function TemplatesPage() {
     <>
       <PageHeader
         title={t("templates.title")}
-        description={t("templates.description")}
         actions={
           <>
             <Dialog open={importOpen} onOpenChange={setImportOpen}>
@@ -181,7 +181,9 @@ export function TemplatesPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{t("templates.importTitle")}</DialogTitle>
-                  <DialogDescription>{t("templates.importDescription")}</DialogDescription>
+                  <DialogDescription className="sr-only">
+                    {t("templates.importDescription")}
+                  </DialogDescription>
                 </DialogHeader>
                 <FieldGroup>
                   <Field>
@@ -228,7 +230,6 @@ export function TemplatesPage() {
       <Card>
         <CardHeader>
           <CardTitle>{t("templates.catalogTitle")}</CardTitle>
-          <CardDescription>{t("templates.catalogDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <form
@@ -364,7 +365,7 @@ export function TemplatesPage() {
             <DialogTitle>
               {editing ? t("templates.editTitle") : t("templates.createTitle")}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="sr-only">
               {editing
                 ? t("templates.editDescription", { revision: editing.revision })
                 : t("templates.createDescription")}
@@ -384,12 +385,10 @@ export function TemplatesPage() {
             {loadingConfig ? (
               <LoadingState rows={5} />
             ) : (
-              <JsonEditor
-                label={t("templates.nativeConfig")}
+              <TrainingConfigEditor
                 value={config}
                 onChange={setConfig}
-                rows={18}
-                description={t("templates.nativeConfigDescription")}
+                rawLabel={t("templates.nativeConfig")}
               />
             )}
             {error ? <FieldError>{error}</FieldError> : null}

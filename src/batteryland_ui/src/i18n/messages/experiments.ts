@@ -4,8 +4,7 @@ export const experimentsMessages = defineMessages({
   zh: {
     experiments: {
       title: "实验",
-      description:
-        "管理实验草稿、模板绑定、执行校验和队列提交。入队后输入冻结，终止的实验必须复制为新草稿后才能再次执行。",
+
       importExperiment: "导入实验",
       importTitle: "导入实验配置",
       importDescription: "选择 YAML/JSON 配置并填写版本化绑定引用；导入只创建草稿。",
@@ -20,7 +19,7 @@ export const experimentsMessages = defineMessages({
       importDraft: "导入草稿",
       newExperiment: "新建实验",
       listTitle: "实验列表",
-      listDescription: "提交后由独立 scheduler 读取队列并调用派发接口；停止状态以引擎确认为准。",
+
       nameFilter: "名称",
       stateFilter: "状态",
       allStates: "全部状态",
@@ -57,16 +56,12 @@ export const experimentsMessages = defineMessages({
         editTitle: "编辑实验草稿",
         createTitle: "新建实验草稿",
         editDescription: "当前修订 {{revision}}；仅草稿可编辑，入队后输入冻结。",
-        createDescription: "选择模板或直接填写原生配置；创建后保存与执行校验分离。",
+        createDescription: "选择模板并设置运行参数。",
         name: "名称",
-        kind: "类型",
-        kindTrain: "训练",
-        kindEvaluate: "评估",
-        kindTransfer: "迁移",
-        kindLimitation: "评估与迁移执行入口仍受 provider 能力限制。",
+
         fillFromTemplate: "从模板填充",
         noTemplate: "不使用模板",
-        templateHint: "选择模板会把配置快照复制到草稿。",
+
         partitionCounts: "训练 {{train}} / 验证 {{val}} / 测试 {{test}}",
         validationSplit: "验证划分",
         dataSplit: "数据划分",
@@ -75,8 +70,7 @@ export const experimentsMessages = defineMessages({
         checkpoint: "预训练权重",
         notBound: "不绑定",
         nativeConfig: "原生配置",
-        nativeConfigDescription:
-          "设备必须在 mate.device 中显式指定 cpu 或 cuda:N；不接受 auto。创建后保存与执行校验分离。",
+
         validationPassed: "执行校验通过",
         validationFailed: "执行校验未通过",
         backendValidation: "后端校验",
@@ -92,7 +86,7 @@ export const experimentsMessages = defineMessages({
       },
       messages: {
         selectDrafts: "请选择草稿实验",
-        submitted: "已提交 {{count}} 个实验；等待独立调度器派发",
+        submitted: "已提交 {{count}} 个实验",
         stopAccepted: "停止请求已受理：{{state}}",
         copied: "已复制为草稿「{{name}}」",
         validationPassed: "执行校验通过",
@@ -107,8 +101,7 @@ export const experimentsMessages = defineMessages({
   en: {
     experiments: {
       title: "Experiments",
-      description:
-        "Manage experiment drafts, template bindings, execution validation, and queue submissions. Inputs freeze after submission; terminal experiments must be copied into a new draft before running again.",
+
       importExperiment: "Import experiment",
       importTitle: "Import experiment configuration",
       importDescription:
@@ -124,8 +117,7 @@ export const experimentsMessages = defineMessages({
       importDraft: "Import draft",
       newExperiment: "New experiment",
       listTitle: "Experiment list",
-      listDescription:
-        "After submission the external scheduler reads the queue and calls the dispatch API; stop state is authoritative only once confirmed by the engine.",
+
       nameFilter: "Name",
       stateFilter: "State",
       allStates: "All states",
@@ -166,14 +158,10 @@ export const experimentsMessages = defineMessages({
         createDescription:
           "Fill from a template or edit native configuration directly; saving and execution validation are separate.",
         name: "Name",
-        kind: "Kind",
-        kindTrain: "Training",
-        kindEvaluate: "Evaluation",
-        kindTransfer: "Transfer",
-        kindLimitation: "Evaluation and transfer execution remains limited by provider capability.",
+
         fillFromTemplate: "Fill from template",
         noTemplate: "Do not use a template",
-        templateHint: "Choosing a template copies its configuration snapshot into the draft.",
+
         partitionCounts: "train {{train}} / val {{val}} / test {{test}}",
         validationSplit: "Validation split",
         dataSplit: "Data split",
@@ -182,8 +170,7 @@ export const experimentsMessages = defineMessages({
         checkpoint: "Pretrained weights",
         notBound: "Not bound",
         nativeConfig: "Native configuration",
-        nativeConfigDescription:
-          "Device must be explicit cpu or cuda:N in mate.device; auto is rejected. Saving and execution validation are separate.",
+
         validationPassed: "Execution validation passed",
         validationFailed: "Execution validation failed",
         backendValidation: "Backend validation",
@@ -199,7 +186,7 @@ export const experimentsMessages = defineMessages({
       },
       messages: {
         selectDrafts: "Select draft experiments",
-        submitted: "Submitted {{count}} experiments; waiting for the external scheduler",
+        submitted: "Submitted {{count}} experiments",
         stopAccepted: "Stop request accepted: {{state}}",
         copied: 'Copied as draft "{{name}}"',
         validationPassed: "Execution validation passed",

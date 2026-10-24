@@ -4,12 +4,11 @@ export const comparisonMessages = defineMessages({
   zh: {
     compare: {
       title: "结果比较",
-      description:
-        "比较已完成实验的指标、轮次曲线和预测真值，或比较多个电池集合的数量、重叠与分类分布。图表全部在浏览器绘制，缺失值不补零，未知单位分面展示。",
+
       exportJson: "导出 JSON",
       exportCsv: "导出 CSV",
       selectTitle: "选择实验",
-      selectDescription: "仅列出已完成实验；已选 {{count}} 个。",
+
       nameFilter: "名称",
       search: "检索",
       removeExperiment: "移除实验",
@@ -31,16 +30,15 @@ export const comparisonMessages = defineMessages({
       },
       selectExperiment: "选择 {{name}}",
       dataTitle: "比较数据",
-      dataDescription: "指标保留阶段、单位、粒度与实验身份；预测中的缺失真值显示为不可用。",
+
       refresh: "刷新",
       noSelectionTitle: "尚未选择实验",
       noSelectionDescription: "勾选上方实验后自动读取比较数据。",
       chartTitle: "图表",
-      chartDescription: "六种图型由后端返回声明式 ChartBundle，绘图库仅在生成图表后按需加载。",
+
       chartType: "图型",
       metric: "指标",
-      metricPlaceholder: "如 mape",
-      metricHint: "来自已选实验的真实指标名称。",
+
       stage: "阶段",
       scatterHint: "散点图只为同时存在预测和真值的电池绘图；没有真值时后端返回明确错误。",
       category: "分类",
@@ -93,12 +91,11 @@ export const comparisonMessages = defineMessages({
   en: {
     compare: {
       title: "Result comparison",
-      description:
-        "Compare metrics, epoch curves, and prediction ground truth across completed experiments, or compare battery counts, overlaps, and category distributions across sets. All charts render in the browser, missing values are never zero-filled, and unknown units are faceted.",
+
       exportJson: "Export JSON",
       exportCsv: "Export CSV",
       selectTitle: "Select experiments",
-      selectDescription: "Only completed experiments are listed; {{count}} selected.",
+
       nameFilter: "Name",
       search: "Search",
       removeExperiment: "Remove experiment",
@@ -121,18 +118,15 @@ export const comparisonMessages = defineMessages({
       },
       selectExperiment: "Select {{name}}",
       dataTitle: "Comparison data",
-      dataDescription:
-        "Metrics preserve stage, unit, granularity, and experiment identity; missing ground truth is shown as unavailable.",
+
       refresh: "Refresh",
       noSelectionTitle: "No experiments selected",
       noSelectionDescription: "Select experiments above to load comparison data automatically.",
       chartTitle: "Charts",
-      chartDescription:
-        "The backend returns six declarative ChartBundle types, and the charting library loads only after a chart is generated.",
+
       chartType: "Chart type",
       metric: "Metric",
-      metricPlaceholder: "e.g. mape",
-      metricHint: "Real metric names from the selected experiments.",
+
       stage: "Stage",
       scatterHint:
         "Scatter charts only plot batteries that have both predictions and ground truth; the backend returns an explicit error when none exist.",

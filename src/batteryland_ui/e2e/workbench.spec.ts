@@ -95,8 +95,10 @@ test("browser workbench drives resources, configuration, execution, logs, result
   await page.getByRole("button", { name: "登记来源" }).click()
   let dialog = page.getByRole("dialog")
   await dialog.locator("#source-name").fill("E2E source")
-  await dialog.locator("#source-alias").fill("demo")
+  await dialog.locator("#source-alias").click()
+  await page.getByRole("option", { name: "demo", exact: true }).click()
   await dialog.getByRole("button", { name: "登记", exact: true }).click()
+  await page.getByText("管理来源", { exact: true }).click()
   await expect(page.getByRole("cell", { name: "E2E source" })).toBeVisible()
 
   await page.getByRole("button", { name: "导入清单" }).click()
@@ -111,11 +113,12 @@ test("browser workbench drives resources, configuration, execution, logs, result
       "utf8",
     ),
   })
-  await expect(dialog.getByText("6 条电池")).toBeVisible()
+  await expect(dialog.getByText(/6 条电池/)).toBeVisible()
   await dialog.getByRole("button", { name: "开始导入" }).click()
   await expect(dialog.getByText(/新增 6/)).toBeVisible()
   await dialog.getByRole("button", { name: "关闭" }).last().click()
   await expect(page.getByRole("cell", { name: "cell-a.pkl" })).toBeVisible()
+  await page.screenshot({ path: "/tmp/batteryland-resources-004.png", fullPage: true })
 
   // Create a manual split using the real battery picker.
   await page.getByRole("link", { name: "数据划分" }).click()
@@ -134,6 +137,7 @@ test("browser workbench drives resources, configuration, execution, logs, result
   await page.getByRole("button", { name: "新建模板" }).first().click()
   dialog = page.getByRole("dialog")
   await dialog.locator("#template-name").fill("E2E template")
+  await dialog.getByText("高级配置", { exact: true }).click()
   await dialog.getByLabel("原生配置").fill(JSON.stringify(CONFIG, null, 2))
   await dialog.getByRole("button", { name: "创建模板" }).click()
   await expect(page.getByRole("cell", { name: "E2E template" })).toBeVisible()
@@ -143,9 +147,11 @@ test("browser workbench drives resources, configuration, execution, logs, result
   await page.getByRole("button", { name: "新建实验" }).first().click()
   dialog = page.getByRole("dialog")
   await dialog.locator("#experiment-name").fill("E2E first")
+  await page.screenshot({ path: "/tmp/batteryland-form-004.png" })
   await dialog.getByLabel("从模板填充").click()
   await page.getByRole("option", { name: /E2E template/ }).click()
-  await expect(dialog.getByLabel("原生配置")).toHaveValue(/duration/, { timeout: 10_000 })
+  await expect(dialog.getByLabel("随机种子")).toHaveValue("42", { timeout: 10_000 })
+  await expect(dialog.getByLabel("原生配置")).toHaveCount(0)
   await dialog.getByLabel("数据划分").click()
   await page.getByRole("option", { name: /E2E split/ }).click()
   await dialog.getByRole("button", { name: "创建草稿" }).click()
@@ -195,19 +201,23 @@ test("browser workbench drives resources, configuration, execution, logs, result
   await expect(page.getByRole("heading", { name: "结果比较" })).toBeVisible()
   await page.getByRole("checkbox", { name: "选择 E2E first", exact: true }).check()
   await page.getByRole("checkbox", { name: "选择 E2E first copy", exact: true }).check()
+  await page.getByText("数据明细", { exact: true }).click()
   await expect(page.getByText(/指标行（\d+）/)).toBeVisible({ timeout: 20_000 })
+  await page.getByText("数据明细", { exact: true }).click()
   expect(visualizerRequests).toHaveLength(0)
 
-  await page.locator("#chart-metric").fill("mape")
+  await page.locator("#chart-metric").click()
+  await page.getByRole("option", { name: "mape", exact: true }).click()
   await page.getByRole("button", { name: "生成图表" }).click()
   await expect(page.locator(".recharts-surface").first()).toBeVisible({ timeout: 20_000 })
   expect(visualizerRequests.length).toBeGreaterThan(0)
 
   await page.locator("#chart-type").click()
   await page.getByRole("option", { name: "轮次曲线" }).click()
-  await page.locator("#chart-metric").fill("mape")
   await page.locator("#chart-stage").click()
   await page.getByRole("option", { name: "验证" }).click()
+  await page.locator("#chart-metric").click()
+  await page.getByRole("option", { name: "mape", exact: true }).click()
   await page.getByRole("button", { name: "生成图表" }).click()
   await expect(page.getByText(/validation mape/).first()).toBeVisible({ timeout: 20_000 })
 
@@ -262,6 +272,7 @@ test("browser can stop a real running execution and observe the terminal state",
     ...CONFIG,
     mate: { ...CONFIG.mate, duration: 30 },
   }
+  await dialog.getByText("高级配置", { exact: true }).click()
   await dialog.getByLabel("原生配置").fill(JSON.stringify(longRunning, null, 2))
   await dialog.getByRole("button", { name: "创建草稿" }).click()
   const row = page
@@ -285,7 +296,8 @@ test("lazy chart module failure shows a localized recoverable error", async ({ p
   await page.route("**/src/visualizer/**", (route) => route.abort())
   await page.goto("/compare")
   await page.getByRole("checkbox", { name: "选择 E2E first", exact: true }).check()
-  await page.locator("#chart-metric").fill("mape")
+  await page.locator("#chart-metric").click()
+  await page.getByRole("option", { name: "mape", exact: true }).click()
   await page.getByRole("button", { name: "生成图表" }).click()
   await expect(page.getByText("模块加载失败")).toBeVisible({ timeout: 20_000 })
   await expect(page.getByRole("button", { name: "重新加载" })).toBeVisible()

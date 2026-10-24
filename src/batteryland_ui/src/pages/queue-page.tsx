@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/page-header"
 import { StatusBadge } from "@/components/status-badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -41,7 +41,6 @@ export function QueuePage() {
     <>
       <PageHeader
         title={t("queue.title")}
-        description={t("queue.description")}
         actions={
           <Button variant="outline" onClick={queue.refresh}>
             <RefreshCwIcon data-icon="inline-start" />
@@ -71,7 +70,6 @@ export function QueuePage() {
               <ListOrderedIcon aria-hidden="true" className="size-4" />
               {t("queue.waitingTitle", { count: queue.data?.waiting.length ?? 0 })}
             </CardTitle>
-            <CardDescription>{t("queue.waitingDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             {queue.data && queue.data.waiting.length === 0 ? (
@@ -129,7 +127,6 @@ export function QueuePage() {
             <CardTitle>
               {t("queue.activeTitle", { count: queue.data?.active.length ?? 0 })}
             </CardTitle>
-            <CardDescription>{t("queue.activeDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {queue.data && queue.data.active.length === 0 ? (
@@ -186,20 +183,6 @@ export function QueuePage() {
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("queue.schedulerTitle")}</CardTitle>
-          <CardDescription>{t("queue.schedulerDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 text-sm text-muted-foreground">
-          <p>{t("queue.schedulerStart")}</p>
-          <pre className="overflow-x-auto rounded-md border bg-muted/40 p-3 font-mono text-xs">
-            {t("queue.schedulerCommand")}
-          </pre>
-          <p>{t("queue.schedulerReplace")}</p>
-        </CardContent>
-      </Card>
     </>
   )
 }

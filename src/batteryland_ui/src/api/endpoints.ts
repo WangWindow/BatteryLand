@@ -32,6 +32,8 @@ function paging({ page = 1, pageSize = 50 }: ListParams) {
 
 export const endpoints = {
   sources: {
+    options: (signal?: AbortSignal) =>
+      api.get<Schema["SourceOption"][]>("/data-sources/options", signal),
     list: (params: ListParams, signal?: AbortSignal) =>
       api.get<Page<DataSource>>(`/data-sources${queryString(paging(params))}`, signal),
     create: (body: Schema["DataSourceWrite"]) => api.post<DataSource>("/data-sources", body),
@@ -215,6 +217,18 @@ export const endpoints = {
     capabilities: (signal?: AbortSignal) => api.get<Capability[]>("/capabilities", signal),
   },
   results: {
+    metricNames: async (id: string, stage: string, signal?: AbortSignal) => {
+      const names = new Set<string>()
+      for (let page = 1; ; page++) {
+        const result = await api.get<Page<Schema["Metric"]>>(
+          `/experiments/${id}/metrics${queryString({ stage, page, page_size: 200 })}`,
+          signal,
+        )
+        for (const row of result.items) names.add(row.name)
+        if (page * result.page_size >= result.total || !result.items.length) break
+      }
+      return [...names]
+    },
     get: (id: string, signal?: AbortSignal) =>
       api.get<Result>(`/experiments/${id}/results`, signal),
     artifacts: (id: string, signal?: AbortSignal) =>

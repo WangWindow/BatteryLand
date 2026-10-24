@@ -4,8 +4,7 @@ export const splitsMessages = defineMessages({
   zh: {
     splits: {
       title: "数据划分",
-      description:
-        "创建、修订、导入和导出可追溯的训练/验证/测试划分。手动模式必须分配全部成员；随机与混合模式使用固定种子并阻止相关电池跨集合泄漏。",
+
       importSplit: "导入划分",
       importTitle: "导入划分",
       importDescription:
@@ -16,7 +15,7 @@ export const splitsMessages = defineMessages({
       importLimit: "最大 1 MiB；未知文件名会返回明确错误。",
       newSplit: "新建划分",
       listTitle: "划分列表",
-      listDescription: "修订号用于并发保护；每次保存生成新文档版本，旧版本仍可按版本查询和导出。",
+
       sourceFilter: "来源",
       nameFilter: "名称",
       search: "检索",
@@ -100,8 +99,7 @@ export const splitsMessages = defineMessages({
   en: {
     splits: {
       title: "Data splits",
-      description:
-        "Create, revise, import, and export traceable train/validation/test splits. Manual mode must assign every member; random and hybrid modes use a fixed seed and prevent related batteries from crossing partitions.",
+
       importSplit: "Import split",
       importTitle: "Import split",
       importDescription:
@@ -112,8 +110,7 @@ export const splitsMessages = defineMessages({
       importLimit: "Maximum 1 MiB; unknown file names produce an explicit error.",
       newSplit: "New split",
       listTitle: "Split list",
-      listDescription:
-        "Revisions protect concurrent edits; each save publishes a new document version, while older versions remain queryable and exportable.",
+
       sourceFilter: "Source",
       nameFilter: "Name",
       search: "Search",

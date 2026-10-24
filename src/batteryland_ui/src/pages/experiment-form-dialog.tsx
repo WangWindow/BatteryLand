@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { errorMessage, fieldErrors } from "@/api/client"
 import { endpoints } from "@/api/endpoints"
 import type { Artifact, Experiment, Split, Template, Validation } from "@/api/models"
+import { AdvancedSection } from "@/components/advanced-section"
 import { LoadingState } from "@/components/data-state"
-import { JsonEditor, type JsonEditorState, parseJsonObject } from "@/components/json-editor"
+import { type JsonEditorState, parseJsonObject } from "@/components/json-editor"
+import { TrainingConfigEditor } from "@/components/training-config-editor"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -108,8 +110,11 @@ export function ExperimentFormDialog({
   const [bindings, setBindings] = useState<BindingState>(EMPTY_BINDINGS)
   const [pending, setPending] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [templateLoading, setTemplateLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fields, setFields] = useState<Record<string, string>>({})
+  const templateRequest = useRef<AbortController | null>(null)
+  const [currentRevision, setCurrentRevision] = useState(editing?.revision ?? 1)
   const [validation, setValidation] = useState<Validation | null>(null)
   const { t } = useTranslation()
 
@@ -133,6 +138,9 @@ export function ExperimentFormDialog({
     if (!open) {
       return
     }
+    templateRequest.current?.abort()
+    setTemplateLoading(false)
+    const controller = new AbortController()
     setError(null)
     setFields({})
     setValidation(null)
@@ -142,29 +150,45 @@ export function ExperimentFormDialog({
       setConfig(parseJsonObject(JSON.stringify(DEFAULT_CONFIG, null, 2)))
       setBindings(EMPTY_BINDINGS)
       setLoading(false)
-      return
+      return () => templateRequest.current?.abort()
     }
     setName(editing.name)
     setKind((editing.kind as "train" | "evaluate" | "transfer") ?? "train")
     setBindings(bindingsFromExperiment(editing))
     setLoading(true)
     endpoints.experiments
-      .get(editing.id)
+      .get(editing.id, controller.signal)
       .then((detail) => {
+        if (controller.signal.aborted) return
+        setCurrentRevision(detail.revision)
         setConfig(parseJsonObject(JSON.stringify(detail.native_config ?? {}, null, 2)))
         setName(detail.name)
         setKind((detail.kind as "train" | "evaluate" | "transfer") ?? "train")
         setBindings(bindingsFromExperiment(detail))
       })
-      .catch((failure: unknown) => setError(errorMessage(failure)))
-      .finally(() => setLoading(false))
+      .catch((failure: unknown) => {
+        if (!controller.signal.aborted) setError(errorMessage(failure))
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => {
+      controller.abort()
+      templateRequest.current?.abort()
+    }
   }, [open, editing])
 
   async function chooseTemplate(templateId: string) {
+    templateRequest.current?.abort()
+    setTemplateLoading(false)
+    const controller = new AbortController()
+    templateRequest.current = controller
     if (templateId === "none") {
       setBindings((current) => ({ ...current, templateId: "", templateVersion: null }))
       return
     }
+    const previous = { templateId: bindings.templateId, templateVersion: bindings.templateVersion }
+    setTemplateLoading(true)
     const template = templates.data?.items.find((item) => item.id === templateId)
     setBindings((current) => ({
       ...current,
@@ -172,13 +196,22 @@ export function ExperimentFormDialog({
       templateVersion: template?.version ?? null,
     }))
     try {
-      const detail = await endpoints.templates.get(templateId)
+      const detail = await endpoints.templates.get(templateId, template?.version, controller.signal)
+      if (controller.signal.aborted) return
       setConfig(parseJsonObject(JSON.stringify(detail.native_config ?? {}, null, 2)))
-      if (!name.trim() && detail.name) {
-        setName(t("experiments.form.templateExperimentName", { name: detail.name }))
-      }
+      if (detail.name)
+        setName((current) =>
+          current.trim()
+            ? current
+            : t("experiments.form.templateExperimentName", { name: detail.name }),
+        )
     } catch (failure) {
-      setError(errorMessage(failure))
+      if (!controller.signal.aborted) {
+        setError(errorMessage(failure))
+        setBindings((current) => ({ ...current, ...previous }))
+      }
+    } finally {
+      if (!controller.signal.aborted) setTemplateLoading(false)
     }
   }
 
@@ -218,7 +251,7 @@ export function ExperimentFormDialog({
       if (editing) {
         await endpoints.experiments.update(editing.id, {
           ...payload,
-          expected_revision: editing.revision,
+          expected_revision: currentRevision,
         })
         toast.success(t("experiments.form.messages.saved"))
       } else {
@@ -261,12 +294,12 @@ export function ExperimentFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {editing ? t("experiments.form.editTitle") : t("experiments.form.createTitle")}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="sr-only">
             {editing
               ? t("experiments.form.editDescription", { revision: editing.revision })
               : t("experiments.form.createDescription")}
@@ -287,25 +320,7 @@ export function ExperimentFormDialog({
                 />
                 <FieldError>{fields.name}</FieldError>
               </Field>
-              <Field>
-                <FieldLabel htmlFor="experiment-kind">{t("experiments.form.kind")}</FieldLabel>
-                <Select
-                  value={kind}
-                  onValueChange={(value: "train" | "evaluate" | "transfer") => setKind(value)}
-                >
-                  <SelectTrigger id="experiment-kind">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="train">{t("experiments.form.kindTrain")}</SelectItem>
-                      <SelectItem value="evaluate">{t("experiments.form.kindEvaluate")}</SelectItem>
-                      <SelectItem value="transfer">{t("experiments.form.kindTransfer")}</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <FieldDescription>{t("experiments.form.kindLimitation")}</FieldDescription>
-              </Field>
+
               <Field>
                 <FieldLabel htmlFor="experiment-template">
                   {t("experiments.form.fillFromTemplate")}
@@ -331,7 +346,6 @@ export function ExperimentFormDialog({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-                <FieldDescription>{t("experiments.form.templateHint")}</FieldDescription>
               </Field>
               <Field>
                 <FieldLabel htmlFor="experiment-split">
@@ -389,7 +403,10 @@ export function ExperimentFormDialog({
                             <SelectItem key={split.id} value={split.id}>
                               {t("common.versionedName", {
                                 name: split.name,
-                                version: split.version,
+                                version:
+                                  split.id === bindings.splitId
+                                    ? (bindings.splitVersion ?? split.version)
+                                    : split.version,
                               })}
                             </SelectItem>
                           ))}
@@ -417,7 +434,10 @@ export function ExperimentFormDialog({
                             <SelectItem key={split.id} value={split.id}>
                               {t("common.versionedName", {
                                 name: split.name,
-                                version: split.version,
+                                version:
+                                  split.id === bindings.splitId
+                                    ? (bindings.splitVersion ?? split.version)
+                                    : split.version,
                               })}
                             </SelectItem>
                           ))}
@@ -427,6 +447,13 @@ export function ExperimentFormDialog({
                   </Field>
                 </>
               ) : null}
+            </div>
+            <TrainingConfigEditor
+              value={config}
+              onChange={setConfig}
+              rawLabel={t("experiments.form.nativeConfig")}
+            />
+            <AdvancedSection label={t("workbench.additionalBindings")}>
               <Field>
                 <FieldLabel htmlFor="experiment-checkpoint">
                   {t("experiments.form.checkpoint")}
@@ -455,14 +482,7 @@ export function ExperimentFormDialog({
                   </SelectContent>
                 </Select>
               </Field>
-            </div>
-            <JsonEditor
-              label={t("experiments.form.nativeConfig")}
-              value={config}
-              onChange={setConfig}
-              rows={20}
-              description={t("experiments.form.nativeConfigDescription")}
-            />
+            </AdvancedSection>
             {error ? <FieldError>{error}</FieldError> : null}
             {Object.entries(fields).length > 0 ? (
               <ul className="list-disc pl-5 text-sm text-destructive">
@@ -515,7 +535,10 @@ export function ExperimentFormDialog({
               {t("experiments.form.backendValidation")}
             </Button>
           ) : null}
-          <Button onClick={save} disabled={pending || loading || Boolean(config.error)}>
+          <Button
+            onClick={save}
+            disabled={pending || loading || templateLoading || Boolean(config.error)}
+          >
             {pending
               ? t("common.saving")
               : editing

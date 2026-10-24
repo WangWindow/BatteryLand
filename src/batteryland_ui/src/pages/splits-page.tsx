@@ -19,7 +19,7 @@ import { PageHeader } from "@/components/page-header"
 import { PaginationControls } from "@/components/pagination-controls"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
@@ -410,7 +410,6 @@ export function SplitsPage() {
     <>
       <PageHeader
         title={t("splits.title")}
-        description={t("splits.description")}
         actions={
           <>
             <Dialog open={importOpen} onOpenChange={setImportOpen}>
@@ -423,7 +422,9 @@ export function SplitsPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{t("splits.importTitle")}</DialogTitle>
-                  <DialogDescription>{t("splits.importDescription")}</DialogDescription>
+                  <DialogDescription className="sr-only">
+                    {t("splits.importDescription")}
+                  </DialogDescription>
                 </DialogHeader>
                 <FieldGroup>
                   <Field>
@@ -475,7 +476,6 @@ export function SplitsPage() {
       <Card>
         <CardHeader>
           <CardTitle>{t("splits.listTitle")}</CardTitle>
-          <CardDescription>{t("splits.listDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <form
@@ -647,7 +647,7 @@ export function SplitsPage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>{editing ? t("splits.editTitle") : t("splits.createTitle")}</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="sr-only">
               {editing
                 ? t("splits.editDescription", { revision: editing.revision })
                 : t("splits.createDescription")}
@@ -916,7 +916,9 @@ export function SplitsPage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{detail?.name ?? t("splits.detailTitle")}</DialogTitle>
-            <DialogDescription>{t("splits.detailDescription")}</DialogDescription>
+            <DialogDescription className="sr-only">
+              {t("splits.detailDescription")}
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap items-end gap-2">
             <Field className="w-40">

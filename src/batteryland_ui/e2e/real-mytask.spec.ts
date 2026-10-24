@@ -8,15 +8,17 @@ const REAL_CONFIG = {
 
 test.skip(
   process.env.E2E_REAL_TRAINING !== "1",
-  "Requires deeplatform, CALCE-independent MyTask runtime and an external scheduler",
+  "Requires deeplatform, CALCE-independent MyTask runtime and an integrated scheduler",
 )
 
-test("browser MyTask runs through the real provider and external scheduler", async ({ page }) => {
+test("browser MyTask runs through the real provider and integrated scheduler", async ({ page }) => {
   test.setTimeout(180_000)
   await page.goto("/experiments")
   await page.getByRole("button", { name: "新建实验" }).first().click()
   const dialog = page.getByRole("dialog")
   await dialog.locator("#experiment-name").fill("Real browser MyTask")
+  await expect(dialog.getByLabel("原生配置")).toHaveCount(0)
+  await dialog.getByText("高级配置", { exact: true }).click()
   await dialog.getByLabel("原生配置").fill(JSON.stringify(REAL_CONFIG, null, 2))
   await dialog.getByRole("button", { name: "创建草稿" }).click()
 

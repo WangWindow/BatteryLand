@@ -79,7 +79,7 @@ function Navigation({ compact = false }: { compact?: boolean }) {
 export function AppShell() {
   const { t } = useTranslation()
   return (
-    <div className="min-h-svh md:grid md:grid-cols-[15.5rem_minmax(0,1fr)]">
+    <div className="min-h-svh md:grid md:grid-cols-[13rem_minmax(0,1fr)]">
       <a
         href="#main-content"
         className="sr-only rounded-md bg-primary px-3 py-2 text-primary-foreground focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50"
@@ -100,7 +100,6 @@ export function AppShell() {
           <Navigation />
         </div>
         <div className="flex flex-col gap-3 border-t px-4 py-3">
-          <p className="text-xs leading-relaxed text-muted-foreground">{t("common.engineNote")}</p>
           <LanguageSwitcher />
         </div>
       </aside>
@@ -121,7 +120,7 @@ export function AppShell() {
         </header>
         <main
           id="main-content"
-          className="mx-auto flex w-full max-w-[100rem] flex-col gap-6 p-4 sm:p-6 lg:p-8"
+          className="mx-auto flex w-full max-w-[88rem] flex-col gap-5 p-4 sm:p-6 lg:p-7"
         >
           <Outlet />
         </main>

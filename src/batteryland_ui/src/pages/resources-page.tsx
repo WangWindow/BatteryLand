@@ -5,11 +5,13 @@ import { toast } from "sonner"
 import { errorMessage, fieldErrors } from "@/api/client"
 import { endpoints } from "@/api/endpoints"
 import type { Battery, DataSource, ImportReport } from "@/api/models"
+import { AdvancedSection } from "@/components/advanced-section"
+import { ChoiceField } from "@/components/choice-field"
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state"
 import { PageHeader } from "@/components/page-header"
 import { PaginationControls } from "@/components/pagination-controls"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -130,6 +132,10 @@ export function ResourcesPage() {
   const [pending, setPending] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const sourceOptions = useApiQuery((signal) => endpoints.sources.options(signal), [sourceDialog], {
+    enabled: sourceDialog,
+  })
+
   const sources = useApiQuery(
     (signal) => endpoints.sources.list({ page: sourcePage, pageSize: 100 }, signal),
     [sourcePage],
@@ -246,7 +252,6 @@ export function ResourcesPage() {
     <>
       <PageHeader
         title={t("resources.title")}
-        description={t("resources.description")}
         actions={
           <Dialog open={sourceDialog} onOpenChange={setSourceDialog}>
             <DialogTrigger asChild>
@@ -258,7 +263,9 @@ export function ResourcesPage() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{t("resources.sourceDialogTitle")}</DialogTitle>
-                <DialogDescription>{t("resources.sourceDialogDescription")}</DialogDescription>
+                <DialogDescription className="sr-only">
+                  {t("resources.sourceDialogDescription")}
+                </DialogDescription>
               </DialogHeader>
               <FieldGroup>
                 <Field data-invalid={Boolean(sourceFields.name)}>
@@ -271,17 +278,23 @@ export function ResourcesPage() {
                   />
                   <FieldError>{sourceFields.name}</FieldError>
                 </Field>
-                <Field data-invalid={Boolean(sourceFields.root_alias)}>
-                  <FieldLabel htmlFor="source-alias">{t("resources.alias")}</FieldLabel>
-                  <Input
-                    id="source-alias"
-                    value={rootAlias}
-                    placeholder={t("resources.aliasPlaceholder")}
-                    aria-invalid={Boolean(sourceFields.root_alias)}
-                    onChange={(event) => setRootAlias(event.target.value)}
-                  />
-                  <FieldDescription>{t("resources.aliasExample")}</FieldDescription>
-                </Field>
+                <ChoiceField
+                  id="source-alias"
+                  label={t("resources.alias")}
+                  value={rootAlias}
+                  options={(sourceOptions.data ?? []).map((option) => ({
+                    value: option.root_alias,
+                    label: option.root_alias,
+                  }))}
+                  onChange={setRootAlias}
+                  placeholder={t("resources.chooseSource")}
+                />
+                {sourceOptions.error ? (
+                  <ErrorState error={sourceOptions.error} onRetry={sourceOptions.refresh} />
+                ) : null}
+                {sourceOptions.data?.length === 0 ? (
+                  <FieldError>{t("workbench.noSourceOptions")}</FieldError>
+                ) : null}
                 {sourceError ? <FieldError>{sourceError}</FieldError> : null}
               </FieldGroup>
               <DialogFooter>
@@ -297,60 +310,60 @@ export function ResourcesPage() {
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("resources.sourcesTitle")}</CardTitle>
-          <CardDescription>{t("resources.sourcesDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {sources.loading && sources.data === undefined ? <LoadingState rows={2} /> : null}
-          {sources.error ? <ErrorState error={sources.error} onRetry={sources.refresh} /> : null}
-          {sources.data && sourceItems.length === 0 ? (
-            <EmptyState
-              title={t("resources.emptySourcesTitle")}
-              description={t("resources.emptySourcesDescription")}
-            />
-          ) : null}
-          {sourceItems.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("resources.columns.name")}</TableHead>
-                  <TableHead>{t("resources.columns.alias")}</TableHead>
-                  <TableHead>{t("resources.columns.availability")}</TableHead>
-                  <TableHead>{t("resources.columns.revision")}</TableHead>
-                  <TableHead>{t("resources.columns.createdAt")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sourceItems.map((source: DataSource) => (
-                  <TableRow key={source.id}>
-                    <TableCell className="font-medium">{source.name}</TableCell>
-                    <TableCell className="font-mono text-xs">{source.root_alias}</TableCell>
-                    <TableCell>{enumLabel(source.availability, "availability")}</TableCell>
-                    <TableCell>{source.revision}</TableCell>
-                    <TableCell>{formatDate(source.created_at)}</TableCell>
+      <AdvancedSection label={t("workbench.sourceSettings")}>
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("resources.sourcesTitle")}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {sources.loading && sources.data === undefined ? <LoadingState rows={2} /> : null}
+            {sources.error ? <ErrorState error={sources.error} onRetry={sources.refresh} /> : null}
+            {sources.data && sourceItems.length === 0 ? (
+              <EmptyState
+                title={t("resources.emptySourcesTitle")}
+                description={t("resources.emptySourcesDescription")}
+              />
+            ) : null}
+            {sourceItems.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("resources.columns.name")}</TableHead>
+                    <TableHead>{t("resources.columns.alias")}</TableHead>
+                    <TableHead>{t("resources.columns.availability")}</TableHead>
+                    <TableHead>{t("resources.columns.revision")}</TableHead>
+                    <TableHead>{t("resources.columns.createdAt")}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : null}
-          {sources.data && sources.data.total > 100 ? (
-            <PaginationControls
-              page={sourcePage}
-              pageSize={100}
-              total={sources.data.total}
-              onPageChange={setSourcePage}
-            />
-          ) : null}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {sourceItems.map((source: DataSource) => (
+                    <TableRow key={source.id}>
+                      <TableCell className="font-medium">{source.name}</TableCell>
+                      <TableCell className="font-mono text-xs">{source.root_alias}</TableCell>
+                      <TableCell>{enumLabel(source.availability, "availability")}</TableCell>
+                      <TableCell>{source.revision}</TableCell>
+                      <TableCell>{formatDate(source.created_at)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : null}
+            {sources.data && sources.data.total > 100 ? (
+              <PaginationControls
+                page={sourcePage}
+                pageSize={100}
+                total={sources.data.total}
+                onPageChange={setSourcePage}
+              />
+            ) : null}
+          </CardContent>
+        </Card>
+      </AdvancedSection>
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
             <CardTitle>{t("resources.batteriesTitle")}</CardTitle>
-            <CardDescription>{t("resources.batteriesDescription")}</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => batteries.refresh()}>
@@ -381,7 +394,9 @@ export function ResourcesPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{t("resources.manifestTitle")}</DialogTitle>
-                  <DialogDescription>{t("resources.manifestDescription")}</DialogDescription>
+                  <DialogDescription className="sr-only">
+                    {t("resources.manifestDescription")}
+                  </DialogDescription>
                 </DialogHeader>
                 <FieldGroup>
                   <Field>
@@ -501,53 +516,65 @@ export function ResourcesPage() {
                 }
               />
             </Field>
-            <Field>
-              <FieldLabel htmlFor="filter-chemistry">{t("resources.filterChemistry")}</FieldLabel>
-              <Input
-                id="filter-chemistry"
-                value={draftFilters.chemistry}
-                onChange={(event) =>
-                  setDraftFilters((current) => ({ ...current, chemistry: event.target.value }))
-                }
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="filter-material">{t("resources.filterMaterial")}</FieldLabel>
-              <Input
-                id="filter-material"
-                value={draftFilters.material}
-                onChange={(event) =>
-                  setDraftFilters((current) => ({ ...current, material: event.target.value }))
-                }
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="filter-temperature">
-                {t("resources.filterTemperature")}
-              </FieldLabel>
-              <Input
-                id="filter-temperature"
-                inputMode="decimal"
-                value={draftFilters.temperatureC}
-                onChange={(event) =>
-                  setDraftFilters((current) => ({ ...current, temperatureC: event.target.value }))
-                }
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="filter-capacity">{t("resources.filterCapacity")}</FieldLabel>
-              <Input
-                id="filter-capacity"
-                inputMode="decimal"
-                value={draftFilters.nominalCapacityAh}
-                onChange={(event) =>
-                  setDraftFilters((current) => ({
-                    ...current,
-                    nominalCapacityAh: event.target.value,
-                  }))
-                }
-              />
-            </Field>
+            <AdvancedSection
+              label={t("workbench.moreFilters")}
+              className="sm:col-span-2 lg:col-span-4"
+            >
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Field>
+                  <FieldLabel htmlFor="filter-chemistry">
+                    {t("resources.filterChemistry")}
+                  </FieldLabel>
+                  <Input
+                    id="filter-chemistry"
+                    value={draftFilters.chemistry}
+                    onChange={(event) =>
+                      setDraftFilters((current) => ({ ...current, chemistry: event.target.value }))
+                    }
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="filter-material">{t("resources.filterMaterial")}</FieldLabel>
+                  <Input
+                    id="filter-material"
+                    value={draftFilters.material}
+                    onChange={(event) =>
+                      setDraftFilters((current) => ({ ...current, material: event.target.value }))
+                    }
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="filter-temperature">
+                    {t("resources.filterTemperature")}
+                  </FieldLabel>
+                  <Input
+                    id="filter-temperature"
+                    inputMode="decimal"
+                    value={draftFilters.temperatureC}
+                    onChange={(event) =>
+                      setDraftFilters((current) => ({
+                        ...current,
+                        temperatureC: event.target.value,
+                      }))
+                    }
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="filter-capacity">{t("resources.filterCapacity")}</FieldLabel>
+                  <Input
+                    id="filter-capacity"
+                    inputMode="decimal"
+                    value={draftFilters.nominalCapacityAh}
+                    onChange={(event) =>
+                      setDraftFilters((current) => ({
+                        ...current,
+                        nominalCapacityAh: event.target.value,
+                      }))
+                    }
+                  />
+                </Field>
+              </div>
+            </AdvancedSection>
             <div className="flex items-end gap-2 sm:col-span-2">
               <Button type="submit">
                 <SearchIcon data-icon="inline-start" />

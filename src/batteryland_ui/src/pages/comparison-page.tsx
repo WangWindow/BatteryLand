@@ -6,6 +6,8 @@ import { toast } from "sonner"
 import { errorMessage } from "@/api/client"
 import { endpoints } from "@/api/endpoints"
 import type { Category, ComparisonData, Experiment, SetRef, Split } from "@/api/models"
+import { AdvancedSection } from "@/components/advanced-section"
+import { ChoiceField } from "@/components/choice-field"
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state"
 import { LazyBoundary } from "@/components/lazy-boundary"
 import { PageHeader } from "@/components/page-header"
@@ -13,9 +15,9 @@ import { PaginationControls } from "@/components/pagination-controls"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -132,9 +134,28 @@ export function ComparisonPage() {
     { enabled: Boolean(chartRequest) },
   )
 
+  const epochMetrics = useApiQuery(
+    async (signal) => {
+      const names = await Promise.all(
+        selected.map((identity) => endpoints.results.metricNames(identity, stage, signal)),
+      )
+      return names.flat()
+    },
+    [key, stage, chartType],
+    { enabled: chartType === "epoch_line" && selected.length > 0 },
+  )
   const metricNames = useMemo(
-    () => [...new Set((comparison.data?.metric_rows ?? []).map((row) => row.name))].sort(),
-    [comparison.data],
+    () =>
+      [
+        ...new Set(
+          chartType === "epoch_line"
+            ? (epochMetrics.data ?? [])
+            : (comparison.data?.metric_rows ?? [])
+                .filter((row) => row.stage === stage)
+                .map((row) => row.name),
+        ),
+      ].sort(),
+    [comparison.data, epochMetrics.data, chartType, stage],
   )
   const metricRows = comparison.data?.metric_rows ?? []
   const predictionRows = comparison.data?.prediction_rows ?? []
@@ -190,14 +211,19 @@ export function ComparisonPage() {
         toast.error(t("compare.messages.selectExperiments"))
         return
       }
-      if (chartType !== "prediction_scatter" && (!metric.trim() || !stage)) {
+      if (
+        chartType !== "prediction_scatter" &&
+        (!(metricNames.includes(metric) ? metric : metricNames[0]) || !stage)
+      ) {
         toast.error(t("compare.messages.selectMetric"))
         return
       }
       setChartRequest({
         chart_type: chartType,
         experiment_ids: selected,
-        ...(chartType === "prediction_scatter" ? {} : { metric: metric.trim(), stage }),
+        ...(chartType === "prediction_scatter"
+          ? {}
+          : { metric: metricNames.includes(metric) ? metric : metricNames[0], stage }),
       })
       return
     }
@@ -229,7 +255,6 @@ export function ComparisonPage() {
     <>
       <PageHeader
         title={t("compare.title")}
-        description={t("compare.description")}
         actions={
           <>
             <Button
@@ -255,9 +280,6 @@ export function ComparisonPage() {
       <Card>
         <CardHeader>
           <CardTitle>{t("compare.selectTitle")}</CardTitle>
-          <CardDescription>
-            {t("compare.selectDescription", { count: selected.length })}
-          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <form
@@ -357,49 +379,8 @@ export function ComparisonPage() {
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <CardTitle>{t("compare.dataTitle")}</CardTitle>
-            <CardDescription>{t("compare.dataDescription")}</CardDescription>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={comparison.refresh}
-            disabled={selected.length === 0}
-          >
-            {t("compare.refresh")}
-          </Button>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {selected.length === 0 ? (
-            <EmptyState
-              title={t("compare.noSelectionTitle")}
-              description={t("compare.noSelectionDescription")}
-            />
-          ) : null}
-          {comparison.loading && comparison.data === undefined ? <LoadingState rows={4} /> : null}
-          {comparison.error ? (
-            <ErrorState error={comparison.error} onRetry={comparison.refresh} />
-          ) : null}
-          {comparison.data ? (
-            <ComparisonTables
-              data={comparison.data}
-              metricPage={metricPage}
-              predictionPage={predictionPage}
-              onMetricPage={setMetricPage}
-              onPredictionPage={setPredictionPage}
-              visibleMetrics={visibleMetrics}
-              visiblePredictions={visiblePredictions}
-            />
-          ) : null}
-        </CardContent>
-      </Card>
-
-      <Card>
         <CardHeader>
           <CardTitle>{t("compare.chartTitle")}</CardTitle>
-          <CardDescription>{t("compare.chartDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <FieldGroup>
@@ -430,25 +411,17 @@ export function ComparisonPage() {
               {CHART_TYPES.find((item) => item.value === chartType)?.group === "experiments" ? (
                 chartType !== "prediction_scatter" ? (
                   <>
-                    <Field>
-                      <FieldLabel htmlFor="chart-metric">{t("compare.metric")}</FieldLabel>
-                      <Input
-                        id="chart-metric"
-                        list="metric-options"
-                        value={metric}
-                        placeholder={metricNames[0] ?? t("compare.metricPlaceholder")}
-                        onChange={(event) => {
-                          setMetric(event.target.value)
-                          setChartRequest(null)
-                        }}
-                      />
-                      <datalist id="metric-options">
-                        {metricNames.map((name) => (
-                          <option key={name} value={name} />
-                        ))}
-                      </datalist>
-                      <FieldDescription>{t("compare.metricHint")}</FieldDescription>
-                    </Field>
+                    <ChoiceField
+                      id="chart-metric"
+                      label={t("compare.metric")}
+                      value={metricNames.includes(metric) ? metric : (metricNames[0] ?? "")}
+                      options={metricNames.map((name) => ({ value: name, label: name }))}
+                      placeholder={t("compare.metric")}
+                      onChange={(value) => {
+                        setMetric(value)
+                        setChartRequest(null)
+                      }}
+                    />
                     <Field>
                       <FieldLabel htmlFor="chart-stage">{t("compare.stage")}</FieldLabel>
                       <Select
@@ -613,7 +586,14 @@ export function ComparisonPage() {
               </div>
             ) : null}
             <div>
-              <Button onClick={buildChart} disabled={selected.length === 0}>
+              <Button
+                onClick={buildChart}
+                disabled={
+                  CHART_TYPES.find((item) => item.value === chartType)?.group === "experiments"
+                    ? selected.length === 0
+                    : !sets.some((item) => item.splitId)
+                }
+              >
                 <BarChart3Icon data-icon="inline-start" />
                 {t("compare.generate")}
               </Button>
@@ -650,6 +630,46 @@ export function ComparisonPage() {
           ) : null}
         </CardContent>
       </Card>
+      <AdvancedSection label={t("workbench.rawData")}>
+        <Card>
+          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <CardTitle>{t("compare.dataTitle")}</CardTitle>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={comparison.refresh}
+              disabled={selected.length === 0}
+            >
+              {t("compare.refresh")}
+            </Button>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {selected.length === 0 ? (
+              <EmptyState
+                title={t("compare.noSelectionTitle")}
+                description={t("compare.noSelectionDescription")}
+              />
+            ) : null}
+            {comparison.loading && comparison.data === undefined ? <LoadingState rows={4} /> : null}
+            {comparison.error ? (
+              <ErrorState error={comparison.error} onRetry={comparison.refresh} />
+            ) : null}
+            {comparison.data ? (
+              <ComparisonTables
+                data={comparison.data}
+                metricPage={metricPage}
+                predictionPage={predictionPage}
+                onMetricPage={setMetricPage}
+                onPredictionPage={setPredictionPage}
+                visibleMetrics={visibleMetrics}
+                visiblePredictions={visiblePredictions}
+              />
+            ) : null}
+          </CardContent>
+        </Card>
+      </AdvancedSection>
     </>
   )
 }

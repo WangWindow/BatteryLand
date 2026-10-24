@@ -26,6 +26,8 @@ function source(id = "source-1") {
 function mockApi(sources: unknown[]) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.toString()
+    if (url.includes("/data-sources/options"))
+      return envelope([{ root_alias: "demo", availability: "available" }])
     if (url.includes("/data-sources")) {
       return envelope({ items: sources, total: sources.length, page: 1, page_size: 100 })
     }
@@ -46,6 +48,7 @@ describe("resources page", () => {
   it("shows an empty source state", async () => {
     mockApi([])
     render(<ResourcesPage />)
+    await userEvent.click(screen.getByText("管理来源"))
     expect(await screen.findByText("尚无数据来源")).toBeInTheDocument()
   })
 
@@ -70,6 +73,7 @@ describe("resources page", () => {
     const fetchMock = mockApi([source()])
     const user = userEvent.setup()
     render(<ResourcesPage />)
+    await user.click(screen.getByText("管理来源"))
     await screen.findByRole("cell", { name: "Demo source" })
     await user.click(screen.getByRole("button", { name: "导入清单" }))
     const input = screen.getByLabelText("清单文件")
@@ -82,6 +86,7 @@ describe("resources page", () => {
     mockApi([])
     await i18n.changeLanguage("en")
     render(<ResourcesPage />)
+    await userEvent.click(screen.getByText("Manage sources"))
     expect(await screen.findByText("No data sources yet")).toBeInTheDocument()
     expect(screen.getByRole("heading", { name: "Data sources & batteries" })).toBeInTheDocument()
     await waitFor(() => expect(document.documentElement.lang).toBe("en"))

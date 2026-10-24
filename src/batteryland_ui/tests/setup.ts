@@ -28,3 +28,8 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => false,
   }),
 })
+
+HTMLElement.prototype.scrollIntoView = () => {}
+HTMLElement.prototype.hasPointerCapture = () => false
+HTMLElement.prototype.setPointerCapture = () => {}
+HTMLElement.prototype.releasePointerCapture = () => {}

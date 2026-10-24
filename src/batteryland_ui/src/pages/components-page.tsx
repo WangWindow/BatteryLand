@@ -6,11 +6,12 @@ import { toast } from "sonner"
 import { errorMessage } from "@/api/client"
 import { endpoints } from "@/api/endpoints"
 import type { Artifact, Capability, Component } from "@/api/models"
+import { AdvancedSection } from "@/components/advanced-section"
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state"
 import { PageHeader } from "@/components/page-header"
 import { PaginationControls } from "@/components/pagination-controls"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,7 @@ const SCOPES = ["model", "loss", "metric", "task", "hook", "dataset", "optimizer
 export function ComponentsPage() {
   const { t } = useTranslation()
   const [scope, setScope] = useState("")
+  const [capabilitiesOpen, setCapabilitiesOpen] = useState(false)
   const [schemaTarget, setSchemaTarget] = useState<Component | null>(null)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [uploadScope, setUploadScope] = useState("model")
@@ -59,7 +61,9 @@ export function ComponentsPage() {
   const [checkpointSource, setCheckpointSource] = useState("")
   const [checkpointModel, setCheckpointModel] = useState("")
 
-  const capabilities = useApiQuery((signal) => endpoints.components.capabilities(signal), [])
+  const capabilities = useApiQuery((signal) => endpoints.components.capabilities(signal), [], {
+    enabled: capabilitiesOpen,
+  })
   const components = useApiQuery(
     (signal) => endpoints.components.list(scope || undefined, signal),
     [scope],
@@ -147,7 +151,6 @@ export function ComponentsPage() {
     <>
       <PageHeader
         title={t("components.title")}
-        description={t("components.description")}
         actions={
           <>
             <Dialog
@@ -168,7 +171,9 @@ export function ComponentsPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{t("components.checkpointTitle")}</DialogTitle>
-                  <DialogDescription>{t("components.checkpointDescription")}</DialogDescription>
+                  <DialogDescription className="sr-only">
+                    {t("components.checkpointDescription")}
+                  </DialogDescription>
                 </DialogHeader>
                 <FieldGroup>
                   <Field>
@@ -233,7 +238,9 @@ export function ComponentsPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{t("components.uploadTitle")}</DialogTitle>
-                  <DialogDescription>{t("components.uploadDescription")}</DialogDescription>
+                  <DialogDescription className="sr-only">
+                    {t("components.uploadDescription")}
+                  </DialogDescription>
                 </DialogHeader>
                 <FieldGroup>
                   <Field>
@@ -280,72 +287,77 @@ export function ComponentsPage() {
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("components.capabilitiesTitle")}</CardTitle>
-          <CardDescription>{t("components.capabilitiesDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {capabilities.loading && capabilities.data === undefined ? (
-            <LoadingState rows={2} />
-          ) : null}
-          {capabilities.error ? (
-            <ErrorState error={capabilities.error} onRetry={capabilities.refresh} />
-          ) : null}
-          {capabilities.data && capabilities.data.length === 0 ? (
-            <EmptyState title={t("components.capabilitiesEmpty")} />
-          ) : null}
-          {capabilities.data && capabilities.data.length > 0 ? (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {capabilities.data.map((capability: Capability) => (
-                <div
-                  key={capability.provider_id}
-                  className="flex flex-col gap-2 rounded-md border p-3"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-mono text-xs font-medium">{capability.provider_id}</span>
-                    <span
-                      className={
-                        capability.available
-                          ? "text-xs font-medium text-success"
-                          : "text-xs font-medium text-destructive"
-                      }
-                    >
-                      {capability.available
-                        ? t("components.available")
-                        : t("components.unavailable")}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {t("components.versionLabel", { version: capability.version })}
-                  </p>
-                  {capability.reason ? (
-                    <p className="text-xs text-destructive">{capability.reason}</p>
-                  ) : null}
-                  <p className="text-xs leading-relaxed">
-                    {t("components.operations", {
-                      operations: capability.supported_operations.join(", ") || t("common.none"),
-                    })}
-                  </p>
-                  {capability.limitations.length > 0 ? (
-                    <p className="text-xs leading-relaxed text-muted-foreground">
-                      {t("components.limitations", {
-                        limitations: capability.limitations.join("; "),
+      <AdvancedSection
+        label={t("components.capabilitiesTitle")}
+        onExpandedChange={setCapabilitiesOpen}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("components.capabilitiesTitle")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {capabilities.loading && capabilities.data === undefined ? (
+              <LoadingState rows={2} />
+            ) : null}
+            {capabilities.error ? (
+              <ErrorState error={capabilities.error} onRetry={capabilities.refresh} />
+            ) : null}
+            {capabilities.data && capabilities.data.length === 0 ? (
+              <EmptyState title={t("components.capabilitiesEmpty")} />
+            ) : null}
+            {capabilities.data && capabilities.data.length > 0 ? (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {capabilities.data.map((capability: Capability) => (
+                  <div
+                    key={capability.provider_id}
+                    className="flex flex-col gap-2 rounded-md border p-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-mono text-xs font-medium">
+                        {capability.provider_id}
+                      </span>
+                      <span
+                        className={
+                          capability.available
+                            ? "text-xs font-medium text-success"
+                            : "text-xs font-medium text-destructive"
+                        }
+                      >
+                        {capability.available
+                          ? t("components.available")
+                          : t("components.unavailable")}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t("components.versionLabel", { version: capability.version })}
+                    </p>
+                    {capability.reason ? (
+                      <p className="text-xs text-destructive">{capability.reason}</p>
+                    ) : null}
+                    <p className="text-xs leading-relaxed">
+                      {t("components.operations", {
+                        operations: capability.supported_operations.join(", ") || t("common.none"),
                       })}
                     </p>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+                    {capability.limitations.length > 0 ? (
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        {t("components.limitations", {
+                          limitations: capability.limitations.join("; "),
+                        })}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      </AdvancedSection>
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
             <CardTitle>{t("components.componentCatalog")}</CardTitle>
-            <CardDescription>{t("components.componentCatalogDescription")}</CardDescription>
           </div>
           <Select
             value={scope || "all"}
@@ -443,7 +455,6 @@ export function ComponentsPage() {
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
             <CardTitle>{t("components.checkpointsTitle")}</CardTitle>
-            <CardDescription>{t("components.checkpointsDescription")}</CardDescription>
           </div>
           <Select
             value={checkpointComponent || "all"}
@@ -526,7 +537,9 @@ export function ComponentsPage() {
                 type: schemaTarget?.type ?? "",
               })}
             </DialogTitle>
-            <DialogDescription>{t("components.schemaDescription")}</DialogDescription>
+            <DialogDescription className="sr-only">
+              {t("components.schemaDescription")}
+            </DialogDescription>
           </DialogHeader>
           {schema.loading ? <LoadingState rows={4} /> : null}
           {schema.error ? <ErrorState error={schema.error} onRetry={schema.refresh} /> : null}

@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -221,7 +221,6 @@ export function ExperimentDetailPage() {
             <Card>
               <CardHeader>
                 <CardTitle>{t("detail.overview.executionTitle")}</CardTitle>
-                <CardDescription>{t("detail.overview.executionDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
@@ -253,7 +252,6 @@ export function ExperimentDetailPage() {
             <Card>
               <CardHeader>
                 <CardTitle>{t("detail.overview.bindingsTitle")}</CardTitle>
-                <CardDescription>{t("detail.overview.bindingsDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
@@ -288,7 +286,6 @@ export function ExperimentDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle>{t("detail.overview.draftActions")}</CardTitle>
-              <CardDescription>{t("detail.overview.draftDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
               <Button
@@ -349,7 +346,6 @@ export function ExperimentDetailPage() {
             <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
               <div className="flex flex-col gap-1">
                 <CardTitle>{t("detail.logs.title")}</CardTitle>
-                <CardDescription>{t("detail.logs.description")}</CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Button
@@ -413,7 +409,6 @@ export function ExperimentDetailPage() {
             <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
               <div className="flex flex-col gap-1">
                 <CardTitle>{t("detail.results.title")}</CardTitle>
-                <CardDescription>{t("detail.results.description")}</CardDescription>
               </div>
               <Button variant="outline" size="sm" onClick={results.refresh}>
                 <RefreshCwIcon data-icon="inline-start" />
@@ -587,7 +582,6 @@ export function ExperimentDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle>{t("detail.artifacts.title")}</CardTitle>
-              <CardDescription>{t("detail.artifacts.description")}</CardDescription>
             </CardHeader>
             <CardContent>
               {artifacts.loading && artifacts.data === undefined ? <LoadingState rows={3} /> : null}

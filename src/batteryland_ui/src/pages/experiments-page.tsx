@@ -17,6 +17,7 @@ import { toast } from "sonner"
 import { errorMessage } from "@/api/client"
 import { endpoints } from "@/api/endpoints"
 import type { Experiment } from "@/api/models"
+import { AdvancedSection } from "@/components/advanced-section"
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state"
 import { PageHeader } from "@/components/page-header"
 import { PaginationControls } from "@/components/pagination-controls"
@@ -31,7 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
@@ -248,7 +249,6 @@ export function ExperimentsPage() {
     <>
       <PageHeader
         title={t("experiments.title")}
-        description={t("experiments.description")}
         actions={
           <>
             <Dialog open={importOpen} onOpenChange={setImportOpen}>
@@ -261,7 +261,9 @@ export function ExperimentsPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{t("experiments.importTitle")}</DialogTitle>
-                  <DialogDescription>{t("experiments.importDescription")}</DialogDescription>
+                  <DialogDescription className="sr-only">
+                    {t("experiments.importDescription")}
+                  </DialogDescription>
                 </DialogHeader>
                 <FieldGroup>
                   <Field>
@@ -285,24 +287,30 @@ export function ExperimentsPage() {
                       <SelectContent>
                         <SelectGroup>
                           <SelectItem value="train">{t("experiments.kindTrain")}</SelectItem>
-                          <SelectItem value="evaluate">{t("experiments.kindEvaluate")}</SelectItem>
-                          <SelectItem value="transfer">{t("experiments.kindTransfer")}</SelectItem>
+                          <SelectItem value="evaluate" disabled>
+                            {t("experiments.kindEvaluate")}
+                          </SelectItem>
+                          <SelectItem value="transfer" disabled>
+                            {t("experiments.kindTransfer")}
+                          </SelectItem>
                         </SelectGroup>
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field>
-                    <FieldLabel htmlFor="experiment-import-bindings">
-                      {t("experiments.importBindings")}
-                    </FieldLabel>
-                    <Input
-                      id="experiment-import-bindings"
-                      value={importBindings}
-                      className="font-mono text-xs"
-                      onChange={(event) => setImportBindings(event.target.value)}
-                    />
-                    <FieldDescription>{t("experiments.importBindingsHint")}</FieldDescription>
-                  </Field>
+                  <AdvancedSection label={t("workbench.additionalBindings")}>
+                    <Field>
+                      <FieldLabel htmlFor="experiment-import-bindings">
+                        {t("experiments.importBindings")}
+                      </FieldLabel>
+                      <Input
+                        id="experiment-import-bindings"
+                        value={importBindings}
+                        className="font-mono text-xs"
+                        onChange={(event) => setImportBindings(event.target.value)}
+                      />
+                      <FieldDescription>{t("experiments.importBindingsHint")}</FieldDescription>
+                    </Field>
+                  </AdvancedSection>
                   <Field>
                     <FieldLabel htmlFor="experiment-import-file">
                       {t("experiments.importFile")}
@@ -341,7 +349,6 @@ export function ExperimentsPage() {
       <Card>
         <CardHeader>
           <CardTitle>{t("experiments.listTitle")}</CardTitle>
-          <CardDescription>{t("experiments.listDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <form

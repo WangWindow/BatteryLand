@@ -4,8 +4,7 @@ export const templatesMessages = defineMessages({
   zh: {
     templates: {
       title: "实验模板",
-      description:
-        "模板保存可复用的原生训练配置快照。编辑模板不会改变已创建实验的冻结输入；导入支持后端安全解析的 YAML 或 JSON。",
+
       importTemplate: "导入模板",
       importTitle: "导入模板",
       importDescription: "选择 YAML 或 JSON 配置文件并指定模板名称。",
@@ -14,7 +13,7 @@ export const templatesMessages = defineMessages({
       importLimit: "最大 1 MiB。",
       newTemplate: "新建模板",
       catalogTitle: "模板目录",
-      catalogDescription: "每个模板都有独立修订和文档版本，导出时使用 YAML。",
+
       nameFilter: "名称",
       search: "检索",
       emptyTitle: "尚无模板",
@@ -38,8 +37,7 @@ export const templatesMessages = defineMessages({
       createDescription: "填写名称和原生配置对象。配置结构和组件参数由后端校验。",
       name: "名称",
       nativeConfig: "原生配置",
-      nativeConfigDescription:
-        "必须包含 provider 可执行的任务与 mate 配置。设备必须显式填写 cpu 或 cuda:N。",
+
       saveNewVersion: "保存新版本",
       createTemplate: "创建模板",
       messages: {
@@ -56,8 +54,7 @@ export const templatesMessages = defineMessages({
   en: {
     templates: {
       title: "Experiment templates",
-      description:
-        "Templates store reusable snapshots of native training configuration. Editing a template never changes frozen inputs of existing experiments; imports support YAML or JSON safely parsed by the backend.",
+
       importTemplate: "Import template",
       importTitle: "Import template",
       importDescription: "Choose a YAML or JSON configuration file and provide a template name.",
@@ -66,8 +63,7 @@ export const templatesMessages = defineMessages({
       importLimit: "Maximum 1 MiB.",
       newTemplate: "New template",
       catalogTitle: "Template catalog",
-      catalogDescription:
-        "Every template has an independent revision and document version; exports use YAML.",
+
       nameFilter: "Name",
       search: "Search",
       emptyTitle: "No templates yet",
@@ -89,12 +85,10 @@ export const templatesMessages = defineMessages({
       createTitle: "New template",
       editDescription:
         "Revision {{revision}}; older template versions remain available after saving.",
-      createDescription:
-        "Provide a name and a native configuration object. The backend validates structure and component parameters.",
+      createDescription: "Set up reusable run settings.",
       name: "Name",
       nativeConfig: "Native configuration",
-      nativeConfigDescription:
-        "Include task and mate configuration executable by the provider. Device must be explicit cpu or cuda:N.",
+
       saveNewVersion: "Save new version",
       createTemplate: "Create template",
       messages: {

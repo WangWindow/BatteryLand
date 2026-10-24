@@ -8,8 +8,10 @@ import { resourcesMessages } from "@/i18n/messages/resources"
 import { splitsMessages } from "@/i18n/messages/splits"
 import { templatesMessages } from "@/i18n/messages/templates"
 import { visualizerMessages } from "@/i18n/messages/visualizer"
+import { workbenchMessages } from "@/i18n/messages/workbench"
 
 export const messagesZh = {
+  ...workbenchMessages.zh,
   ...commonMessages.zh,
   ...resourcesMessages.zh,
   ...splitsMessages.zh,
@@ -23,6 +25,7 @@ export const messagesZh = {
 }
 
 export const messagesEn = {
+  ...workbenchMessages.en,
   ...commonMessages.en,
   ...resourcesMessages.en,
   ...splitsMessages.en,

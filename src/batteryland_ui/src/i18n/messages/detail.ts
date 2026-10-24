@@ -29,7 +29,7 @@ export const detailMessages = defineMessages({
       },
       overview: {
         executionTitle: "执行状态",
-        executionDescription: "停止请求受理不代表进程已退出。",
+
         queuedAt: "入队时间",
         startedAt: "开始时间",
         finishedAt: "完成时间",
@@ -37,14 +37,14 @@ export const detailMessages = defineMessages({
         stopStage: "停止阶段",
         exitCode: "退出码",
         bindingsTitle: "资源绑定",
-        bindingsDescription: "绑定使用版本引用，模板变更不会改写已保存实验。",
+
         split: "划分",
         sourceSplit: "源域划分",
         targetSplit: "目标域划分",
         template: "模板",
         checkpoint: "权重",
         draftActions: "草稿操作",
-        draftDescription: "只有草稿可编辑；任何状态下都可执行后端校验。复制会创建独立草稿。",
+
         validate: "执行校验",
         copied: "已复制草稿「{{name}}」",
         copy: "复制为草稿",
@@ -54,7 +54,7 @@ export const detailMessages = defineMessages({
       },
       logs: {
         title: "增量日志",
-        description: "每 1 秒按游标读取最多 64 KiB，网页最多保留 256 KiB；终态后读到 EOF。",
+
         train: "训练日志",
         console: "控制台",
         eof: "已读到末尾",
@@ -68,7 +68,7 @@ export const detailMessages = defineMessages({
       },
       results: {
         title: "结果",
-        description: "缺失指标和真值显式展示，不补零；来源版本与采集警告保留。",
+
         unavailableTitle: "结果尚不可用",
         unavailableReason: "执行完成后由引擎采集结果。",
         version: "结果版本 {{version}}",
@@ -97,7 +97,7 @@ export const detailMessages = defineMessages({
       },
       artifacts: {
         title: "产物",
-        description: "只提供已登记产物的受控下载，不暴露服务器物理路径。",
+
         empty: "没有登记产物",
         columns: {
           name: "名称",
@@ -143,7 +143,7 @@ export const detailMessages = defineMessages({
       },
       overview: {
         executionTitle: "Execution state",
-        executionDescription: "Accepting a stop request does not mean the process has exited.",
+
         queuedAt: "Queued at",
         startedAt: "Started at",
         finishedAt: "Finished at",
@@ -151,16 +151,14 @@ export const detailMessages = defineMessages({
         stopStage: "Stop stage",
         exitCode: "Exit code",
         bindingsTitle: "Resource bindings",
-        bindingsDescription:
-          "Bindings use version references; template edits never rewrite saved experiments.",
+
         split: "Split",
         sourceSplit: "Source-domain split",
         targetSplit: "Target-domain split",
         template: "Template",
         checkpoint: "Checkpoint",
         draftActions: "Draft actions",
-        draftDescription:
-          "Only drafts are editable; backend validation is available in every state. Copy creates an independent draft.",
+
         validate: "Execution validation",
         copied: 'Copied draft "{{name}}"',
         copy: "Copy as draft",
@@ -170,8 +168,7 @@ export const detailMessages = defineMessages({
       },
       logs: {
         title: "Incremental logs",
-        description:
-          "Poll up to 64 KiB per cursor request every second and retain at most 256 KiB in the browser; reads reach EOF in terminal states.",
+
         train: "Training log",
         console: "Console",
         eof: "Reached end",
@@ -187,8 +184,7 @@ export const detailMessages = defineMessages({
       },
       results: {
         title: "Results",
-        description:
-          "Missing metrics and ground truth are explicit and never zero-filled; source versions and collection warnings are preserved.",
+
         unavailableTitle: "Results not available yet",
         unavailableReason: "The engine collects results after execution finishes.",
         version: "Result version {{version}}",
@@ -217,8 +213,7 @@ export const detailMessages = defineMessages({
       },
       artifacts: {
         title: "Artifacts",
-        description:
-          "Only controlled downloads of registered artifacts are offered; server filesystem paths are never exposed.",
+
         empty: "No registered artifacts",
         columns: {
           name: "Name",

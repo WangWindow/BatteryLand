@@ -4,8 +4,7 @@ export const componentsMessages = defineMessages({
   zh: {
     components: {
       title: "组件与权重",
-      description:
-        "浏览 deeplatform 注册目录，查看真实参数结构，上传组件源码或登记权重产物。组件上传只保存并校验文件，不在后端执行训练。",
+
       registerCheckpoint: "登记权重",
       checkpointTitle: "登记权重文件",
       checkpointDescription: "权重绑定到 model 组件，可选记录来源实验；文件内容不会被反序列化。",
@@ -21,7 +20,7 @@ export const componentsMessages = defineMessages({
       scope: "Scope",
       componentFile: "组件 Python 文件",
       capabilitiesTitle: "能力声明",
-      capabilitiesDescription: "真实能力、限制与不可用原因由后端和 provider 返回。",
+
       capabilitiesEmpty: "没有能力声明",
       available: "可用",
       unavailable: "不可用",
@@ -29,7 +28,7 @@ export const componentsMessages = defineMessages({
       operations: "操作：{{operations}}",
       limitations: "限制：{{limitations}}",
       componentCatalog: "组件目录",
-      componentCatalogDescription: "参数 schema 由 provider 提供，网页只展示，不生成可执行代码。",
+
       scopeFilterAria: "按 scope 筛选",
       allScopes: "全部 scope",
       componentsEmptyTitle: "没有组件",
@@ -52,7 +51,7 @@ export const componentsMessages = defineMessages({
       schemaAvailable: "可查看",
       schemaMissing: "未提供",
       checkpointsTitle: "权重登记",
-      checkpointsDescription: "按模型组件或来源实验筛选已登记权重。",
+
       modelFilterAria: "按模型筛选权重",
       allModels: "全部模型",
       checkpointsEmpty: "没有登记权重",
@@ -71,8 +70,7 @@ export const componentsMessages = defineMessages({
   en: {
     components: {
       title: "Components & weights",
-      description:
-        "Browse the deeplatform registry, inspect real parameter schemas, upload component source, and register weight artifacts. Uploads only store and validate files; training is never executed in the backend.",
+
       registerCheckpoint: "Register weights",
       checkpointTitle: "Register weight file",
       checkpointDescription:
@@ -91,8 +89,7 @@ export const componentsMessages = defineMessages({
       scope: "Scope",
       componentFile: "Component Python file",
       capabilitiesTitle: "Capability declarations",
-      capabilitiesDescription:
-        "Real capabilities, limitations, and unavailability reasons are returned by the backend and provider.",
+
       capabilitiesEmpty: "No capability declarations",
       available: "Available",
       unavailable: "Unavailable",
@@ -100,8 +97,7 @@ export const componentsMessages = defineMessages({
       operations: "Operations: {{operations}}",
       limitations: "Limitations: {{limitations}}",
       componentCatalog: "Component catalog",
-      componentCatalogDescription:
-        "Parameter schemas are provided by the provider and only displayed; the UI never generates executable code.",
+
       scopeFilterAria: "Filter by scope",
       allScopes: "All scopes",
       componentsEmptyTitle: "No components",
@@ -125,7 +121,7 @@ export const componentsMessages = defineMessages({
       schemaAvailable: "Available",
       schemaMissing: "Not provided",
       checkpointsTitle: "Registered weights",
-      checkpointsDescription: "Filter registered weights by model component or source experiment.",
+
       modelFilterAria: "Filter weights by model",
       allModels: "All models",
       checkpointsEmpty: "No registered weights",

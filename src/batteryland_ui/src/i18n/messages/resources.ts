@@ -4,19 +4,17 @@ export const resourcesMessages = defineMessages({
   zh: {
     resources: {
       title: "数据来源与电池",
-      description:
-        "登记服务端允许的来源别名，导入真实电池清单并检索标准资源。来源目录由部署环境配置，网页不提交任意服务器路径。",
+
       addSource: "登记来源",
       sourceDialogTitle: "登记数据来源",
-      sourceDialogDescription: "别名必须与服务端 BATTERYLAND_SOURCE_ROOTS 中配置的键一致。",
+      sourceDialogDescription: "选择数据目录并填写显示名称。",
       name: "名称",
       alias: "来源别名",
-      aliasPlaceholder: "battery-life",
-      aliasExample: "例如 battery-life；不是文件系统路径。",
+
       register: "登记",
       registering: "登记中…",
       sourcesTitle: "来源",
-      sourcesDescription: "来源可用性由后端探测，导入和划分只能引用已登记来源。",
+
       emptySourcesTitle: "尚无数据来源",
       emptySourcesDescription: "先登记服务端允许的来源别名，再导入电池清单。",
       columns: {
@@ -33,10 +31,10 @@ export const resourcesMessages = defineMessages({
         capacity: "额定容量",
       },
       batteriesTitle: "电池资源",
-      batteriesDescription: "支持按来源、文件名和已登记分类元数据检索。",
+
       importManifest: "导入清单",
       manifestTitle: "导入电池清单",
-      manifestDescription: "提交 JSON 数组或 { batteries: [...] }；重复文件按来源幂等保留。",
+      manifestDescription: "选择要导入的电池清单文件。",
       targetSource: "目标来源",
       chooseSource: "选择来源",
       manifestFile: "清单文件",
@@ -73,21 +71,17 @@ export const resourcesMessages = defineMessages({
   en: {
     resources: {
       title: "Data sources & batteries",
-      description:
-        "Register source aliases allowed by the server, import real battery manifests, and search registered resources. Source directories are configured by deployment; the browser never submits arbitrary server paths.",
+
       addSource: "Register source",
       sourceDialogTitle: "Register data source",
-      sourceDialogDescription:
-        "The alias must match a key configured in the server's BATTERYLAND_SOURCE_ROOTS.",
+      sourceDialogDescription: "Choose a data directory and a display name.",
       name: "Name",
       alias: "Source alias",
-      aliasPlaceholder: "battery-life",
-      aliasExample: "For example battery-life; this is not a filesystem path.",
+
       register: "Register",
       registering: "Registering…",
       sourcesTitle: "Sources",
-      sourcesDescription:
-        "Source availability is probed by the backend. Imports and splits may only reference registered sources.",
+
       emptySourcesTitle: "No data sources yet",
       emptySourcesDescription:
         "Register a server-approved source alias before importing a battery manifest.",
@@ -105,7 +99,7 @@ export const resourcesMessages = defineMessages({
         capacity: "Nominal capacity",
       },
       batteriesTitle: "Battery resources",
-      batteriesDescription: "Search by source, file name, and registered classification metadata.",
+
       importManifest: "Import manifest",
       manifestTitle: "Import battery manifest",
       manifestDescription:
