@@ -11,7 +11,7 @@ from batteryland.interfaces.api.app import create_app
 
 
 def test_comparison_union_missing_values_and_declarative_charts(settings: Settings):
-    app = create_app(settings, training=ControlledTraining(settings), start_scheduler=False)
+    app = create_app(settings, training=ControlledTraining(settings), start_monitor=False)
     with TestClient(app) as client:
         entries = [draft(client, name) for name in ("first", "second")]
         ids = [item["id"] for item in entries]

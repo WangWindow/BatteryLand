@@ -19,7 +19,7 @@ def prepare_completed(client, container):
 
 def test_incremental_metrics_wait_for_complete_lines_and_do_not_duplicate(settings: Settings):
     training = ControlledTraining(settings)
-    app = create_app(settings, training=training, start_scheduler=False)
+    app = create_app(settings, training=training, start_monitor=False)
     with TestClient(app) as client:
         identity = prepare_completed(client, app.state.container)
         path = settings.data_dir / "runs" / identity / "metrics.jsonl"
@@ -41,7 +41,7 @@ def test_incremental_metrics_wait_for_complete_lines_and_do_not_duplicate(settin
 
 def test_result_versions_preserve_units_granularity_and_provenance(settings: Settings):
     training = ControlledTraining(settings)
-    app = create_app(settings, training=training, start_scheduler=False)
+    app = create_app(settings, training=training, start_monitor=False)
     with TestClient(app) as client:
         identity = prepare_completed(client, app.state.container)
         directory = settings.data_dir / "runs" / identity
@@ -75,7 +75,7 @@ def test_result_versions_preserve_units_granularity_and_provenance(settings: Set
 
 
 def test_log_cursors_validate_identity_and_stream_ends(settings: Settings):
-    app = create_app(settings, training=ControlledTraining(settings), start_scheduler=False)
+    app = create_app(settings, training=ControlledTraining(settings), start_monitor=False)
     with TestClient(app) as client:
         identity = prepare_completed(client, app.state.container)
         app.state.container.results.collect(identity)
@@ -96,7 +96,7 @@ def test_log_cursors_validate_identity_and_stream_ends(settings: Settings):
 
 
 def test_optional_result_sections_and_failed_metrics_replacement(settings: Settings):
-    app = create_app(settings, training=ControlledTraining(settings), start_scheduler=False)
+    app = create_app(settings, training=ControlledTraining(settings), start_monitor=False)
     with TestClient(app) as client:
         identity = prepare_completed(client, app.state.container)
         directory = settings.data_dir / "runs" / identity
@@ -125,7 +125,7 @@ def test_optional_result_sections_and_failed_metrics_replacement(settings: Setti
 
 
 def test_utf8_log_chunks_and_empty_stream_cursor(settings: Settings):
-    app = create_app(settings, training=ControlledTraining(settings), start_scheduler=False)
+    app = create_app(settings, training=ControlledTraining(settings), start_monitor=False)
     with TestClient(app) as client:
         identity = prepare_completed(client, app.state.container)
         endpoint = f"/api/v1/experiments/{identity}/logs"
@@ -153,7 +153,7 @@ def test_utf8_log_chunks_and_empty_stream_cursor(settings: Settings):
 
 
 def test_invalid_final_result_does_not_block_valid_epoch_metrics(settings: Settings):
-    app = create_app(settings, training=ControlledTraining(settings), start_scheduler=False)
+    app = create_app(settings, training=ControlledTraining(settings), start_monitor=False)
     with TestClient(app) as client:
         identity = prepare_completed(client, app.state.container)
         directory = settings.data_dir / "runs" / identity
@@ -167,7 +167,7 @@ def test_invalid_final_result_does_not_block_valid_epoch_metrics(settings: Setti
 
 
 def test_sse_validates_both_cursor_sources(settings: Settings):
-    app = create_app(settings, training=ControlledTraining(settings), start_scheduler=False)
+    app = create_app(settings, training=ControlledTraining(settings), start_monitor=False)
     with TestClient(app) as client:
         identity = prepare_completed(client, app.state.container)
         endpoint = f"/api/v1/experiments/{identity}/logs"
@@ -198,7 +198,7 @@ def test_frozen_provider_identity_is_applied_to_component_artifacts(settings: Se
                 ]
             }
 
-    app = create_app(settings, training=ComponentsTraining(settings), start_scheduler=False)
+    app = create_app(settings, training=ComponentsTraining(settings), start_monitor=False)
     with TestClient(app) as client:
         entry = client.post(
             "/api/v1/experiments",

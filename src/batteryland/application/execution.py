@@ -8,7 +8,7 @@ from uuid import uuid4
 from batteryland.application.experiments import ExperimentService
 from batteryland.application.ports.documents import DocumentStore
 from batteryland.application.ports.persistence import Record, UnitOfWorkFactory
-from batteryland.application.ports.training import ExecutionFiles, SchedulerPolicy, TrainingGateway
+from batteryland.application.ports.training import ExecutionFiles, TrainingGateway
 from batteryland.domain.errors import DomainError
 from batteryland.domain.experiments import ACTIVE_STATES, TERMINAL_STATES
 
@@ -27,7 +27,6 @@ class ExecutionService:
         experiments: ExperimentService,
         training: TrainingGateway,
         files: ExecutionFiles,
-        policy: SchedulerPolicy,
         interrupt_timeout: float,
         terminate_timeout: float,
     ) -> None:
@@ -36,7 +35,6 @@ class ExecutionService:
         self.experiments = experiments
         self.training = training
         self.files = files
-        self.policy = policy
         self.interrupt_timeout = interrupt_timeout
         self.terminate_timeout = terminate_timeout
         self._tick_lock = threading.Lock()
@@ -141,6 +139,30 @@ class ExecutionService:
     ) -> None:
         with self.units() as unit:
             unit.experiments.transition(identity, expected, target, fields or {})
+
+    def dispatch(self, identity: str, revision: int, policy_id: str) -> tuple[Record, bool]:
+        """Claim a queued execution once, preserving the engine's serial capacity."""
+        # Prepare/spawn and observation share this gate so an incomplete receipt
+        # cannot be mistaken for a crashed start by the monitor.
+        with self._tick_lock:
+            with self.units() as unit:
+                candidate = unit.experiments.get(identity)
+                if candidate["state"] == "draft":
+                    raise DomainError("conflict", "Submit the experiment before dispatching")
+                if candidate["state"] != "queued":
+                    return self.experiments.get(identity), False
+                if candidate["revision"] != revision:
+                    raise DomainError("conflict", "Queued experiment revision has changed")
+                active = unit.experiments.executions(ACTIVE_STATES)
+                if any(item["state"] == "needs_reconciliation" for item in active):
+                    raise DomainError(
+                        "needs_reconciliation", "Resolve the uncertain execution first"
+                    )
+                if active:
+                    raise DomainError("conflict", "Execution capacity is occupied")
+            logger.info("Dispatching experiment %s with policy %s", identity, policy_id)
+            self._start(candidate)
+            return self.experiments.get(identity), True
 
     def _start(self, candidate: Record) -> None:
         identity = candidate["id"]
@@ -343,11 +365,6 @@ class ExecutionService:
             for record in active:
                 if record["state"] != "needs_reconciliation":
                     self._watch(record)
-            with self.units() as unit:
-                active = unit.experiments.executions(ACTIVE_STATES)
-                pending = unit.experiments.executions({"queued"})
-            for candidate in self.policy.choose(pending, active):
-                self._start(candidate)
             self.collect_pending()
         finally:
             self._tick_lock.release()

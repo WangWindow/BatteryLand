@@ -20,6 +20,7 @@ dev = [
     "ty>=0.0.90,<0.1",
     "types-pyyaml>=6,<7",
 ]
+scheduler = ["httpx>=0.28,<1"]
 training = [
     "accelerate>=1.10,<2",
     "denseweight>=0.1.2,<0.2",
@@ -37,7 +38,7 @@ training = [
 ]
 
 [tool.uv]
-default-groups = ["dev", "training"]
+default-groups = ["dev", "scheduler", "training"]
 constraint-dependencies = ["kdepy>=1.1.12", "transformers>=5.18,<5.19"]
 
 [tool.uv.sources]
@@ -74,7 +75,7 @@ ignore = ["E501"]
 python-version = "3.14"
 
 [tool.ty.src]
-include = ["src/batteryland"]
+include = ["src/batteryland", "src/simple_impl/scheduler"]
 
 [tool.ty.terminal]
 error-on-warning = true

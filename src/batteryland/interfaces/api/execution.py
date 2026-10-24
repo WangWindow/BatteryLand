@@ -1,7 +1,7 @@
 from typing import Annotated, Any, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import Field
 
 from batteryland.application.execution import ExecutionService
@@ -14,6 +14,12 @@ router = APIRouter(prefix="/api/v1", tags=["execution"])
 
 class Submission(RequestModel):
     experiment_ids: list[UUID] = Field(min_length=1)
+
+
+class Dispatch(RequestModel):
+    experiment_id: UUID
+    expected_revision: int = Field(ge=1)
+    policy_id: str = Field(default="fifo", min_length=1, max_length=100)
 
 
 class Queue(RequestModel):
@@ -37,6 +43,19 @@ def submit(
 @router.get("/queue", response_model=Envelope[Queue])
 def queue(execution: Annotated[ExecutionService, Depends(service)]) -> dict[str, Any]:
     return {"data": execution.queue()}
+
+
+@router.post("/queue/dispatch", status_code=202, response_model=Envelope[Experiment])
+def dispatch(
+    body: Dispatch,
+    response: Response,
+    execution: Annotated[ExecutionService, Depends(service)],
+) -> dict[str, Any]:
+    experiment, claimed = execution.dispatch(
+        str(body.experiment_id), body.expected_revision, body.policy_id
+    )
+    response.status_code = 202 if claimed else 200
+    return {"data": experiment}
 
 
 @router.post(

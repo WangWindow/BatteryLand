@@ -231,6 +231,9 @@ dev = [
     { name = "ty" },
     { name = "types-pyyaml" },
 ]
+scheduler = [
+    { name = "httpx" },
+]
 training = [
     { name = "accelerate" },
     { name = "denseweight" },
@@ -266,6 +269,7 @@ dev = [
     { name = "ty", specifier = ">=0.0.90,<0.1" },
     { name = "types-pyyaml", specifier = ">=6,<7" },
 ]
+scheduler = [{ name = "httpx", specifier = ">=0.28,<1" }]
 training = [
     { name = "accelerate", specifier = ">=1.10,<2" },
     { name = "denseweight", specifier = ">=0.1.2,<0.2" },

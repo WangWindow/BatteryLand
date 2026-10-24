@@ -165,10 +165,3 @@ class ProcessSupervisor:
             except ProcessLookupError:
                 pass
         return self.observe(receipt)
-
-
-class LocalSerialScheduler:
-    provider_id = "local-serial/v1"
-
-    def choose(self, pending: list[Record], active: list[Record]) -> list[Record]:
-        return [] if active else pending[:1]

@@ -100,10 +100,10 @@ class ArtifactService:
     def capabilities(self) -> list[Record]:
         return self.provider.capabilities() + [
             {
-                "provider_id": "local-serial/v1",
+                "provider_id": "engine-execution/v1",
                 "version": "1",
                 "available": True,
-                "supported_operations": ["fifo", "stop"],
+                "supported_operations": ["dispatch", "observe", "stop"],
                 "limitations": ["explicit devices only", "single active execution"],
             },
             {

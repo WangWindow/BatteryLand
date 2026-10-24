@@ -50,7 +50,7 @@ def test_unsupported_upload_is_rejected_and_capabilities_are_honest(
     status = client.get("/api/v1/capabilities")
     assert status.status_code == 200
     capabilities = {item["provider_id"]: item for item in status.json()["data"]}
-    assert capabilities["local-serial/v1"]["available"] is True
+    assert capabilities["engine-execution/v1"]["available"] is True
     assert capabilities["deeplatform"]["available"] is False
     failure = client.post(
         "/api/v1/components/uploads",

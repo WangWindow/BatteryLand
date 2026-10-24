@@ -15,7 +15,7 @@ from batteryland.infrastructure.documents import JsonDocumentStore
 from batteryland.infrastructure.files import LocalSourceFiles, ManagedArtifacts
 from batteryland.infrastructure.persistence.database import Database
 from batteryland.infrastructure.results import LocalResultFiles
-from batteryland.infrastructure.scheduling import LocalSerialScheduler, RuntimeLease
+from batteryland.infrastructure.scheduling import RuntimeLease
 from batteryland.infrastructure.training.gateway import DeeplatformGateway
 from batteryland.infrastructure.training.materializer import ExecutionMaterializer
 
@@ -53,7 +53,6 @@ class Container:
             self.experiments,
             self.training,
             ExecutionMaterializer(settings.data_dir),
-            LocalSerialScheduler(),
             settings.interrupt_timeout,
             settings.terminate_timeout,
         )

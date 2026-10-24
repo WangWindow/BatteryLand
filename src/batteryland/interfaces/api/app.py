@@ -43,7 +43,7 @@ def create_app(
     settings: Settings | None = None,
     *,
     training: TrainingGateway | None = None,
-    start_scheduler: bool = True,
+    start_monitor: bool = True,
 ) -> FastAPI:
     """Build the API without importing or launching the training framework."""
     configuration = settings or Settings.from_env()
@@ -68,7 +68,7 @@ def create_app(
         task = None
         try:
             await run_in_threadpool(container.execution.recover)
-            task = asyncio.create_task(coordinate()) if start_scheduler else None
+            task = asyncio.create_task(coordinate()) if start_monitor else None
             yield
         finally:
             stopped.set()

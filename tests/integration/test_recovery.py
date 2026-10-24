@@ -2,7 +2,7 @@ import threading
 
 import pytest
 from fastapi.testclient import TestClient
-from test_scheduler import ControlledTraining, advance, draft
+from test_scheduler import ControlledTraining, advance, dispatch_next, draft
 
 from batteryland.bootstrap import Container
 from batteryland.config import Settings
@@ -13,13 +13,14 @@ from batteryland.interfaces.api.app import create_app
 
 def test_reconciliation_recovers_committed_disk_receipt_without_respawn(settings: Settings):
     training = ControlledTraining(settings)
-    app = create_app(settings, training=training, start_scheduler=False)
+    app = create_app(settings, training=training, start_monitor=False)
     with TestClient(app) as client:
         identity = draft(client, "uncertain", duration=30)["id"]
         container = app.state.container
         client.post(
             "/api/v1/queue/submissions", json={"experiment_ids": [identity]}
         ).raise_for_status()
+        dispatch_next(client)
         container.execution.tick()
         with container.database.unit_of_work() as unit:
             original = unit.experiments.execution(identity)["receipt"]
@@ -39,13 +40,14 @@ def test_reconciliation_recovers_committed_disk_receipt_without_respawn(settings
 
 def test_uncertain_recovery_preserves_stop_intent(settings: Settings):
     training = ControlledTraining(settings)
-    app = create_app(settings, training=training, start_scheduler=False)
+    app = create_app(settings, training=training, start_monitor=False)
     with TestClient(app) as client:
         identity = draft(client, "stopping", duration=30)["id"]
         container = app.state.container
         client.post(
             "/api/v1/queue/submissions", json={"experiment_ids": [identity]}
         ).raise_for_status()
+        dispatch_next(client)
         container.execution.tick()
         with container.database.unit_of_work() as unit:
             receipt = unit.experiments.execution(identity)["receipt"]
@@ -89,14 +91,14 @@ def test_stop_during_confirmed_preparation_failure_has_no_process(settings: Sett
             raise DomainError("integration_precondition_failed", "Preparation failed before spawn")
 
     training = FailedPreparation(settings)
-    app = create_app(settings, training=training, start_scheduler=False)
+    app = create_app(settings, training=training, start_monitor=False)
     with TestClient(app) as client:
         identity = draft(client, "prepare-race")["id"]
         container = app.state.container
         client.post(
             "/api/v1/queue/submissions", json={"experiment_ids": [identity]}
         ).raise_for_status()
-        worker = threading.Thread(target=container.execution.tick)
+        worker = threading.Thread(target=lambda: dispatch_next(client))
         worker.start()
         try:
             assert entered.wait(5)

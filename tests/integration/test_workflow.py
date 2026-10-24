@@ -13,7 +13,7 @@ from batteryland.interfaces.api.app import create_app
 
 
 def test_resource_to_frozen_execution_and_result_traceability(settings: Settings):
-    app = create_app(settings, training=ControlledTraining(settings), start_scheduler=False)
+    app = create_app(settings, training=ControlledTraining(settings), start_monitor=False)
     with TestClient(app) as client:
         source, ids = setup_batteries(client)
         split_body = {
@@ -87,7 +87,7 @@ def test_resource_to_frozen_execution_and_result_traceability(settings: Settings
 
 
 def test_common_queries_benchmark_and_no_document_scans(settings: Settings, monkeypatch):
-    app = create_app(settings, start_scheduler=False)
+    app = create_app(settings, start_monitor=False)
     with TestClient(app) as client:
         container = app.state.container
         source = container.resources.create_source("benchmark", "demo")

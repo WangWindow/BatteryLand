@@ -85,10 +85,26 @@ def draft(client, name, device="cpu", duration=0.03):
     return response.json()["data"]
 
 
+def dispatch_next(client):
+    queue = client.get("/api/v1/queue").json()["data"]
+    if queue["active"] or queue["dispatch_paused"] or not queue["waiting"]:
+        return
+    item = queue["waiting"][0]
+    client.post(
+        "/api/v1/queue/dispatch",
+        json={
+            "experiment_id": item["id"],
+            "expected_revision": item["revision"],
+            "policy_id": "test-fifo",
+        },
+    ).raise_for_status()
+
+
 def advance(container, client, identities, *, timeout=5):
     deadline = time.monotonic() + timeout
     states = []
     while time.monotonic() < deadline:
+        dispatch_next(client)
         container.execution.tick()
         states = [
             client.get(f"/api/v1/experiments/{identity}").json()["data"]["state"]
@@ -102,7 +118,7 @@ def advance(container, client, identities, *, timeout=5):
 
 def test_fifo_submission_is_single_use_and_snapshots_are_frozen(settings: Settings):
     training = ControlledTraining(settings)
-    app = create_app(settings, training=training, start_scheduler=False)
+    app = create_app(settings, training=training, start_monitor=False)
     with TestClient(app) as client:
         entries = [draft(client, name) for name in "ABC"]
         identities = [item["id"] for item in entries]
@@ -139,7 +155,7 @@ def test_invalid_batch_is_atomic_and_stop_confirms_process_exit(settings: Settin
         terminate_timeout=0.1,
     )
     training = ControlledTraining(settings)
-    app = create_app(settings, training=training, start_scheduler=False)
+    app = create_app(settings, training=training, start_monitor=False)
     with TestClient(app) as client:
         valid = draft(client, "valid", duration=30)
         invalid = draft(client, "invalid", device="auto")
@@ -151,6 +167,7 @@ def test_invalid_batch_is_atomic_and_stop_confirms_process_exit(settings: Settin
         client.post(
             "/api/v1/queue/submissions", json={"experiment_ids": [valid["id"]]}
         ).raise_for_status()
+        dispatch_next(client)
         app.state.container.execution.tick()
         stopping = client.post(f"/api/v1/experiments/{valid['id']}/stop")
         assert stopping.status_code == 202 and stopping.json()["data"]["state"] == "stopping"
@@ -160,7 +177,7 @@ def test_invalid_batch_is_atomic_and_stop_confirms_process_exit(settings: Settin
 
 def test_queued_cancel_and_restart_do_not_reexecute(settings: Settings):
     training = ControlledTraining(settings)
-    with TestClient(create_app(settings, training=training, start_scheduler=False)) as client:
+    with TestClient(create_app(settings, training=training, start_monitor=False)) as client:
         cancelled = draft(client, "cancel")
         waiting = draft(client, "wait")
         client.post(
@@ -171,7 +188,7 @@ def test_queued_cancel_and_restart_do_not_reexecute(settings: Settings):
             == "cancelled"
         )
     second = ControlledTraining(settings)
-    app = create_app(settings, training=second, start_scheduler=False)
+    app = create_app(settings, training=second, start_monitor=False)
     with TestClient(app) as client:
         assert advance(app.state.container, client, [waiting["id"]]) == ["succeeded"]
         assert second.started == [waiting["id"]]
