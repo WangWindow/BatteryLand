@@ -1,0 +1,41 @@
+import type { components } from "@/api/types"
+
+export type Schema = components["schemas"]
+export type DataSource = Schema["DataSource"]
+export type Battery = Schema["Battery"]
+export type Split = Schema["Split"]
+export type SplitWrite = Schema["SplitWrite"]
+export type SplitUpdate = Schema["SplitUpdate"]
+export type Template = Schema["Template"]
+export type Experiment = Schema["Experiment"]
+export type ExperimentWrite = Schema["ExperimentWrite"]
+export type ExperimentPatch = Schema["ExperimentPatch"]
+export type Queue = Schema["Queue"]
+export type Result = Schema["Result"]
+export type LogChunk = Schema["LogChunk"]
+export type Artifact = Schema["Artifact"]
+export type Component = Schema["Component"]
+export type Capability = Schema["Capability"]
+export type Validation = Schema["Validation"]
+export type ImportReport = Schema["ImportReport"]
+export type ChartBundle = Schema["ChartBundle"]
+export type ChartSpec = Schema["ChartSpec"]
+export type Series = Schema["Series"]
+export type Point = Schema["Point"]
+export type ComparisonData = Schema["ComparisonData"]
+export type MetricRow = Schema["MetricRow"]
+export type PredictionRow = Schema["PredictionRow"]
+export type Metric = Schema["Metric"]
+export type Prediction = Schema["Prediction"]
+export type ResultSource = Schema["ResultSource"]
+export type DifferenceResult = Schema["DifferenceResult"]
+export type Bindings = Schema["Bindings"]
+export type VersionRef = Schema["VersionRef"]
+export type SetRef = Schema["SetRef"]
+export type Category = Schema["Category"]
+export type Page<T> = {
+  items: T[]
+  total: number
+  page: number
+  page_size: number
+}

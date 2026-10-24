@@ -12,6 +12,36 @@ uv run batteryland serve --data-dir ./var --host 127.0.0.1 --port 8000
 
 接口文档：<http://127.0.0.1:8000/docs>。默认单 worker，同一运行目录只能由一个后端实例协调。
 
+## 模块化工作台
+
+后端引擎、独立调度器和前端是三个可独立启动的进程，彼此只通过公开 HTTP 接口通信：
+
+```bash
+# 终端 1：引擎
+uv run batteryland serve --data-dir ./var
+# 终端 2：独立 FIFO 调度器
+uv run python -m simple_impl.scheduler --base-url http://127.0.0.1:8000
+# 终端 3：工作台前端
+cd src/src/simple_impl/ui
+bun install --frozen-lockfile
+bun run dev
+```
+
+工作台覆盖来源/电池、划分、模板、组件与权重、实验草稿与校验、队列与停止、
+增量日志、结果/产物、比较和六种浏览器图表。网页不读取数据库、实验目录或训练进程。
+调度策略可替换，不导入 `batteryland` 或训练框架内部模块。
+
+界面支持简体中文和英文，语言选择保存在浏览器本地。所有用户可见文案来自
+`src/src/simple_impl/ui/src/i18n/messages/`；新增或修改文案必须同时更新两种语言，
+`bun run check` 会验证键树、插值占位符、翻译引用和源码硬编码文本。
+
+```bash
+cd src/src/simple_impl/ui
+bun run verify        # 类型检查、Biome+i18n、Vitest、构建
+bun run test:e2e      # 真实 HTTP 引擎+独立 scheduler+Chromium
+```
+
+
 来源目录通过环境变量登记，API 只接收别名及相对文件引用：
 
 ```bash
@@ -37,10 +67,14 @@ deeplatform 固定原始数据路径、自定义划分入口及精确 CUDA 编�
 
 ```bash
 uv run pytest tests
-uv run ruff check src/batteryland tests
-uv run ruff format --check src/batteryland tests
+uv run ruff check src/batteryland src/simple_impl tests
+uv run ruff format --check src/batteryland src/simple_impl tests
 uv run ty check
 uv build
+
+cd src/src/simple_impl/ui
+bun run verify
+bun run test:e2e
 ```
 
-[开发规范](.specify/memory/constitution.md) · [首版规格](specs/001-backend-experiment-platform/spec.md) · [共享环境训练联调](specs/002-shared-training-runtime/quickstart.md) · [HTTP 契约](specs/001-backend-experiment-platform/contracts/http-api.md)
+[开发规范](.specify/memory/constitution.md) · [工作台规格](specs/003-modular-workflow/spec.md) · [首版规格](specs/001-backend-experiment-platform/spec.md) · [共享环境训练联调](specs/002-shared-training-runtime/quickstart.md) · [前端实现](src/src/simple_impl/ui/README.md)

@@ -14,6 +14,8 @@ queued→starting仍为条件更新，事务提交后才prepare/spawn；其他�
 
 服务器DTO由OpenAPI生成，不重新定义持久化模型。查询条件、页码、选择和编辑草稿为浏览器临时状态，保存时提交expected_revision。
 切换选项或卸载取消旧请求，不让旧响应覆盖新视图。日志保留游标，最多保留256KiB展示内容。
+界面语言（zh-CN/en）保存在浏览器本地；服务端业务状态不因语言改变。所有展示文案
+来自`src/simple_impl/ui/src/i18n/messages/`，键树与插值占位符在两种语言间保持一致。
 
 ## Visualization
 

@@ -4,7 +4,8 @@
 
 在仓库根运行`uv sync`和`uv run batteryland init --data-dir ./var`。
 配置允许来源后启动`uv run batteryland serve --data-dir ./var`，另开终端执行`uv run python -m simple_impl.scheduler`。
-前端在`simple_impl/ui`运行`bun install --frozen-lockfile`与`bun run dev`，打开http://127.0.0.1:5173。
+前端在`src/src/simple_impl/ui`运行`bun install --frozen-lockfile`与`bun run dev`，打开http://127.0.0.1:5173。
+界面右上/侧栏可切换简体中文与English，选择保存在浏览器本地。
 前端开发和preview通过代理访问后端；生产部署将/api代理到独立后端，不把页面嵌入引擎。
 
 ## 验收
@@ -18,9 +19,15 @@
 
 ## 检查
 
-根目录执行pytest、Ruff与ty；前端执行`bun run check`、`bun run typecheck`、`bun run test`、`bun run build`、`bun run test:e2e`。
+根目录执行pytest、Ruff与ty；前端执行`bun run check`（Biome + 国际化检查）、`bun run typecheck`、`bun run test`、`bun run build`、`bun run test:e2e`或`bun run verify`。
+新增或修改任何界面文案时必须同时更新`src/i18n/messages/`中的中英文；只改一种语言或硬编码文本会使检查失败。
 真实CPU/GPU验收仍需显式`uv run pytest tests/training --run-training --run-gpu`。
 
 ## 实际证据
 
-尚未实现；完成后记录实际命令和结果，不将此前001/002验收冒充本次证据。
+2026-10-24 本轮实测：
+
+- 后端：`uv run pytest` → 76 passed / 4 skipped；`ruff check`、`ruff format --check`、`ty check` 通过；当前OpenAPI 49个操作。
+- 前端：`bun run typecheck`、`bun run check`（Biome + 国际化）通过，624个中英词典键一致；`bun run test` → 20 passed；`bun run build` 成功，visualizer与Recharts在独立chunk。
+- 浏览器：`bun run test:e2e` → 4 passed。真实HTTP引擎、独立scheduler与Chromium完成来源/清单/划分/模板/实验/执行/日志/结果/六种图型/停止/语言切换/窄屏与键盘验收；懒加载失败显示可恢复错误。
+- 未执行：真实CPU/GPU训练（`pytest tests/training --run-training [--run-gpu]`）。该测试已改为经独立scheduler派发，但本机未执行，不能据此宣称真实训练或GPU通过。

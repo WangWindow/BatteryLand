@@ -10,7 +10,7 @@
 ## Technical Context
 
 **Language/Version**: Python>=3.14、TypeScript严格模式；同一根Python环境。
-**Primary Dependencies**: FastAPI/SQLAlchemy原版本；scheduler使用HTTPX；React/Vite/shadcn(radix,nova)/Tailwind；Bun、Biome、Recharts、openapi-typescript。
+**Primary Dependencies**: FastAPI/SQLAlchemy原版本；scheduler使用HTTPX；React/Vite/shadcn(radix,nova)/Tailwind；i18next/react-i18next；Bun、Biome、Recharts、openapi-typescript。
 **Storage**: 既有SQLite及不可变JSON，无新增数据服务或迁移。
 **Testing**: pytest红绿、Vitest/RTL、Playwright、真实CPU/GPU显式验收；Ruff/ty/Biome/tsc/build。
 **Target Platform**: 本地Linux后端，现代桌面与窄屏浏览器。
@@ -28,13 +28,14 @@
 | 可替换与复杂度 | PASS：FIFO策略独立，无新数据库或服务端绘图 |
 | SDD/TDD | PASS：规格先提交，各业务测试先失败再实现 |
 | 统一前端与性能 | PASS：单应用、Bun/Biome、按需浏览器绘图 |
+| 国际化与文案治理 | PASS：zh-CN/en统一词典、类型约束、键/占位符/硬编码自动检查 |
 | Git边界 | PASS：规格、引擎、scheduler、前端及验收分批提交 |
 
 ## Project Structure
 
 - `src/batteryland/`：新增派发用例和接口，监控循环只观察/停止/采集。
-- `simple_impl/scheduler/`：无引擎内部导入的HTTP客户端、FIFO策略、CLI。
-- `simple_impl/ui/`：一个package.json与bun.lock；api、components、pages、visualizer分离。
+- `src/simple_impl/scheduler/`：无引擎内部导入的HTTP客户端、FIFO策略、CLI。
+- `src/simple_impl/ui/`：一个package.json与bun.lock；api、components、pages、visualizer分离。
 - `tests/integration/test_dispatch.py`、`tests/unit/test_scheduler_client.py`：派发与独立客户端契约。
 - 前端`tests/`及`e2e/`：交互、错误、图表、真实HTTP主流程。
 
@@ -50,7 +51,22 @@
 用OpenAPI生成DTO，小型fetch客户端统一envelope、错误、上传、下载和取消；页面不复制模型。
 以紧凑侧栏、页头、工具栏、数据表和详情编辑区组织；主题为slate中性底色与克制蓝色强调，统一shadcn控件。
 页面懒加载，visualizer仅由比较页动态引用；六种ChartBundle描述转换成Recharts浏览器组件。
+界面提供持久化中英文切换；所有文案、无障碍标签和错误提示来自功能分文件词典，
+`bun run check`同时执行Biome、键树/占位符一致性和源码硬编码文案扫描。
 原始JSON配置提供清晰标签和提交校验，组件参数描述可查看，来源/划分/模板用选择控件，不创建通用表单引擎。
+
+## Module Deployment Boundaries
+
+工作台按“可独立启动的服务模块群”组织，而不是把所有功能塞入单一进程：
+
+- 引擎进程（`src/batteryland`）：唯一拥有SQLite/JSON权威状态、派发认可、进程监督和结果采集。
+- 调度进程（`src/simple_impl/scheduler`）：只通过公开`queue`/`dispatch`接口选择任务，可独立替换FIFO策略。
+- 前端应用（`src/simple_impl/ui`）：静态构建产物，只通过`/api/v1`通信；visualizer是应用内按需模块，不读取文件或进程。
+- 训练进程（deeplatform）：由引擎通过既有适配器启动，调度器和前端不得直接调用。
+
+模块之间禁止通过私有Python导入、共享数据库连接、临时文件约定或前端读取运行目录耦合。
+失败边界独立：scheduler离线时排队等待；前端不可用时引擎和训练继续；visualizer加载失败由错误边界恢复。
+首期不引入消息队列、Redis、服务网格或多数据库；未来替换模块仍沿用相同HTTP/ChartBundle契约。
 
 ## Complexity Tracking
 
