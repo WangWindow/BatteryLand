@@ -2,7 +2,7 @@
 
 **Feature Branch**: `011-graphical-datasets`
 **Created**: 2026-10-24
-**Status**: Ready
+**Status**: Complete
 **Input**: User request for graphical source and battery selection, practical dataset splitting, persisted data statistics, and a SQLite-only backend.
 
 ## User Scenarios & Testing

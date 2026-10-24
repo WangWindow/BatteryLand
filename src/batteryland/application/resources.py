@@ -86,6 +86,8 @@ class ResourceService:
             for value in prepared.values():
                 unit.resources.add_battery(value)
                 imported += 1
+            if imported:
+                unit.resources.increment_source_revision(source_id)
         return {"imported": imported, "existing": existing_count, "errors": []}
 
     def list_batteries(self, filters: dict[str, Any], page: int, page_size: int) -> Record:

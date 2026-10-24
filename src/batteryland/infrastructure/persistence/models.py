@@ -86,6 +86,15 @@ class SplitMemberRow(Base):
     ordinal: Mapped[int]
 
 
+class DatasetStatisticsRow(Base):
+    __tablename__ = "dataset_statistics"
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("document_versions.id", ondelete="CASCADE"), primary_key=True
+    )
+    schema_version: Mapped[int] = mapped_column(default=1, server_default="1")
+    summary: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
 class TemplateRow(Identity, Base):
     __tablename__ = "templates"
     name: Mapped[str] = mapped_column(unique=True)

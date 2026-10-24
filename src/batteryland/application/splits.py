@@ -3,6 +3,7 @@ from uuid import uuid4
 from batteryland.application.ports.documents import DocumentStore
 from batteryland.application.ports.persistence import Record, UnitOfWork, UnitOfWorkFactory
 from batteryland.application.serialization import load_json
+from batteryland.domain.dataset_statistics import summarize_dataset
 from batteryland.domain.errors import DomainError
 from batteryland.domain.splits import PARTITIONS, make_split
 
@@ -12,10 +13,44 @@ class SplitService:
         self.units = units
         self.documents = documents
 
+    @staticmethod
+    def _statistics(unit: UnitOfWork, payload: Record) -> Record:
+        member_ids = [member for name in PARTITIONS for member in payload[name]]
+        records = unit.resources.get_batteries(member_ids)
+        metadata = {record["id"]: record["metadata"] for record in records}
+        return summarize_dataset(
+            {name: payload[name] for name in PARTITIONS},
+            metadata,
+        )
+
     def _payload(self, unit: UnitOfWork, body: Record) -> Record:
-        unit.resources.get_source(body["source_id"])
+        source = unit.resources.get_source(body["source_id"])
+        expected_source_revision = body.get("expected_source_revision")
+        if expected_source_revision is None:
+            raise DomainError("invalid_input", "Expected source revision is required")
+        if expected_source_revision != source["revision"]:
+            raise DomainError("conflict", "Source revision changed; preview the split again")
+
+        include_all_source = body.get("include_all_source", False)
         ids = body["battery_ids"]
-        records = {record["id"]: record for record in unit.resources.get_batteries(ids)}
+        if include_all_source:
+            if ids:
+                raise DomainError(
+                    "invalid_input", "Whole-source splits cannot include a battery list"
+                )
+            if body["method"] != "random":
+                raise DomainError(
+                    "invalid_input", "Whole-source splits must use random partitioning"
+                )
+            source_batteries = unit.resources.list_source_batteries(body["source_id"])
+            ids = [record["id"] for record in source_batteries]
+            records = {record["id"]: record for record in source_batteries}
+        elif not ids:
+            raise DomainError("invalid_input", "Select at least one battery for the split")
+        else:
+            records = {record["id"]: record for record in unit.resources.get_batteries(ids)}
+        if not ids:
+            raise DomainError("invalid_input", "A split requires at least one battery")
         if set(records) != set(ids):
             raise DomainError("invalid_input", "Split references an unknown battery")
         if any(record["source_id"] != body["source_id"] for record in records.values()):
@@ -55,31 +90,47 @@ class SplitService:
             **partitions,
             "method": body["method"],
             "seed": body.get("seed"),
+            "include_all_source": include_all_source,
+            "source_revision": source["revision"],
             "algorithm_version": "shuffle-v1",
             "parameters": {"ratios": body.get("ratios")},
         }
 
     @staticmethod
-    def _view(header: Record, version: int, payload: Record) -> Record:
+    def _view(
+        header: Record, version: int, payload: Record, statistics: Record | None = None
+    ) -> Record:
         return {key: value for key, value in header.items() if key != "head_document_id"} | {
             "name": payload["dataset_name"],
             "head_version": header["revision"],
             "version": version,
             "counts": {name: len(payload[name]) for name in PARTITIONS},
             "payload": payload,
+            "statistics": statistics,
         }
 
     def create(self, body: Record) -> Record:
         identity = str(uuid4())
         with self.units() as unit:
             payload = self._payload(unit, body)
+            statistics = self._statistics(unit, payload)
         with self.documents.write_lock():
             document = self.documents.publish("split", identity, 1, payload)
             with self.units() as unit:
                 unit.documents.add(document)
                 header = unit.splits.add(identity, body["name"], body["source_id"], document.id)
                 unit.splits.add_members(document.id, {name: payload[name] for name in PARTITIONS})
-        return self._view(header, 1, payload)
+                unit.splits.add_statistics(document.id, statistics)
+        return self._view(header, 1, payload, statistics)
+
+    def preview(self, body: Record) -> Record:
+        with self.units() as unit:
+            payload = self._payload(unit, body)
+        counts = {name: len(payload[name]) for name in PARTITIONS}
+        return {
+            "source_revision": payload["source_revision"],
+            "counts": {"all": sum(counts.values()), **counts},
+        }
 
     def update(self, identity: str, body: Record, revision: int) -> Record:
         with self.units() as unit:
@@ -89,13 +140,15 @@ class SplitService:
             if old["source_id"] != body["source_id"]:
                 raise DomainError("invalid_input", "A split cannot change its source")
             payload = self._payload(unit, body)
+            statistics = self._statistics(unit, payload)
         with self.documents.write_lock():
             document = self.documents.publish("split", identity, revision + 1, payload)
             with self.units() as unit:
                 unit.documents.add(document)
                 header = unit.splits.update(identity, revision, body["name"], document.id)
                 unit.splits.add_members(document.id, {name: payload[name] for name in PARTITIONS})
-        return self._view(header, revision + 1, payload)
+                unit.splits.add_statistics(document.id, statistics)
+        return self._view(header, revision + 1, payload, statistics)
 
     def get(self, identity: str, version: int | None = None) -> Record:
         with self.units() as unit:
@@ -105,7 +158,12 @@ class SplitService:
                 if version is None
                 else unit.documents.find("split", identity, version)
             )
-        return self._view(header, document.version, self.documents.read(document)["payload"])
+            payload = self.documents.read(document)["payload"]
+            statistics = unit.splits.statistics(document.id)
+            if statistics is None:
+                statistics = self._statistics(unit, payload)
+                unit.splits.add_statistics(document.id, statistics)
+        return self._view(header, document.version, payload, statistics)
 
     def list(self, source_id: str | None, q: str | None, page: int, page_size: int) -> Record:
         with self.units() as unit:
@@ -149,7 +207,7 @@ class SplitService:
             raise DomainError("invalid_input", "Split import requires dataset, train, val and test")
         partitions: dict[str, list[str]] = {}
         with self.units() as unit:
-            unit.resources.get_source(source_id)
+            source = unit.resources.get_source(source_id)
             for name in PARTITIONS:
                 if not isinstance(value[name], list) or any(
                     not isinstance(item, str) or not item for item in value[name]
@@ -169,6 +227,7 @@ class SplitService:
             {
                 "name": value["dataset"],
                 "source_id": source_id,
+                "expected_source_revision": source["revision"],
                 "battery_ids": list(
                     dict.fromkeys(member for group in partitions.values() for member in group)
                 ),

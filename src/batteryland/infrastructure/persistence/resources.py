@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, select, update
 from sqlalchemy.orm import Session
 
 from batteryland.application.ports.persistence import Record
@@ -31,6 +31,7 @@ def source_value(row: DataSourceRow) -> Record:
         "name": row.name,
         "root_alias": row.root_alias,
         "revision": row.revision,
+        "battery_count": 0,
         "availability": row.availability,
         "created_at": row.created_at,
     }
@@ -63,13 +64,43 @@ class SqlResourceRepository:
         row = self.session.get(DataSourceRow, identity)
         if row is None:
             raise DomainError("not_found", "Data source not found")
-        return source_value(row)
+        result = source_value(row)
+        result["battery_count"] = self.session.scalar(
+            select(func.count()).select_from(BatteryRow).where(BatteryRow.source_id == identity)
+        )
+        return result
+
+    def increment_source_revision(self, identity: str) -> int:
+        revision = self.session.scalar(
+            update(DataSourceRow)
+            .where(DataSourceRow.id == identity)
+            .values(revision=DataSourceRow.revision + 1)
+            .returning(DataSourceRow.revision)
+        )
+        if revision is None:
+            raise DomainError("not_found", "Data source not found")
+        return revision
 
     def list_sources(self, page: int, page_size: int) -> Record:
         statement = select(DataSourceRow).order_by(
             DataSourceRow.created_at.desc(), DataSourceRow.id.desc()
         )
-        return page_of(self.session, statement, source_value, page, page_size)
+        total = self.session.scalar(select(func.count()).select_from(DataSourceRow))
+        rows = self.session.scalars(statement.limit(page_size).offset((page - 1) * page_size)).all()
+        counts = {
+            identity: count
+            for identity, count in self.session.execute(
+                select(BatteryRow.source_id, func.count())
+                .where(BatteryRow.source_id.in_([row.id for row in rows]))
+                .group_by(BatteryRow.source_id)
+            )
+        }
+        return {
+            "items": [source_value(row) | {"battery_count": counts.get(row.id, 0)} for row in rows],
+            "total": total or 0,
+            "page": page,
+            "page_size": page_size,
+        }
 
     def find_battery(self, source_id: str, file_name: str) -> Record | None:
         row = self.session.scalar(
@@ -94,9 +125,22 @@ class SqlResourceRepository:
         return battery_value(row)
 
     def get_batteries(self, identities: list[str]) -> list[Record]:
+        by_id: dict[str, Record] = {}
+        for offset in range(0, len(identities), 500):
+            batch = identities[offset : offset + 500]
+            rows = self.session.scalars(select(BatteryRow).where(BatteryRow.id.in_(batch)))
+            by_id.update({row.id: battery_value(row) for row in rows})
+        return [by_id[identity] for identity in identities if identity in by_id]
+
+    def list_source_batteries(self, source_id: str) -> list[Record]:
+        rows = self.session.execute(
+            select(BatteryRow.id, BatteryRow.source_id, BatteryRow.parent_battery_id)
+            .where(BatteryRow.source_id == source_id)
+            .order_by(BatteryRow.file_name, BatteryRow.id)
+        )
         return [
-            battery_value(row)
-            for row in self.session.scalars(select(BatteryRow).where(BatteryRow.id.in_(identities)))
+            {"id": identity, "source_id": source, "parent_battery_id": parent}
+            for identity, source, parent in rows
         ]
 
     def list_batteries(self, filters: Record, page: int, page_size: int) -> Record:

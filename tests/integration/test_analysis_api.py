@@ -82,6 +82,9 @@ def test_real_set_counts_overlap_and_missing_categories(client: TestClient):
         json={
             "name": "analysis",
             "source_id": source,
+            "expected_source_revision": client.get("/api/v1/data-sources").json()["data"]["items"][
+                0
+            ]["revision"],
             "battery_ids": ids,
             "method": "manual",
             "partitions": {"train": ids[:2], "val": ids[2:3], "test": ids[3:]},

@@ -18,7 +18,7 @@ def test_all_operations_declare_typed_success_and_uniform_errors(settings):
         for method, operation in path.items()
         if method in {"get", "post", "put", "patch", "delete"}
     ]
-    assert len(operations) == 51
+    assert len(operations) == 52
     for operation in operations:
         assert operation["responses"]["422"]["content"]["application/json"]["schema"][
             "$ref"
@@ -43,3 +43,14 @@ def test_all_operations_declare_typed_success_and_uniform_errors(settings):
                 check(child)
 
     check(schema)
+
+
+def test_data_source_list_exposes_registered_battery_count(settings):
+    schema = create_app(settings).openapi()
+
+    assert "battery_count" in schema["components"]["schemas"]["DataSource"]["properties"]
+    split_write = schema["components"]["schemas"]["SplitWrite"]["properties"]
+    assert "include_all_source" in split_write
+    assert "expected_source_revision" in split_write
+    assert "post" in schema["paths"]["/api/v1/splits/preview"]
+    assert "statistics" in schema["components"]["schemas"]["Split"]["properties"]

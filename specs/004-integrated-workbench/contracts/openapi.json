@@ -1041,6 +1041,97 @@
         }
       }
     },
+    "/api/v1/splits/preview": {
+      "post": {
+        "tags": [
+          "splits"
+        ],
+        "summary": "Preview Split",
+        "operationId": "preview_split_api_v1_splits_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SplitWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SplitPreviewResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/splits/import": {
       "post": {
         "tags": [
@@ -5591,6 +5682,89 @@
         ],
         "title": "Artifact"
       },
+      "AttributeStatistics": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "numeric",
+              "categorical"
+            ],
+            "title": "Kind"
+          },
+          "valid_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Valid Count"
+          },
+          "missing_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Missing Count"
+          },
+          "unsupported_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Unsupported Count"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/StatisticCategory"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categories"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "valid_count",
+          "missing_count",
+          "unsupported_count"
+        ],
+        "title": "AttributeStatistics"
+      },
       "Axis": {
         "properties": {
           "label": {
@@ -6475,6 +6649,10 @@
             "type": "integer",
             "title": "Revision"
           },
+          "battery_count": {
+            "type": "integer",
+            "title": "Battery Count"
+          },
           "availability": {
             "type": "string",
             "title": "Availability"
@@ -6491,6 +6669,7 @@
           "name",
           "root_alias",
           "revision",
+          "battery_count",
           "availability",
           "created_at"
         ],
@@ -6517,6 +6696,25 @@
           "root_alias"
         ],
         "title": "DataSourceWrite"
+      },
+      "DatasetStatistics": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version"
+          },
+          "scopes": {
+            "$ref": "#/components/schemas/StatisticsScopes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schema_version",
+          "scopes"
+        ],
+        "title": "DatasetStatistics"
       },
       "DifferenceRequest": {
         "properties": {
@@ -7128,6 +7326,29 @@
           "data"
         ],
         "title": "Envelope[Result]"
+      },
+      "Envelope_SplitPreviewResponse_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "const": 0,
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SplitPreviewResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[SplitPreviewResponse]"
       },
       "Envelope_Split_": {
         "properties": {
@@ -8726,6 +8947,16 @@
             ],
             "title": "Payload"
           },
+          "statistics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetStatistics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "created_at": {
             "type": "string",
             "title": "Created At"
@@ -8744,6 +8975,58 @@
           "created_at"
         ],
         "title": "Split"
+      },
+      "SplitPreviewCounts": {
+        "properties": {
+          "all": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "All"
+          },
+          "train": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Train"
+          },
+          "val": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Val"
+          },
+          "test": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Test"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "all",
+          "train",
+          "val",
+          "test"
+        ],
+        "title": "SplitPreviewCounts"
+      },
+      "SplitPreviewResponse": {
+        "properties": {
+          "source_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Source Revision"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/SplitPreviewCounts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_revision",
+          "counts"
+        ],
+        "title": "SplitPreviewResponse"
       },
       "SplitUpdate": {
         "properties": {
@@ -8765,6 +9048,16 @@
             },
             "type": "array",
             "title": "Battery Ids"
+          },
+          "include_all_source": {
+            "type": "boolean",
+            "title": "Include All Source",
+            "default": false
+          },
+          "expected_source_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Source Revision"
           },
           "method": {
             "type": "string",
@@ -8819,7 +9112,7 @@
         "required": [
           "name",
           "source_id",
-          "battery_ids",
+          "expected_source_revision",
           "method",
           "expected_revision"
         ],
@@ -8845,6 +9138,16 @@
             },
             "type": "array",
             "title": "Battery Ids"
+          },
+          "include_all_source": {
+            "type": "boolean",
+            "title": "Include All Source",
+            "default": false
+          },
+          "expected_source_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Source Revision"
           },
           "method": {
             "type": "string",
@@ -8894,10 +9197,102 @@
         "required": [
           "name",
           "source_id",
-          "battery_ids",
+          "expected_source_revision",
           "method"
         ],
         "title": "SplitWrite"
+      },
+      "StatisticCategory": {
+        "properties": {
+          "value_type": {
+            "type": "string",
+            "enum": [
+              "boolean",
+              "integer",
+              "number",
+              "string"
+            ],
+            "title": "Value Type"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value_type",
+          "value",
+          "count"
+        ],
+        "title": "StatisticCategory"
+      },
+      "StatisticsScope": {
+        "properties": {
+          "sample_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sample Count"
+          },
+          "attributes": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AttributeStatistics"
+            },
+            "type": "object",
+            "title": "Attributes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sample_count",
+          "attributes"
+        ],
+        "title": "StatisticsScope"
+      },
+      "StatisticsScopes": {
+        "properties": {
+          "all": {
+            "$ref": "#/components/schemas/StatisticsScope"
+          },
+          "train": {
+            "$ref": "#/components/schemas/StatisticsScope"
+          },
+          "val": {
+            "$ref": "#/components/schemas/StatisticsScope"
+          },
+          "test": {
+            "$ref": "#/components/schemas/StatisticsScope"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "all",
+          "train",
+          "val",
+          "test"
+        ],
+        "title": "StatisticsScopes"
       },
       "Submission": {
         "properties": {

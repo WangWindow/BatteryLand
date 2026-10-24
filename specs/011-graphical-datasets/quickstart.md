@@ -9,18 +9,18 @@
 ## Validate the backend workflow
 
 ```sh
-.venv/bin/pytest tests/unit/test_dataset_statistics.py tests/unit/test_splits.py tests/contract/test_api.py -q
+.venv/bin/pytest tests/unit/test_dataset_statistics.py tests/unit/test_split_statistics.py tests/unit/test_resources.py tests/unit/test_splits.py tests/contract/test_api.py -q
 .venv/bin/ty check
-.venv/bin/ruff check src/batteryland tests/unit/test_dataset_statistics.py tests/unit/test_splits.py
-.venv/bin/ruff format --check src/batteryland tests/unit/test_dataset_statistics.py tests/unit/test_splits.py
+.venv/bin/ruff check src/batteryland tests/unit/test_dataset_statistics.py tests/unit/test_split_statistics.py tests/unit/test_resources.py tests/unit/test_splits.py
+.venv/bin/ruff format --check src/batteryland tests/unit/test_dataset_statistics.py tests/unit/test_split_statistics.py tests/unit/test_resources.py tests/unit/test_splits.py
 ```
 
 Expected outcomes:
 
 - A whole-source or selected-member preview returns exact counts from the server partition algorithm.
-- A save using a changed source revision is rejected; an unchanged preview can be saved.
+- Preview and save require the source revision shown when the selection was prepared; a stale revision is rejected.
 - Related battery family members never appear in different partitions.
-- Split detail returns a profile for the exact requested document version; missing metadata is reported as missing and unsupported nested values are reported separately.
+- Split detail returns a SQLite JSON profile for the exact requested document version; missing metadata is reported as missing and unsupported nested values are reported separately.
 
 ## Validate the browser workflow
 

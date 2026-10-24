@@ -28,6 +28,7 @@ class DataSource(RequestModel):
     name: str
     root_alias: str
     revision: int
+    battery_count: int
     availability: str
     created_at: str
 

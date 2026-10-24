@@ -18,6 +18,7 @@ import type {
   SetRef,
   SourceOption,
   Split,
+  SplitPreviewResponse,
   Template,
 } from "@/api/models"
 
@@ -78,6 +79,8 @@ export const endpoints = {
       ),
     get: (id: string, version?: number, signal?: AbortSignal) =>
       api.get<Split>(`/splits/${id}${queryString({ version })}`, signal),
+    preview: (body: Schema["SplitWrite"]) =>
+      api.post<SplitPreviewResponse>("/splits/preview", body),
     create: (body: Schema["SplitWrite"]) => api.post<Split>("/splits", body),
     update: (id: string, body: Schema["SplitUpdate"]) => api.put<Split>(`/splits/${id}`, body),
     remove: (id: string) => api.delete<{ deleted: boolean }>(`/splits/${id}`),

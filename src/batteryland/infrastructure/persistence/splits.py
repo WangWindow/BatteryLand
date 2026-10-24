@@ -5,6 +5,7 @@ from batteryland.application.ports.persistence import Record
 from batteryland.domain.errors import DomainError
 from batteryland.infrastructure.persistence.models import (
     BatteryRow,
+    DatasetStatisticsRow,
     DocumentRow,
     ExperimentRow,
     SplitMemberRow,
@@ -62,6 +63,20 @@ class SqlSplitRepository:
             ]
         )
         self.session.flush()
+
+    def add_statistics(self, document_id: str, profile: Record) -> None:
+        self.session.add(
+            DatasetStatisticsRow(
+                document_id=document_id,
+                schema_version=profile["schema_version"],
+                summary=profile,
+            )
+        )
+        self.session.flush()
+
+    def statistics(self, document_id: str) -> Record | None:
+        row = self.session.get(DatasetStatisticsRow, document_id)
+        return row.summary if row is not None else None
 
     def list_splits(
         self, source_id: str | None, q: str | None, page: int, page_size: int

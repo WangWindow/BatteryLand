@@ -125,6 +125,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/splits/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Split */
+        post: operations["preview_split_api_v1_splits_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/splits/import": {
         parameters: {
             query?: never;
@@ -724,6 +741,28 @@ export interface components {
             /** Created At */
             created_at: string;
         };
+        /** AttributeStatistics */
+        AttributeStatistics: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "numeric" | "categorical";
+            /** Valid Count */
+            valid_count: number;
+            /** Missing Count */
+            missing_count: number;
+            /** Unsupported Count */
+            unsupported_count: number;
+            /** Min */
+            min?: number | null;
+            /** Max */
+            max?: number | null;
+            /** Mean */
+            mean?: number | null;
+            /** Categories */
+            categories?: components["schemas"]["StatisticCategory"][] | null;
+        };
         /** Axis */
         Axis: {
             /** Label */
@@ -993,6 +1032,8 @@ export interface components {
             root_alias: string;
             /** Revision */
             revision: number;
+            /** Battery Count */
+            battery_count: number;
             /** Availability */
             availability: string;
             /** Created At */
@@ -1004,6 +1045,15 @@ export interface components {
             name: string;
             /** Root Alias */
             root_alias: string;
+        };
+        /** DatasetStatistics */
+        DatasetStatistics: {
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: 1;
+            scopes: components["schemas"]["StatisticsScopes"];
         };
         /** DifferenceRequest */
         DifferenceRequest: {
@@ -1362,6 +1412,21 @@ export interface components {
              */
             message: string;
             data: components["schemas"]["Result"];
+        };
+        /** Envelope[SplitPreviewResponse] */
+        Envelope_SplitPreviewResponse_: {
+            /**
+             * Code
+             * @default 0
+             * @constant
+             */
+            code: 0;
+            /**
+             * Message
+             * @default ok
+             */
+            message: string;
+            data: components["schemas"]["SplitPreviewResponse"];
         };
         /** Envelope[Split] */
         Envelope_Split_: {
@@ -1937,8 +2002,26 @@ export interface components {
             payload?: {
                 [key: string]: unknown;
             } | null;
+            statistics?: components["schemas"]["DatasetStatistics"] | null;
             /** Created At */
             created_at: string;
+        };
+        /** SplitPreviewCounts */
+        SplitPreviewCounts: {
+            /** All */
+            all: number;
+            /** Train */
+            train: number;
+            /** Val */
+            val: number;
+            /** Test */
+            test: number;
+        };
+        /** SplitPreviewResponse */
+        SplitPreviewResponse: {
+            /** Source Revision */
+            source_revision: number;
+            counts: components["schemas"]["SplitPreviewCounts"];
         };
         /** SplitUpdate */
         SplitUpdate: {
@@ -1950,7 +2033,14 @@ export interface components {
              */
             source_id: string;
             /** Battery Ids */
-            battery_ids: string[];
+            battery_ids?: string[];
+            /**
+             * Include All Source
+             * @default false
+             */
+            include_all_source: boolean;
+            /** Expected Source Revision */
+            expected_source_revision: number;
             /**
              * Method
              * @enum {string}
@@ -1973,7 +2063,14 @@ export interface components {
              */
             source_id: string;
             /** Battery Ids */
-            battery_ids: string[];
+            battery_ids?: string[];
+            /**
+             * Include All Source
+             * @default false
+             */
+            include_all_source: boolean;
+            /** Expected Source Revision */
+            expected_source_revision: number;
             /**
              * Method
              * @enum {string}
@@ -1983,6 +2080,34 @@ export interface components {
             ratios?: components["schemas"]["Ratios"] | null;
             /** Seed */
             seed?: number | null;
+        };
+        /** StatisticCategory */
+        StatisticCategory: {
+            /**
+             * Value Type
+             * @enum {string}
+             */
+            value_type: "boolean" | "integer" | "number" | "string";
+            /** Value */
+            value: boolean | number | string;
+            /** Count */
+            count: number;
+        };
+        /** StatisticsScope */
+        StatisticsScope: {
+            /** Sample Count */
+            sample_count: number;
+            /** Attributes */
+            attributes: {
+                [key: string]: components["schemas"]["AttributeStatistics"];
+            };
+        };
+        /** StatisticsScopes */
+        StatisticsScopes: {
+            all: components["schemas"]["StatisticsScope"];
+            train: components["schemas"]["StatisticsScope"];
+            val: components["schemas"]["StatisticsScope"];
+            test: components["schemas"]["StatisticsScope"];
         };
         /** Submission */
         Submission: {
@@ -2705,6 +2830,84 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_Split_"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    preview_split_api_v1_splits_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SplitPreviewResponse_"];
                 };
             };
             /** @description Not Found */

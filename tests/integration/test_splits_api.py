@@ -24,6 +24,11 @@ def test_split_versions_members_and_provider_export(client: TestClient) -> None:
         "method": "manual",
         "partitions": {"train": ids[:2], "val": ids[2:3], "test": ids[3:]},
     }
+    source_revision = client.get("/api/v1/data-sources").json()["data"]["items"][0]["revision"]
+    body["expected_source_revision"] = source_revision
+    preview = client.post("/api/v1/splits/preview", json=body)
+    assert preview.status_code == 200
+    assert preview.json()["data"]["counts"] == {"all": 4, "train": 2, "val": 1, "test": 1}
     response = client.post("/api/v1/splits", json=body)
     assert response.status_code == 201
     split = response.json()["data"]
@@ -54,6 +59,9 @@ def test_split_import_and_invalid_overlap(client: TestClient) -> None:
         json={
             "name": "bad",
             "source_id": source,
+            "expected_source_revision": client.get("/api/v1/data-sources").json()["data"]["items"][
+                0
+            ]["revision"],
             "battery_ids": ids[:1],
             "method": "manual",
             "partitions": {"train": ids[:1], "val": ids[:1], "test": []},

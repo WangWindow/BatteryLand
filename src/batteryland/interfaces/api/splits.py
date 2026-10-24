@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
-from pydantic import Field
+from pydantic import Field, StrictBool, StrictFloat, StrictInt, StrictStr
 
 from batteryland.application.splits import SplitService
 from batteryland.bootstrap import Container
@@ -29,7 +29,9 @@ class Ratios(RequestModel):
 class SplitWrite(RequestModel):
     name: str = Field(min_length=1, max_length=200)
     source_id: UUID
-    battery_ids: list[UUID]
+    battery_ids: list[UUID] = Field(default_factory=list)
+    include_all_source: bool = False
+    expected_source_revision: int = Field(ge=1)
     method: Literal["manual", "random", "hybrid"]
     partitions: Partitions | None = None
     ratios: Ratios | None = None
@@ -38,6 +40,52 @@ class SplitWrite(RequestModel):
 
 class SplitUpdate(SplitWrite):
     expected_revision: int = Field(ge=1)
+
+
+class SplitPreviewCounts(RequestModel):
+    all: int = Field(ge=0)
+    train: int = Field(ge=0)
+    val: int = Field(ge=0)
+    test: int = Field(ge=0)
+
+
+class SplitPreviewResponse(RequestModel):
+    source_revision: int = Field(ge=1)
+    counts: SplitPreviewCounts
+
+
+class StatisticCategory(RequestModel):
+    value_type: Literal["boolean", "integer", "number", "string"]
+    value: StrictBool | StrictInt | StrictFloat | StrictStr
+    count: int = Field(ge=0)
+
+
+class AttributeStatistics(RequestModel):
+    kind: Literal["numeric", "categorical"]
+    valid_count: int = Field(ge=0)
+    missing_count: int = Field(ge=0)
+    unsupported_count: int = Field(ge=0)
+    min: float | None = None
+    max: float | None = None
+    mean: float | None = None
+    categories: list[StatisticCategory] | None = None
+
+
+class StatisticsScope(RequestModel):
+    sample_count: int = Field(ge=0)
+    attributes: dict[str, AttributeStatistics]
+
+
+class StatisticsScopes(RequestModel):
+    all: StatisticsScope
+    train: StatisticsScope
+    val: StatisticsScope
+    test: StatisticsScope
+
+
+class DatasetStatistics(RequestModel):
+    schema_version: Literal[1]
+    scopes: StatisticsScopes
 
 
 class Split(RequestModel):
@@ -49,6 +97,7 @@ class Split(RequestModel):
     version: int
     counts: dict[str, int]
     payload: dict[str, Any] | None = None
+    statistics: DatasetStatistics | None = None
     created_at: str
 
 
@@ -72,6 +121,13 @@ def create_split(
     body: SplitWrite, splits: Annotated[SplitService, Depends(service)]
 ) -> dict[str, Any]:
     return {"data": splits.create(body.model_dump(mode="json", exclude_none=True))}
+
+
+@router.post("/preview", response_model=Envelope[SplitPreviewResponse])
+def preview_split(
+    body: SplitWrite, splits: Annotated[SplitService, Depends(service)]
+) -> dict[str, Any]:
+    return {"data": splits.preview(body.model_dump(mode="json", exclude_none=True))}
 
 
 @router.post("/import", status_code=201, response_model=Envelope[Split])

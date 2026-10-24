@@ -82,13 +82,14 @@ components:
   schemas:
     SplitSelection:
       type: object
-      required: [source_id, method]
+      required: [source_id, method, expected_source_revision]
       properties:
         source_id: { type: string, format: uuid }
         battery_ids:
           type: array
           items: { type: string, format: uuid }
         include_all_source: { type: boolean, default: false }
+        expected_source_revision: { type: integer, minimum: 1 }
         method: { type: string, enum: [manual, random, hybrid] }
         partitions:
           type: object
@@ -114,7 +115,6 @@ components:
       allOf:
         - $ref: "#/components/schemas/SplitPreviewRequest"
         - type: object
-          required: [expected_source_revision]
           properties:
             expected_source_revision: { type: integer, minimum: 1 }
     SplitUpdate:
@@ -154,6 +154,7 @@ components:
             type: object
             required: [value, count]
             properties:
+              value_type: { type: string, enum: [boolean, integer, number, string] }
               value: {}
               count: { type: integer, minimum: 0 }
     StatisticsScope:

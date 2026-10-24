@@ -28,17 +28,17 @@ No cross-story foundation is required. The implementation reuses the current sou
 
 ### Tests for User Story 1
 
-- [ ] T001 [P] [US1] Add failing repository/service tests for registered battery counts and source revision changes after new imports in `tests/unit/test_resources.py`.
-- [ ] T002 [P] [US1] Add failing UI tests for source-card selection, whole-source mode, paged subset selection, and selection retention in `src/batteryland_ui/tests/splits-page.test.tsx`.
-- [ ] T003 [P] [US1] Update the OpenAPI contract test to require `battery_count` on source list items in `tests/contract/test_api.py`.
+- [x] T001 [P] [US1] Add failing repository/service tests for registered battery counts and source revision changes after new imports in `tests/unit/test_resources.py`.
+- [x] T002 [P] [US1] Add failing UI tests for source-card selection, whole-source mode, paged subset selection, and selection retention in `src/batteryland_ui/tests/splits-page.test.tsx`.
+- [x] T003 [P] [US1] Update the OpenAPI contract test to require `battery_count` on source list items in `tests/contract/test_api.py`.
 
 ### Implementation for User Story 1
 
-- [ ] T004 [US1] Add efficient per-source registered battery counts, all-source member lookup, and a revision increment on newly added records in `src/batteryland/infrastructure/persistence/resources.py`, `src/batteryland/application/ports/persistence.py`, and `src/batteryland/application/resources.py`.
-- [ ] T005 [US1] Include `battery_count`, `include_all_source`, and `expected_source_revision` in request/response models in `src/batteryland/interfaces/api/resources.py` and `src/batteryland/interfaces/api/splits.py`.
-- [ ] T006 [US1] Implement source cards, stable accessible accent colors, all-source/selected-member mode, and paged selection in `src/batteryland_ui/src/pages/splits-page.tsx`.
-- [ ] T007 [US1] Add matching Simplified Chinese and English source/selection messages in `src/batteryland_ui/src/i18n/messages/splits.ts`.
-- [ ] T008 [US1] Update source and selection response types in `src/batteryland_ui/src/api/models.ts` and regenerate `src/batteryland_ui/src/api/types.ts`.
+- [x] T004 [US1] Add efficient per-source registered battery counts, all-source member lookup, and a revision increment on newly added records in `src/batteryland/infrastructure/persistence/resources.py`, `src/batteryland/application/ports/persistence.py`, and `src/batteryland/application/resources.py`.
+- [x] T005 [US1] Include `battery_count`, `include_all_source`, and `expected_source_revision` in request/response models in `src/batteryland/interfaces/api/resources.py` and `src/batteryland/interfaces/api/splits.py`.
+- [x] T006 [US1] Implement source cards, stable accessible accent colors, all-source/selected-member mode, and paged selection in `src/batteryland_ui/src/pages/splits-page.tsx`.
+- [x] T007 [US1] Add matching Simplified Chinese and English source/selection messages in `src/batteryland_ui/src/i18n/messages/splits.ts`.
+- [x] T008 [US1] Update source and selection response types in `src/batteryland_ui/src/api/models.ts` and regenerate `src/batteryland_ui/src/api/types.ts`.
 
 **Checkpoint**: Source identity, counts, and whole/subset selection work independently of partition preview.
 
@@ -52,16 +52,16 @@ No cross-story foundation is required. The implementation reuses the current sou
 
 ### Tests for User Story 2
 
-- [ ] T009 [P] [US2] Add failing service tests for preview counts, family grouping, deterministic seed behavior, and stale source revision rejection in `tests/unit/test_splits.py`.
-- [ ] T010 [P] [US2] Add failing OpenAPI assertions for the split preview operation and source revision fields in `tests/contract/test_api.py`.
-- [ ] T011 [P] [US2] Add failing UI tests for ratio validation, preview-driven counts, preview invalidation after edits, and save disabled before preview in `src/batteryland_ui/tests/splits-page.test.tsx`.
+- [x] T009 [P] [US2] Add failing service tests for preview counts, family grouping, deterministic seed behavior, and stale source revision rejection in `tests/unit/test_splits.py`.
+- [x] T010 [P] [US2] Add failing OpenAPI assertions for the split preview operation and source revision fields in `tests/contract/test_api.py`.
+- [x] T011 [P] [US2] Add failing UI tests for ratio validation, preview-driven counts, preview invalidation after edits, and save disabled before preview in `src/batteryland_ui/tests/splits-page.test.tsx`.
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Implement `SplitService.preview` by reusing existing family-aware split validation and confirmed source revisions in `src/batteryland/application/splits.py`.
-- [ ] T013 [US2] Define typed preview request/response models and `POST /api/v1/splits/preview` in `src/batteryland/interfaces/api/splits.py`.
-- [ ] T014 [US2] Add the right-side editor, accessible ratio sliders, explicit preview state, partition count visualization, and localized conflict/error states in `src/batteryland_ui/src/pages/splits-page.tsx`.
-- [ ] T015 [US2] Generate OpenAPI/TypeScript contracts and matching Chinese/English preview messages in `specs/004-integrated-workbench/contracts/openapi.json`, `src/batteryland_ui/src/api/types.ts`, and `src/batteryland_ui/src/i18n/messages/splits.ts`.
+- [x] T012 [US2] Implement `SplitService.preview` by reusing existing family-aware split validation and confirmed source revisions in `src/batteryland/application/splits.py`.
+- [x] T013 [US2] Define typed preview request/response models and `POST /api/v1/splits/preview` in `src/batteryland/interfaces/api/splits.py`.
+- [x] T014 [US2] Add the right-side editor, accessible ratio sliders, explicit preview state, partition count visualization, and localized conflict/error states in `src/batteryland_ui/src/pages/splits-page.tsx`.
+- [x] T015 [US2] Generate OpenAPI/TypeScript contracts and matching Chinese/English preview messages in `specs/004-integrated-workbench/contracts/openapi.json`, `src/batteryland_ui/src/api/types.ts`, and `src/batteryland_ui/src/i18n/messages/splits.ts`.
 
 **Checkpoint**: Users can preview and save family-safe partitions without front-end algorithm estimates.
 
@@ -75,18 +75,18 @@ No cross-story foundation is required. The implementation reuses the current sou
 
 ### Tests for User Story 3
 
-- [ ] T016 [P] [US3] Add failing pure-function tests for numeric, categorical, missing, unsupported, empty, and mixed scalar metadata in `tests/unit/test_dataset_statistics.py`.
-- [ ] T017 [P] [US3] Add failing SQLite tests for profile/document-version identity, atomic split/member/profile persistence, and legacy-profile backfill in `tests/unit/test_split_statistics.py`.
-- [ ] T018 [P] [US3] Add failing service/API contract tests for statistics in current and historical split detail responses in `tests/unit/test_splits.py` and `tests/contract/test_api.py`.
+- [x] T016 [P] [US3] Add failing pure-function tests for numeric, categorical, missing, unsupported, empty, and mixed scalar metadata in `tests/unit/test_dataset_statistics.py`.
+- [x] T017 [P] [US3] Add failing SQLite tests for profile/document-version identity, atomic split/member/profile persistence, and legacy-profile backfill in `tests/unit/test_split_statistics.py`.
+- [x] T018 [P] [US3] Add failing service/API contract tests for statistics in current and historical split detail responses in `tests/unit/test_split_statistics.py` and `tests/contract/test_api.py`.
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] Implement pure metadata aggregation for full-set and partition scopes in `src/batteryland/domain/dataset_statistics.py`.
-- [ ] T020 [US3] Add the version-keyed statistics ORM mapping and Alembic migration in `src/batteryland/infrastructure/persistence/models.py` and `src/batteryland/infrastructure/persistence/migrations/versions/0003_dataset_statistics.py`.
-- [ ] T021 [US3] Add repository profile read/write methods and persist profile rows with split members in `src/batteryland/application/ports/persistence.py`, `src/batteryland/infrastructure/persistence/splits.py`, and `src/batteryland/infrastructure/persistence/unit_of_work.py`.
-- [ ] T022 [US3] Compute profiles on create/update and backfill older immutable versions on detail reads in `src/batteryland/application/splits.py`.
-- [ ] T023 [US3] Add typed statistics scopes and attributes to split detail responses in `src/batteryland/interfaces/api/splits.py`.
-- [ ] T024 [US3] Regenerate and verify the reviewed OpenAPI contract and TypeScript types in `specs/004-integrated-workbench/contracts/openapi.json` and `src/batteryland_ui/src/api/types.ts`.
+- [x] T019 [US3] Implement pure metadata aggregation for full-set and partition scopes in `src/batteryland/domain/dataset_statistics.py`.
+- [x] T020 [US3] Add the version-keyed statistics ORM mapping and Alembic migration in `src/batteryland/infrastructure/persistence/models.py` and `src/batteryland/infrastructure/persistence/migrations/versions/0003_dataset_statistics.py`.
+- [x] T021 [US3] Add repository profile read/write methods and persist profile rows with split members in `src/batteryland/application/ports/persistence.py` and `src/batteryland/infrastructure/persistence/splits.py`; the existing `SqlUnitOfWork.splits` wiring required no change.
+- [x] T022 [US3] Compute profiles on create/update and backfill older immutable versions on detail reads in `src/batteryland/application/splits.py`.
+- [x] T023 [US3] Add typed statistics scopes and attributes to split detail responses in `src/batteryland/interfaces/api/splits.py`.
+- [x] T024 [US3] Regenerate and verify the reviewed OpenAPI contract and TypeScript types in `specs/004-integrated-workbench/contracts/openapi.json` and `src/batteryland_ui/src/api/types.ts`.
 
 **Checkpoint**: New and historical split versions return stable statistics profiles from SQLite.
 
@@ -96,9 +96,16 @@ No cross-story foundation is required. The implementation reuses the current sou
 
 **Purpose**: Confirm contracts, accessibility, localization, migrations, and feature acceptance.
 
-- [ ] T025 Run the feature backend suites, `ty`, Ruff lint/format, UI interaction tests, TypeScript, Biome/i18n, and production build; record results in `specs/011-graphical-datasets/tasks.md`.
-- [ ] T026 Validate the source-to-preview-to-save workflow and profile persistence scenarios in `specs/011-graphical-datasets/quickstart.md`.
-- [ ] T027 Review the final feature diff and ensure generated OpenAPI, TypeScript types, and bilingual messages match in `specs/004-integrated-workbench/contracts/openapi.json` and `src/batteryland_ui/src/`.
+- [x] T025 Run the feature backend suites, `ty`, Ruff lint/format, UI interaction tests, TypeScript, Biome/i18n, and production build; record results in `specs/011-graphical-datasets/tasks.md`.
+- [x] T026 Validate the source-to-preview-to-save workflow and profile persistence scenarios in `specs/011-graphical-datasets/quickstart.md`.
+- [x] T027 Review the final feature diff and ensure generated OpenAPI, TypeScript types, and bilingual messages match in `specs/004-integrated-workbench/contracts/openapi.json` and `src/batteryland_ui/src/`.
+
+### Verification Record
+
+- Backend unit and contract coverage: 54 passed, 2 pre-existing API error contract tests deselected. The installed Starlette `TestClient` hangs during lifespan startup in this Python 3.14 environment; this prevents running those two tests and the `TestClient`-based integration modules here.
+- Backend static checks: `ty check`, `ruff check src/batteryland tests`, and `ruff format --check src/batteryland tests` passed.
+- UI verification: `bun run verify` passed; 41 tests passed, i18n check passed for 631 keys in both locales, and the production build completed.
+- SQLite profile tests cover new-version writes, historical reads after reopening the database, lazy backfill, and transaction rollback when profile persistence fails.
 
 ## Dependencies & Execution Order
 

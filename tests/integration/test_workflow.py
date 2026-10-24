@@ -19,6 +19,9 @@ def test_resource_to_frozen_execution_and_result_traceability(settings: Settings
         split_body = {
             "name": "workflow",
             "source_id": source,
+            "expected_source_revision": client.get("/api/v1/data-sources").json()["data"]["items"][
+                0
+            ]["revision"],
             "battery_ids": ids,
             "method": "manual",
             "partitions": {"train": ids[:2], "val": ids[2:3], "test": ids[3:]},
