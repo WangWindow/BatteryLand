@@ -2,7 +2,7 @@
 
 **Feature Branch**: `005-isolated-training-runtime`
 **Created**: 2026-10-24
-**Status**: Draft
+**Status**: Implemented
 **Input**: 后端与训练拆成两个Python环境，减轻后端依赖压力，保持本地子进程对接，优化可避免的重复查询。
 
 ## User Scenarios & Testing

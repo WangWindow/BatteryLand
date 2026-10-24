@@ -1,6 +1,6 @@
 # 工作台运行与验收
 
-后端：仓库根目录`uv sync`、`uv run batteryland init --data-dir ./var`、`uv run batteryland serve --data-dir ./var`。
+后端：先按[独立环境安装指南](../005-isolated-training-runtime/quickstart.md)安装API和训练环境，再在仓库根执行`uv run batteryland init --data-dir ./var`、`uv run batteryland serve --data-dir ./var`。
 前端：`cd src/batteryland_ui`，`bun install --frozen-lockfile`、`bun run dev`。调度随后端运行，无单独服务。
 
 允许来源由BATTERYLAND_SOURCE_ROOTS配置，网页从别名选项选择。原生JSON作为高级入口；常用实验参数由表单控件完成。

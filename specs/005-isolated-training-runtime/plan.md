@@ -37,7 +37,7 @@ README.md
 
 ## Implementation
 
-1. 默认依赖组仅dev，training显式声明PyYAML；训练`--only-group training`，不安装主项目或API依赖。
+1. 默认依赖组仅dev，training显式声明PyYAML；训练`--only-group training --compile-bytecode`，不安装主项目或API依赖；安装时预编译第三方依赖，避免每个短进程重复编译。
 2. Settings支持`BATTERYLAND_TRAINING_PYTHON`，默认仓库`.venv-training/bin/python`，转绝对路径但不解引用解释器符号链接。
 3. 训练运行时以标准库探针惰性获取解释器、prefix、版本并核验；清理子进程环境中的API激活信息，设置训练PATH/VIRTUAL_ENV。
 4. 静态桥接校验API身份，动态桥接校验指定训练身份，spawn验证prepare回执的运行身份。环境不可用不影响启动/观察/停止。

@@ -8,7 +8,7 @@
 
 ```bash
 uv sync --locked
-UV_PROJECT_ENVIRONMENT=.venv-training uv sync --locked --only-group training
+UV_PROJECT_ENVIRONMENT=.venv-training uv sync --locked --only-group training --compile-bytecode
 uv run batteryland init --data-dir ./var
 cd src/batteryland_ui
 bun install --frozen-lockfile
@@ -61,4 +61,4 @@ bun run test:e2e
 
 真实训练显式运行`uv run pytest tests/training --run-training --run-gpu`；真实浏览器MyTask运行`bash tests/run_e2e_real.sh`。
 
-[当前运行时规格](specs/005-isolated-training-runtime/spec.md) · [工作台规格](specs/004-integrated-workbench/spec.md) · [使用与验收](specs/004-integrated-workbench/quickstart.md) · [开发规范](.specify/memory/constitution.md)
+[当前运行时规格](specs/005-isolated-training-runtime/spec.md) · [工作台规格](specs/004-integrated-workbench/spec.md) · [环境安装与验收](specs/005-isolated-training-runtime/quickstart.md) · [工作台使用](specs/004-integrated-workbench/quickstart.md) · [开发规范](.specify/memory/constitution.md)
