@@ -32,6 +32,15 @@ export const commonMessages = defineMessages({
       language: "语言",
       chinese: "简体中文",
       english: "English",
+      settings: {
+        title: "设置",
+        appearance: "主题",
+        theme: {
+          light: "浅色",
+          dark: "深色",
+          system: "跟随系统",
+        },
+      },
       jsonInvalidObject: "配置必须是 JSON 对象",
       jsonInvalid: "JSON 无效：{{message}}",
       jsonInvalidShort: "JSON 无效",
@@ -142,6 +151,15 @@ export const commonMessages = defineMessages({
       language: "Language",
       chinese: "简体中文",
       english: "English",
+      settings: {
+        title: "Settings",
+        appearance: "Appearance",
+        theme: {
+          light: "Light",
+          dark: "Dark",
+          system: "System",
+        },
+      },
       jsonInvalidObject: "The configuration must be a JSON object",
       jsonInvalid: "Invalid JSON: {{message}}",
       jsonInvalidShort: "Invalid JSON",
