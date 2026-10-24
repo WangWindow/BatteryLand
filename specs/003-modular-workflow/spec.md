@@ -1,5 +1,7 @@
 # Feature Specification: 模块化实验工作台闭环
 
+> 历史交付记录：独立HTTP调度与src/simple_impl目录方案已由[004规格](../004-integrated-workbench/spec.md)替代；本文件保留原验收范围与证据。
+
 **Feature Branch**: `003-modular-workflow`
 **Created**: 2026-10-24
 **Status**: Implemented and accepted (CPU/GPU training + browser)

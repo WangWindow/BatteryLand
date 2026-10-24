@@ -16,5 +16,5 @@
 
 - GET /api/v1/data-sources/options 返回{root_alias,availability}数组，仅公开允许的逻辑别名。
 - SchedulingPolicy.choose(pending,active)返回可空候选，默认FIFO遵守活动执行阻塞。
-- 前端CommonConfigFields对完整native_config作局部更新；无法由普通控件表达的引用和自定义值保留到高级入口。
+- 前端TrainingConfigEditor对完整native_config作局部更新；无法由普通控件表达的引用和自定义值保留到高级入口。
 - 原始003契约保留历史，当前OpenAPI和前端生成类型以004为准。

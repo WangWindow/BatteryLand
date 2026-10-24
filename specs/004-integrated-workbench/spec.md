@@ -2,7 +2,7 @@
 
 **Feature Branch**: `004-integrated-workbench`
 **Created**: 2026-10-24
-**Status**: Ready for implementation
+**Status**: Implemented — evidence in quickstart.md
 **Input**: 将界面迁到src/batteryland_ui，调度回到后端，检查既有实现差异并按需求重写过于密集、依赖文本框的交互。
 
 ## User Scenarios & Testing
