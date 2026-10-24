@@ -281,6 +281,139 @@
         }
       }
     },
+    "/api/v1/data-sources/{source_id}/files": {
+      "get": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Source Files",
+        "operationId": "source_files_api_v1_data_sources__source_id__files_get",
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Source Id"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_Page_DiscoveredBatteryFile__"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/api/v1/data-sources/{source_id}/import": {
       "post": {
         "tags": [
@@ -6466,6 +6599,48 @@
         ],
         "title": "DifferenceResult"
       },
+      "DiscoveredBatteryFile": {
+        "properties": {
+          "file_name": {
+            "type": "string",
+            "title": "File Name"
+          },
+          "relative_key": {
+            "type": "string",
+            "title": "Relative Key"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Size Bytes"
+          },
+          "importable": {
+            "type": "boolean",
+            "title": "Importable"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "file_name",
+          "relative_key",
+          "size_bytes",
+          "importable",
+          "reason"
+        ],
+        "title": "DiscoveredBatteryFile"
+      },
       "Dispatch": {
         "properties": {
           "experiment_id": {
@@ -6792,6 +6967,29 @@
           "data"
         ],
         "title": "Envelope[Page[DataSource]]"
+      },
+      "Envelope_Page_DiscoveredBatteryFile__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "const": 0,
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Page_DiscoveredBatteryFile_"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[Page[DiscoveredBatteryFile]]"
       },
       "Envelope_Page_Experiment__": {
         "properties": {
@@ -7832,6 +8030,37 @@
         ],
         "title": "Page[DataSource]"
       },
+      "Page_DiscoveredBatteryFile_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DiscoveredBatteryFile"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[DiscoveredBatteryFile]"
+      },
       "Page_Experiment_": {
         "properties": {
           "items": {
@@ -8429,16 +8658,26 @@
             "type": "string",
             "title": "Root Alias"
           },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
           "availability": {
             "type": "string",
             "title": "Availability"
+          },
+          "file_count": {
+            "type": "integer",
+            "title": "File Count"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "root_alias",
-          "availability"
+          "display_name",
+          "availability",
+          "file_count"
         ],
         "title": "SourceOption"
       },
