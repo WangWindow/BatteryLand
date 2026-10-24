@@ -1,47 +1,39 @@
-"""Filesystem implementation of the document store boundary."""
+"""SQLite-backed adapter for the application document-store port."""
 
-import fcntl
 import hashlib
 import json
-import os
-import tempfile
 import threading
-from collections.abc import Callable, Generator
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 from uuid import UUID, uuid4
 
+from batteryland.application.ports.persistence import UnitOfWorkFactory
 from batteryland.domain.documents import DocumentRef
 from batteryland.domain.errors import DomainError
 
 
-class JsonDocumentStore:
-    def __init__(self, root: Path) -> None:
-        self.root = root.resolve()
+class SQLiteDocumentStore:
+    def __init__(self, units: UnitOfWorkFactory, legacy_root: Path) -> None:
+        self.units = units
+        self.legacy_root = legacy_root
         self._mutex = threading.RLock()
         self._local = threading.local()
 
     @contextmanager
     def write_lock(self) -> Generator[None]:
-        """Share publication, reference commits, and cleanup under one writer boundary."""
+        """Serialize document publication and associated business-reference writes."""
         with self._mutex:
             if getattr(self._local, "locked", False):
                 yield
                 return
-            self.root.mkdir(parents=True, exist_ok=True)
-            descriptor = os.open(
-                self.root / ".write.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600
-            )
-            with os.fdopen(descriptor, "rb") as stream:
-                fcntl.flock(stream, fcntl.LOCK_EX)
-                self._local.locked = True
-                try:
-                    yield
-                finally:
-                    self._local.locked = False
-                    fcntl.flock(stream, fcntl.LOCK_UN)
+            self._local.locked = True
+            try:
+                yield
+            finally:
+                self._local.locked = False
 
     def publish(
         self,
@@ -52,95 +44,110 @@ class JsonDocumentStore:
         *,
         document_id: str | None = None,
     ) -> DocumentRef:
-        identity = str(UUID(document_id)) if document_id else str(uuid4())
-        created = datetime.now(UTC).isoformat()
-        envelope = {
-            "schema_version": 1,
-            "kind": kind,
-            "owner_id": owner_id,
-            "version": version,
-            "created_at": created,
-            "payload": payload,
-        }
-        content = json.dumps(
-            envelope, ensure_ascii=False, sort_keys=True, allow_nan=False, separators=(",", ":")
-        ).encode("utf-8")
-        key = f"{identity}.json"
+        try:
+            identity = str(UUID(document_id)) if document_id is not None else None
+        except (TypeError, ValueError) as exc:
+            raise DomainError("invalid_input", "Document ID must be a UUID") from exc
         with self.write_lock():
-            target = self.root / key
-            if target.exists():
-                existing = json.loads(target.read_bytes())
-                if all(
-                    existing.get(field) == envelope[field]
-                    for field in envelope
-                    if field != "created_at"
-                ):
-                    return DocumentRef(
-                        identity,
-                        kind,
-                        owner_id,
-                        version,
-                        key,
-                        hashlib.sha256(target.read_bytes()).hexdigest(),
-                        existing["created_at"],
-                    )
-                raise DomainError("conflict", "Document identity already exists with other content")
-            temporary: Path | None = None
             try:
-                with tempfile.NamedTemporaryFile(
-                    dir=self.root, prefix=".publish-", delete=False
-                ) as stream:
-                    temporary = Path(stream.name)
-                    stream.write(content)
-                    stream.flush()
-                    os.fsync(stream.fileno())
-                os.link(temporary, target)
-                descriptor = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY)
-                try:
-                    os.fsync(descriptor)
-                finally:
-                    os.close(descriptor)
-            finally:
-                if temporary is not None:
-                    temporary.unlink(missing_ok=True)
-        return DocumentRef(
-            identity, kind, owner_id, version, key, hashlib.sha256(content).hexdigest(), created
-        )
+                with self.units() as unit:
+                    return unit.documents.publish(
+                        kind, owner_id, version, payload, document_id=identity
+                    )
+            except DomainError as exc:
+                if exc.symbol != "conflict" or identity is None:
+                    raise
+                with self.units() as unit:
+                    try:
+                        reference = unit.documents.get(identity)
+                    except DomainError as retry_error:
+                        if retry_error.symbol != "not_found":
+                            raise
+                        raise exc from None
+                    if (
+                        reference.kind != kind
+                        or reference.owner_id != owner_id
+                        or reference.version != version
+                        or unit.documents.read(reference)["payload"] != payload
+                    ):
+                        raise exc from None
+                    return reference
 
     def read(self, reference: DocumentRef) -> dict[str, Any]:
-        target = (self.root / reference.storage_key).resolve()
-        if target.parent != self.root or target.name != f"{reference.id}.json":
-            raise DomainError("storage_corrupt", "Invalid document reference")
-        try:
-            content = target.read_bytes()
-            if hashlib.sha256(content).hexdigest() != reference.sha256:
-                raise ValueError("Checksum mismatch")
-            envelope = json.loads(content)
-            if (
-                not isinstance(envelope, dict)
-                or envelope.get("schema_version") != 1
-                or envelope.get("kind") != reference.kind
-                or envelope.get("owner_id") != reference.owner_id
-                or envelope.get("version") != reference.version
-                or not isinstance(envelope.get("payload"), dict)
-            ):
-                raise ValueError("Document envelope mismatch")
-        except (OSError, ValueError) as exc:
-            raise DomainError("storage_corrupt", "Document is missing or corrupt") from exc
-        return cast(dict[str, Any], envelope)
+        with self.units() as unit:
+            return unit.documents.read(reference)
 
-    def cleanup(self, referenced_keys: Callable[[], set[str]], older_than: datetime) -> int:
-        """Remove only old complete objects absent from a committed reference snapshot."""
-        removed = 0
+    def migrate_legacy(self) -> None:
+        """Import old JSON files once; keep them intact until every DB row is complete."""
         with self.write_lock():
-            retained = referenced_keys()
-            for target in self.root.glob("*.json"):
-                try:
-                    if target.is_symlink() or str(UUID(target.stem)) != target.stem:
+            if self.legacy_root.exists() or self.legacy_root.is_symlink():
+                if self.legacy_root.is_symlink() or not self.legacy_root.is_dir():
+                    raise DomainError("storage_corrupt", "Legacy document path must be a directory")
+                for source in sorted(self.legacy_root.iterdir()):
+                    if source.name == ".write.lock" and not source.is_symlink():
                         continue
-                except ValueError:
-                    continue
-                if target.name not in retained and target.stat().st_mtime < older_than.timestamp():
-                    target.unlink()
-                    removed += 1
-        return removed
+                    if source.is_symlink() or source.suffix != ".json":
+                        raise DomainError(
+                            "storage_corrupt", "Legacy document directory has an invalid entry"
+                        )
+                    try:
+                        identity = str(UUID(source.stem))
+                    except ValueError as exc:
+                        raise DomainError(
+                            "storage_corrupt", "Legacy document filename is invalid"
+                        ) from exc
+                    if source.stem != identity:
+                        raise DomainError(
+                            "storage_corrupt", "Legacy document filename is not canonical"
+                        )
+                    self._import_file(source, identity)
+
+                with self.units() as unit:
+                    unit.documents.ensure_complete()
+                self._archive_legacy()
+            else:
+                with self.units() as unit:
+                    unit.documents.ensure_complete()
+
+    def _import_file(self, source: Path, identity: str) -> None:
+        try:
+            content = source.read_bytes()
+            envelope = json.loads(content)
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise DomainError("storage_corrupt", "Legacy document is unreadable") from exc
+        if not isinstance(envelope, dict):
+            raise DomainError("storage_corrupt", "Legacy document envelope must be an object")
+        kind = envelope.get("kind")
+        owner_id = envelope.get("owner_id")
+        version = envelope.get("version")
+        created_at = envelope.get("created_at")
+        if (
+            not isinstance(kind, str)
+            or not kind
+            or not isinstance(owner_id, str)
+            or not owner_id
+            or type(version) is not int
+            or version < 1
+            or not isinstance(created_at, str)
+        ):
+            raise DomainError("storage_corrupt", "Legacy document identity fields are invalid")
+        reference = DocumentRef(
+            identity,
+            kind,
+            owner_id,
+            version,
+            source.name,
+            hashlib.sha256(content).hexdigest(),
+            created_at,
+        )
+        with self.units() as unit:
+            unit.documents.import_legacy(reference, envelope)
+
+    def _archive_legacy(self) -> None:
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
+        backup = self.legacy_root.with_name(f"{self.legacy_root.name}.legacy")
+        if backup.exists() or backup.is_symlink():
+            backup = self.legacy_root.with_name(
+                f"{self.legacy_root.name}.legacy-{timestamp}-{uuid4().hex[:8]}"
+            )
+        self.legacy_root.rename(backup)

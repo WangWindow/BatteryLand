@@ -61,6 +61,7 @@ class DocumentRow(Identity, Base):
     schema_version: Mapped[int] = mapped_column(default=1, server_default="1")
     sha256: Mapped[str]
     storage_key: Mapped[str] = mapped_column(unique=True)
+    payload: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
 
 class SplitRow(Identity, Base):

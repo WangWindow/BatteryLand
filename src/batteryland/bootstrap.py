@@ -12,7 +12,7 @@ from batteryland.application.splits import SplitService
 from batteryland.config import Settings
 from batteryland.domain.scheduling import FifoPolicy
 from batteryland.infrastructure.analysis import BasicChartBuilder, BasicDifferenceAnalyzer
-from batteryland.infrastructure.documents import JsonDocumentStore
+from batteryland.infrastructure.documents import SQLiteDocumentStore
 from batteryland.infrastructure.files import LocalSourceFiles, ManagedArtifacts
 from batteryland.infrastructure.persistence.database import Database
 from batteryland.infrastructure.results import LocalResultFiles
@@ -36,7 +36,10 @@ class Container:
             raise
 
     def _compose(self, settings: Settings, training: TrainingGateway | None) -> None:
-        self.documents = JsonDocumentStore(settings.data_dir / "documents")
+        self.documents = SQLiteDocumentStore(
+            self.database.unit_of_work, settings.data_dir / "documents"
+        )
+        self.documents.migrate_legacy()
         self.resources = ResourceService(
             self.database.unit_of_work, LocalSourceFiles(settings.source_roots)
         )
