@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "skills": {
+    "fastapi": {
+      "source": "fastapi/fastapi",
+      "ref": "master",
+      "sourceType": "github",
+      "skillPath": "fastapi/.agents/skills/fastapi/SKILL.md",
+      "computedHash": "2f0ff30756b435168276e1a7eb78c07856118575ea174535de7ed86dc88c9be4"
+    },
+    "react-expert": {
+      "source": "reactjs/react.dev",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/react-expert/SKILL.md",
+      "computedHash": "ded3cdad5994ce7afafe497f81e70052540f90ef5efdaf9631f81af13426ab38"
+    },
+    "shadcn": {
+      "source": "shadcn-ui/ui",
+      "sourceType": "github",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "b864a958765563321f485a96f4d59c0bb6539f4286ab6d8b8b66895b7ebd302d"
+    }
+  }
+}
