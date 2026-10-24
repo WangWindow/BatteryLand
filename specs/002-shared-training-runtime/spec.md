@@ -1,5 +1,7 @@
 # Feature Specification: 共享环境的真实训练联调
 
+> 此共享环境方案为历史设计，已由[独立训练环境规格](../005-isolated-training-runtime/spec.md)覆盖。
+
 **Feature Branch**: `001-backend-experiment-platform`（沿用现有未提交工作区）
 **Created**: 2026-10-24
 **Status**: Implemented — 共享环境、CPU/GPU、真实停止与恢复已验收，证据见quickstart.md

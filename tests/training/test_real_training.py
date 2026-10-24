@@ -36,6 +36,7 @@ def training_settings(tmp_path, monkeypatch):
     return Settings(
         data_dir=tmp_path / "runtime",
         source_roots={"battery-life": Path("/data/BatteryLife_Processed")},
+        training_python=Settings.from_env().training_python,
     )
 
 
@@ -135,7 +136,7 @@ def calce_input(container, settings, device, epochs=1):
     return config, {"split": {"id": split["id"], "version": 1}}
 
 
-def test_real_catalog_and_mytask_share_the_api_environment(training_settings):
+def test_real_catalog_and_mytask_use_the_training_environment(training_settings):
     with platform(training_settings) as (client, container):
         schema = client.get("/api/v1/components/model/cpmlp/schema")
         assert schema.status_code == 200, schema.text
@@ -149,8 +150,9 @@ def test_real_catalog_and_mytask_share_the_api_environment(training_settings):
         result = wait_terminal(client, container, identity)
         assert result["state"] == "succeeded", diagnostics(container, identity)
         prepared = execution(container, identity)["prepared"]
-        assert prepared["runtime"]["prefix"] == sys.prefix
-        assert prepared["runtime"]["executable"] == sys.executable
+        assert prepared["runtime"]["prefix"] != sys.prefix
+        assert prepared["runtime"]["executable"] == str(training_settings.training_python)
+        assert execution(container, identity)["receipt"]["runtime"] == prepared["runtime"]
         directory = Path(prepared["directory"])
         assert json.loads((directory / "status.json").read_text())["status"] == "completed"
         assert "开始" in (directory / "console.log").read_text()
@@ -258,6 +260,7 @@ def test_real_training_survives_api_restart_and_stops_owned_group(training_setti
             {key: str(path) for key, path in training_settings.source_roots.items()}
         ),
         "BATTERYLAND_PROVIDER_ROOT": str(training_settings.provider_root),
+        "BATTERYLAND_TRAINING_PYTHON": str(training_settings.training_python),
     }
     log = training_settings.data_dir.parent / "api-console.log"
     database = Database(training_settings.data_dir / "platform.sqlite")

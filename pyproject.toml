@@ -29,6 +29,7 @@ training = [
     "numpy>=2.3.3,<3",
     "pandas>=2.3.3,<4",
     "peft>=0.21.2,<0.22",
+    "pyyaml>=6,<7",
     "scikit-learn>=1.7.2,<2",
     "scipy>=1.16.1,<2",
     "torch>=2.10,<3",
@@ -37,7 +38,7 @@ training = [
 ]
 
 [tool.uv]
-default-groups = ["dev", "training"]
+default-groups = ["dev"]
 constraint-dependencies = ["kdepy>=1.1.12", "transformers>=5.18,<5.19"]
 
 [tool.uv.sources]

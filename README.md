@@ -7,11 +7,16 @@
 需要Python3.14、uv、Bun1.4+及Linux。
 
 ```bash
-uv sync
+uv sync --locked
+UV_PROJECT_ENVIRONMENT=.venv-training uv sync --locked --only-group training
 uv run batteryland init --data-dir ./var
 cd src/batteryland_ui
 bun install --frozen-lockfile
 ```
+
+后端默认安装不含训练库；训练环境只安装training依赖组，不安装后端。两者由根项目统一管理。
+可通过`BATTERYLAND_TRAINING_PYTHON=/absolute/path/bin/python`指定训练环境，保留虚拟环境入口路径。
+训练调试直接使用`.venv-training/bin/python`；对训练环境执行普通`uv run`可能自动改变其依赖集合。
 
 ## 启动
 
@@ -56,4 +61,4 @@ bun run test:e2e
 
 真实训练显式运行`uv run pytest tests/training --run-training --run-gpu`；真实浏览器MyTask运行`bash tests/run_e2e_real.sh`。
 
-[当前规格](specs/004-integrated-workbench/spec.md) · [使用与验收](specs/004-integrated-workbench/quickstart.md) · [开发规范](.specify/memory/constitution.md)
+[当前运行时规格](specs/005-isolated-training-runtime/spec.md) · [工作台规格](specs/004-integrated-workbench/spec.md) · [使用与验收](specs/004-integrated-workbench/quickstart.md) · [开发规范](.specify/memory/constitution.md)

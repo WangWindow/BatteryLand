@@ -10,6 +10,7 @@
 # Environment
 .env
 .venv/
+.venv-training/
 venv/
 
 # Python

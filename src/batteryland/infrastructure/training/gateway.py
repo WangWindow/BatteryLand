@@ -1,4 +1,4 @@
-"""Training adapter using the current environment and owned worker processes."""
+"""Adapt static component operations and independently configured training workers."""
 
 import base64
 import json
@@ -19,6 +19,7 @@ from batteryland.domain.errors import DomainError
 from batteryland.infrastructure.files import contained_path
 from batteryland.infrastructure.scheduling import ProcessSupervisor
 from batteryland.infrastructure.training.materializer import publish_file
+from batteryland.infrastructure.training.runtime import TrainingRuntime
 
 PROVIDER_COMMIT = "6b4c76d6e639ddaf9db9c15bf04771179a68d988"
 
@@ -28,6 +29,7 @@ class DeeplatformGateway:
         self.settings = settings
         self.runtime = settings.data_dir.resolve() / "plugins"
         self.supervisor = ProcessSupervisor()
+        self.worker = TrainingRuntime(settings.training_python)
 
     def identity(self) -> str:
         try:
@@ -67,6 +69,16 @@ class DeeplatformGateway:
     def _control(self, operation: str, arguments: Record) -> object:
         self.identity()
         self.runtime.mkdir(parents=True, exist_ok=True)
+        static = operation in {"inspect", "upload"}
+        expected_runtime = (
+            {
+                "executable": sys.executable,
+                "prefix": sys.prefix,
+                "python_version": sys.version.split()[0],
+            }
+            if static
+            else self.worker.identity()
+        )
         request = {
             "schema_version": 1,
             "operation": operation,
@@ -75,12 +87,16 @@ class DeeplatformGateway:
         } | arguments
         try:
             result = subprocess.run(
-                [sys.executable, str(Path(__file__).with_name("bridge.py"))],
+                [expected_runtime["executable"], str(Path(__file__).with_name("bridge.py"))],
                 input=json.dumps(request, allow_nan=False),
                 text=True,
                 capture_output=True,
                 timeout=30,
-                env=os.environ | self.environment(),
+                env=(
+                    os.environ | self.environment()
+                    if static
+                    else self.worker.environment(self.environment())
+                ),
             )
             response = json.loads(result.stdout)
         except subprocess.TimeoutExpired as exc:
@@ -94,16 +110,12 @@ class DeeplatformGateway:
             raise DomainError(
                 "provider_unavailable", "Training control response was unavailable"
             ) from exc
-        if (
-            not isinstance(response, dict)
-            or not isinstance(response.get("runtime"), dict)
-            or response["runtime"].get("prefix") != sys.prefix
-        ):
+        if not isinstance(response, dict) or response.get("runtime") != expected_runtime:
             raise DomainError(
                 "needs_reconciliation"
                 if operation in {"prepare", "upload"}
                 else "provider_unavailable",
-                "Training worker environment does not match the API environment",
+                "Worker environment does not match the selected environment",
             )
         if not response.get("ok"):
             error = response.get("error", {})
@@ -111,7 +123,14 @@ class DeeplatformGateway:
                 error.get("symbol", "provider_unavailable"),
                 error.get("message", "Training control failed"),
             )
-        return response["data"]
+        data = response["data"]
+        if operation == "prepare" and (
+            not isinstance(data, dict) or data.get("runtime") != expected_runtime
+        ):
+            raise DomainError(
+                "needs_reconciliation", "Prepared environment does not match the selected environment"
+            )
+        return data
 
     def components(self, scope: str | None = None) -> list[Record]:
         result = cast(list[Record], self._control("inspect", {}))
@@ -298,10 +317,15 @@ class DeeplatformGateway:
             raise DomainError(
                 "integration_precondition_failed", "Provider changed after preparation"
             )
+        if prepared.get("runtime") != self.worker.identity():
+            raise DomainError(
+                "integration_precondition_failed",
+                "Training environment changed after preparation",
+            )
         directory = Path(prepared["directory"])
         receipt = self.supervisor.start(
             [
-                sys.executable,
+                str(self.worker.python),
                 "-u",
                 str(self.settings.provider_root.resolve() / "main.py"),
                 "--experiment-dir",
@@ -310,7 +334,7 @@ class DeeplatformGateway:
             directory,
             prepared["experiment_id"],
             cwd=self.runtime,
-            environment=self.environment(),
+            environment=self.worker.environment(self.environment()),
         )
         return receipt | {
             "intent_id": prepared["intent_id"],
@@ -320,6 +344,7 @@ class DeeplatformGateway:
             "requested_device": prepared["requested_device"],
             "effective_device": None,
             "provider_commit": PROVIDER_COMMIT,
+            "runtime": prepared["runtime"],
         }
 
     def observe(self, receipt: Record) -> Record:
