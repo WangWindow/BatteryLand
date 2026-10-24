@@ -4,7 +4,7 @@
 
 在仓库根运行`uv sync`和`uv run batteryland init --data-dir ./var`。
 配置允许来源后启动`uv run batteryland serve --data-dir ./var`，另开终端执行`uv run python -m simple_impl.scheduler`。
-前端在`src/src/simple_impl/ui`运行`bun install --frozen-lockfile`与`bun run dev`，打开http://127.0.0.1:5173。
+前端在`src/simple_impl/ui`运行`bun install --frozen-lockfile`与`bun run dev`，打开http://127.0.0.1:5173。
 界面右上/侧栏可切换简体中文与English，选择保存在浏览器本地。
 前端开发和preview通过代理访问后端；生产部署将/api代理到独立后端，不把页面嵌入引擎。
 
