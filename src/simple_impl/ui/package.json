@@ -15,7 +15,8 @@
     "test:e2e": "playwright test",
     "generate:api": "openapi-typescript ../../../specs/003-modular-workflow/contracts/openapi.json -o src/api/types.ts",
     "i18n:check": "bun scripts/check-i18n.ts",
-    "verify": "bun run typecheck && bun run check && bun run test && bun run build"
+    "verify": "bun run typecheck && bun run check && bun run test && bun run build",
+    "test:e2e:real": "bash ../../../tests/run_e2e_real.sh"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4",

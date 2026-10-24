@@ -2,7 +2,7 @@
 
 **Feature Branch**: `003-modular-workflow`
 **Created**: 2026-10-24
-**Status**: Implemented; real CPU/GPU training acceptance pending
+**Status**: Implemented and accepted (CPU/GPU training + browser)
 **Input**: 两个既有引擎提供数据和训练支持；独立调度模块经公开接口请求执行，交付可替换的简版前端与浏览器交互图表，以实际使用发现并补齐后端接口缺口。
 
 ## User Scenarios & Testing

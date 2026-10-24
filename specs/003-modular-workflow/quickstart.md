@@ -30,4 +30,5 @@
 - 后端：`uv run pytest` → 76 passed / 4 skipped；`ruff check`、`ruff format --check`、`ty check` 通过；当前OpenAPI 49个操作。
 - 前端：`bun run typecheck`、`bun run check`（Biome + 国际化）通过，624个中英词典键一致；`bun run test` → 20 passed；`bun run build` 成功，visualizer与Recharts在独立chunk。
 - 浏览器：`bun run test:e2e` → 4 passed。真实HTTP引擎、独立scheduler与Chromium完成来源/清单/划分/模板/实验/执行/日志/结果/六种图型/停止/语言切换/窄屏与键盘验收；懒加载失败显示可恢复错误。
-- 未执行：真实CPU/GPU训练（`pytest tests/training --run-training [--run-gpu]`）。该测试已改为经独立scheduler派发，但本机未执行，不能据此宣称真实训练或GPU通过。
+- 真实训练：`uv run pytest tests/training --run-training --run-gpu` → 4 passed（119.28s），覆盖MyTask、CALCE CPU、CALCE cuda:0（RTX 4090）、真实HTTP重启/停止；均经独立scheduler派发。
+- 真实浏览器MyTask：`bash tests/run_e2e_real.sh` → 1 passed（26.0s），浏览器经真实后端、deeplatform provider与独立scheduler执行；结果按真实语义显示为不可用（MyTask不产生最终结果）。

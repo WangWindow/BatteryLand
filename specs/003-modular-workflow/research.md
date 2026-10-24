@@ -21,5 +21,5 @@
 
 ## 验收环境
 
-Bun1.4.2、Node26.12.1已存在；Chromium已下载并用于真实HTTP浏览器验收。浏览器E2E使用受控训练子进程夹具；真实CALCE训练仍需显式CPU/GPU执行。自定义划分、独立评估/迁移入口仍受provider限制。
+Bun1.4.2、Node26.12.1已存在；Chromium已下载并用于真实HTTP浏览器验收。默认E2E使用受控训练子进程夹具；另有`tests/run_e2e_real.sh`执行真实provider MyTask。真实CALCE CPU/GPU已通过。自定义划分、独立评估/迁移入口仍受provider限制。
 两个只读研究代理分别核对派发竞态与前端官方CLI/工具文档，未修改实现。

@@ -38,7 +38,8 @@ bun run dev
 ```bash
 cd src/src/simple_impl/ui
 bun run verify        # 类型检查、Biome+i18n、Vitest、构建
-bun run test:e2e      # 真实 HTTP 引擎+独立 scheduler+Chromium
+bun run test:e2e      # 真实 HTTP 引擎+受控训练夹具+独立 scheduler+Chromium
+bun run test:e2e:real # 真实 deeplatform MyTask+独立 scheduler+Chromium
 ```
 
 

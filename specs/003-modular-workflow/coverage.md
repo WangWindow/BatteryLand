@@ -1,7 +1,7 @@
 # 需求覆盖与模块归属
 
 评估日期：2026-10-24。001/002 的完成表示各自范围的交付，不表示原始合同全部完成。
-本轮已交付独立scheduler、模块化工作台前端、中英文界面和真实HTTP浏览器验收；真实CPU/GPU训练仍待显式环境验证。
+本轮已交付独立scheduler、模块化工作台前端、中英文界面、真实CPU/GPU训练和真实HTTP浏览器验收。
 
 | 需求 | 现有接口/能力 | 证据 | 本轮安排与归属 |
 | --- | --- | --- | --- |
@@ -10,7 +10,7 @@
 | 模板与配置管理 | templates、experiments | test_experiments、Playwright | 工作台已交付模板编辑/导入导出、实验创建、编辑、校验和复制 |
 | 组件上传、预览、参数 | components、schema、uploads | test_components、test_training、Playwright | 工作台调用引擎展示真实参数并上传；训练核心归deeplatform |
 | 权重登记与下载 | checkpoints、artifacts/download | test_components、test_results、Playwright | 工作台已交付登记、筛选和受控下载，不反序列化权重 |
-| 真实训练 | train、显式cpu/cuda:0 | 002/quickstart、test_real_training | 完成浏览器与独立scheduler联调 |
+| 真实训练 | train、显式cpu/cuda:0 | real_training、run_e2e_real.sh、Playwright | 已完成真实CPU/GPU、HTTP重启/停止及浏览器MyTask联调 |
 | 串行调度和停止 | queue、dispatch、stop | test_scheduler、test_recovery、test_dispatch、test_scheduler_client、Playwright | 策略已迁出为独立HTTP scheduler；引擎保留容量、状态和进程所有权 |
 | auto与多卡并行 | 当前拒绝auto，串行容量1 | capabilities、设备拒绝测试 | 后续feature；本轮不伪装支持 |
 | 日志、指标、预测、产物 | logs、metrics、results、artifacts | test_results、Playwright | 工作台已交付游标增量日志、结果、预测和产物下载 |
@@ -24,5 +24,5 @@
 | 不确定性、微调诊断和导出推理代码 | 无交付能力 | 原始功能需求 | 后续feature |
 
 工作台、独立调度器和真实HTTP浏览器主流程已通过；当前OpenAPI 49个操作。
-真实CPU/GPU训练及provider自定义划分执行仍未在本轮环境执行，不能宣称已完成。
+真实CPU/GPU训练及真实浏览器MyTask已执行并通过；provider自定义划分执行入口仍缺失。
 中英文词典624个键由自动检查验证键树与占位符一致，源码无硬编码界面文本。

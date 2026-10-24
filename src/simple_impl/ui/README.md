@@ -26,7 +26,8 @@ bun run dev                 # http://127.0.0.1:5173, proxies /api to :8000
 bun run typecheck
 bun run check               # Biome + i18n contract
 bun run test                # Vitest + React Testing Library
-bun run test:e2e            # real HTTP backend + scheduler + Chromium
+bun run test:e2e            # real HTTP backend + controlled training + scheduler + Chromium
+bun run test:e2e:real       # real deeplatform MyTask + real backend + scheduler + Chromium
 bun run build
 bun run verify              # typecheck + check + test + build
 bun run generate:api        # regenerate src/api/types.ts from the 003 OpenAPI snapshot

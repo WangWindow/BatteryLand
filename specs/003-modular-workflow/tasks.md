@@ -2,7 +2,7 @@
 
 **Input**: spec.md、plan.md、research.md、data-model.md、contracts/。
 **Tests**: 遵循TDD，先观察有效失败，再实现行为；文档和依赖配置采用内容/构建检查。
-**Status**: 引擎派发、独立scheduler、模块化工作台、i18n与真实HTTP浏览器验收已完成；真实CPU/GPU训练验收待执行。
+**Status**: 全部任务完成；真实CPU/GPU训练、HTTP重启/停止与真实浏览器MyTask验收通过。
 
 ## Phase 1: Setup
 
@@ -65,11 +65,11 @@
 
 - [x] T019 [US6] 在 src/simple_impl/ui/e2e/ 建立真实HTTP资源/配置/执行/比较和懒加载失败验收；受控训练夹具仅在测试服务中使用。
 - [x] T020 [US6] 在 src/simple_impl/ui/e2e/、tests/ 集成实际浏览器、后端和独立scheduler，修复验收揭示的本轮问题并验证窄屏与键盘状态。
-- [ ] T021 [US6] 更新 tests/training/test_real_training.py，经独立scheduler及真实provider执行CPU/GPU、HTTP重启/停止与浏览器MyTask验收，不改deeplatform。代码已改为scheduler派发；本机未执行真实CPU/GPU。
+- [x] T021 [US6] 更新 tests/training/test_real_training.py，经独立scheduler及真实provider执行CPU/GPU、HTTP重启/停止与浏览器MyTask验收，不改deeplatform。
 
 ## Phase 9: 收尾
 
-- [x] T022 执行 pytest/Ruff/ty、Biome/tsc/Vitest/build/Playwright、构建及契约漂移检查；更新 README.md、specs/003-modular-workflow/quickstart.md 与 coverage.md 的实测状态。真实训练缺口见T021，故暂不合入main。
+- [x] T022 执行 pytest/Ruff/ty、Biome/tsc/Vitest/build/Playwright、构建及契约漂移检查；更新 README.md、specs/003-modular-workflow/quickstart.md 与 coverage.md 的实测状态。等待维护者确认本地合并。
 
 - [x] T023 前端国际化：新增简体中文/英文词典、语言切换与持久化；`scripts/check-i18n.ts`验证键树、占位符、引用和硬编码文本；同步更新宪章、规格、计划、契约与README。
 
@@ -91,4 +91,6 @@ T001→T002→T003/T004/T005→T006/T007→T008/T009/T010→US1/US2/US4→US5→
 - 2026-10-24：scheduler客户端3组测试通过；独立scheduler CLI接入pyproject依赖组与ty范围（src/simple_impl/scheduler）。
 - 2026-10-24：工作台页面、API客户端、日志游标、visualizer、i18n与测试完成；前端20 passed，typecheck/Biome/i18n（624键）/build通过。
 - 2026-10-24：Playwright真实HTTP栈4 passed：来源/清单/划分/模板/实验/执行/日志/结果/产物/六图/停止/中英文/窄屏键盘/懒加载失败。受控训练夹具仅用于E2E测试服务。
-- 2026-10-24：完整后端76 passed/4 skipped，Ruff/ty通过。真实CPU/GPU训练未执行，T021保持未完成，不将E2E受控训练冒充真实provider验收。
+- 2026-10-24：完整后端76 passed/4 skipped，Ruff/ty通过。
+- 2026-10-24：真实训练验收 `pytest tests/training --run-training --run-gpu` → 4 passed（119.28s），覆盖MyTask、CALCE CPU、CALCE cuda:0、真实HTTP重启/停止，使用独立scheduler派发。
+- 2026-10-24：真实浏览器MyTask `tests/run_e2e_real.sh` → 1 passed（26.0s），浏览器经真实后端、真实provider和独立scheduler完成执行；受控E2E夹具不用于该验收。
