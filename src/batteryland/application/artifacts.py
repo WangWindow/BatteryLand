@@ -103,7 +103,7 @@ class ArtifactService:
                 "provider_id": "engine-execution/v1",
                 "version": "1",
                 "available": True,
-                "supported_operations": ["dispatch", "observe", "stop"],
+                "supported_operations": ["fifo", "dispatch", "observe", "stop"],
                 "limitations": ["explicit devices only", "single active execution"],
             },
             {

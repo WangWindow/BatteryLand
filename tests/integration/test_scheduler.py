@@ -104,7 +104,6 @@ def advance(container, client, identities, *, timeout=5):
     deadline = time.monotonic() + timeout
     states = []
     while time.monotonic() < deadline:
-        dispatch_next(client)
         container.execution.tick()
         states = [
             client.get(f"/api/v1/experiments/{identity}").json()["data"]["state"]
@@ -167,7 +166,6 @@ def test_invalid_batch_is_atomic_and_stop_confirms_process_exit(settings: Settin
         client.post(
             "/api/v1/queue/submissions", json={"experiment_ids": [valid["id"]]}
         ).raise_for_status()
-        dispatch_next(client)
         app.state.container.execution.tick()
         stopping = client.post(f"/api/v1/experiments/{valid['id']}/stop")
         assert stopping.status_code == 202 and stopping.json()["data"]["state"] == "stopping"

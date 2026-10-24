@@ -24,6 +24,12 @@ class LocalSourceFiles:
     def __init__(self, roots: dict[str, Path]) -> None:
         self.roots = roots
 
+    def options(self) -> list[Record]:
+        return [
+            {"root_alias": alias, "availability": self.inspect(alias)}
+            for alias in sorted(self.roots)
+        ]
+
     def inspect(self, alias: str, relative_key: str | None = None) -> str:
         if alias not in self.roots:
             raise DomainError("invalid_input", "Unknown source root alias")

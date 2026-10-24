@@ -17,6 +17,9 @@ class ResourceService:
         with self.units() as unit:
             return unit.resources.add_source(name, root_alias, availability)
 
+    def source_options(self) -> list[Record]:
+        return self.files.options()
+
     def list_sources(self, page: int, page_size: int) -> Record:
         with self.units() as unit:
             return unit.resources.list_sources(page, page_size)

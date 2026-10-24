@@ -19,7 +19,6 @@ from batteryland.config import Settings
 from batteryland.infrastructure.persistence.database import Database
 from batteryland.infrastructure.scheduling import ProcessSupervisor
 from batteryland.interfaces.api.app import create_app
-from simple_impl.scheduler.client import SchedulerClient
 
 pytestmark = pytest.mark.training
 
@@ -97,9 +96,7 @@ def gpu_processes():
 
 def wait_terminal(client, container, identity, *, gpu_evidence=None, timeout=240):
     deadline = time.monotonic() + timeout
-    scheduler = SchedulerClient(client)
     while time.monotonic() < deadline:
-        scheduler.tick()
         container.execution.tick()
         if gpu_evidence is not None:
             receipt = execution(container, identity)["receipt"]
@@ -307,10 +304,8 @@ def test_real_training_survives_api_restart_and_stops_owned_group(training_setti
         first_server = start_server()
         with httpx.Client(base_url=base_url, timeout=60, trust_env=False) as client:
             identity = submit(client, config, bindings)
-            scheduler = SchedulerClient(client)
             deadline = time.monotonic() + 120
             while time.monotonic() < deadline:
-                scheduler.tick()
                 value = stored_execution()
                 directory = (value["prepared"] or {}).get("directory")
                 console = Path(directory) / "console.log" if directory else None

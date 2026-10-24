@@ -5,6 +5,7 @@ from batteryland.application.ports.persistence import Record
 
 
 class SourceFiles(Protocol):
+    def options(self) -> list[Record]: ...
     def inspect(self, alias: str, relative_key: str | None = None) -> str: ...
 
 

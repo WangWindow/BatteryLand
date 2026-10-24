@@ -16,6 +16,11 @@ class DataSourceWrite(RequestModel):
     root_alias: str = Field(min_length=1)
 
 
+class SourceOption(RequestModel):
+    root_alias: str
+    availability: str
+
+
 class DataSource(RequestModel):
     id: str
     name: str
@@ -63,6 +68,11 @@ def list_sources(
     paging: Annotated[Pagination, Query()], resources: Annotated[ResourceService, Depends(service)]
 ) -> dict[str, Any]:
     return {"data": resources.list_sources(paging.page, paging.page_size)}
+
+
+@router.get("/data-sources/options", response_model=Envelope[list[SourceOption]])
+def source_options(resources: Annotated[ResourceService, Depends(service)]) -> dict[str, Any]:
+    return {"data": resources.source_options()}
 
 
 @router.post("/data-sources", status_code=201, response_model=Envelope[DataSource])

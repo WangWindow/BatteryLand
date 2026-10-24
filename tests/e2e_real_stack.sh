@@ -9,27 +9,4 @@ mkdir -p "$DATA_DIR"
 
 export BATTERYLAND_SOURCE_ROOTS='{}'
 
-uv run batteryland serve --data-dir "$DATA_DIR" --port "$BACKEND_PORT" &
-backend_pid=$!
-scheduler_pid=""
-cleanup() {
-  if [[ -n "$scheduler_pid" ]]; then
-    kill "$scheduler_pid" 2>/dev/null || true
-  fi
-  kill "$backend_pid" 2>/dev/null || true
-}
-trap cleanup EXIT INT TERM
-
-for _ in $(seq 1 300); do
-  if curl --silent --fail "http://127.0.0.1:${BACKEND_PORT}/api/v1/capabilities" >/dev/null; then
-    break
-  fi
-  sleep 0.1
-done
-
-uv run python -m simple_impl.scheduler \
-  --base-url "http://127.0.0.1:${BACKEND_PORT}" \
-  --interval 0.3 &
-scheduler_pid=$!
-
-wait "$backend_pid"
+exec uv run batteryland serve --data-dir "$DATA_DIR" --port "$BACKEND_PORT"

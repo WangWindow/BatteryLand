@@ -10,6 +10,7 @@ from batteryland.application.resources import ResourceService
 from batteryland.application.results import ResultService
 from batteryland.application.splits import SplitService
 from batteryland.config import Settings
+from batteryland.domain.scheduling import FifoPolicy
 from batteryland.infrastructure.analysis import BasicChartBuilder, BasicDifferenceAnalyzer
 from batteryland.infrastructure.documents import JsonDocumentStore
 from batteryland.infrastructure.files import LocalSourceFiles, ManagedArtifacts
@@ -53,6 +54,7 @@ class Container:
             self.experiments,
             self.training,
             ExecutionMaterializer(settings.data_dir),
+            FifoPolicy(),
             settings.interrupt_timeout,
             settings.terminate_timeout,
         )

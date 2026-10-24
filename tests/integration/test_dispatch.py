@@ -37,12 +37,31 @@ def dispatch(client, item, **fields):
     )
 
 
-def test_monitor_does_not_choose_queued_work(platform):
+def test_backend_tick_dispatches_queued_work_without_an_http_client(platform, monkeypatch):
     client, container, training = platform
     item = queued(client, "waiting")
+    import httpx
+
+    def unexpected_http(*args, **kwargs):
+        raise AssertionError("Internal scheduling must not use HTTP")
+
+    monkeypatch.setattr(httpx.Client, "request", unexpected_http)
     container.execution.tick()
-    assert client.get(f"/api/v1/experiments/{item['id']}").json()["data"]["state"] == "queued"
-    assert training.started == []
+    assert container.experiments.get(item["id"])["state"] == "running"
+    assert training.started == [item["id"]]
+
+
+def test_internal_policy_can_change_selection_without_changing_execution(platform):
+    client, container, training = platform
+    entries = [queued(client, name) for name in ("first", "last")]
+
+    class LastPolicy:
+        def choose(self, pending, active):
+            return pending[-1] if pending and not active else None
+
+    container.execution.scheduler = LastPolicy()
+    container.execution.tick()
+    assert training.started == [entries[-1]["id"]]
 
 
 def test_dispatch_is_idempotent_and_preserves_execution_identity(platform):

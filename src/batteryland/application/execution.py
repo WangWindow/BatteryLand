@@ -8,6 +8,7 @@ from uuid import uuid4
 from batteryland.application.experiments import ExperimentService
 from batteryland.application.ports.documents import DocumentStore
 from batteryland.application.ports.persistence import Record, UnitOfWorkFactory
+from batteryland.application.ports.scheduling import SchedulingPolicy
 from batteryland.application.ports.training import ExecutionFiles, TrainingGateway
 from batteryland.domain.errors import DomainError
 from batteryland.domain.experiments import ACTIVE_STATES, TERMINAL_STATES
@@ -27,6 +28,7 @@ class ExecutionService:
         experiments: ExperimentService,
         training: TrainingGateway,
         files: ExecutionFiles,
+        scheduler: SchedulingPolicy,
         interrupt_timeout: float,
         terminate_timeout: float,
     ) -> None:
@@ -35,6 +37,7 @@ class ExecutionService:
         self.experiments = experiments
         self.training = training
         self.files = files
+        self.scheduler = scheduler
         self.interrupt_timeout = interrupt_timeout
         self.terminate_timeout = terminate_timeout
         self._tick_lock = threading.Lock()
@@ -365,6 +368,12 @@ class ExecutionService:
             for record in active:
                 if record["state"] != "needs_reconciliation":
                     self._watch(record)
+            with self.units() as unit:
+                active = unit.experiments.executions(ACTIVE_STATES)
+                pending = unit.experiments.executions({"queued"})
+            # Capacity is an engine invariant, even for a replacement policy.
+            if not active and (candidate := self.scheduler.choose(pending, active)) is not None:
+                self._start(candidate)
             self.collect_pending()
         finally:
             self._tick_lock.release()
