@@ -16,6 +16,7 @@ import type {
   Result,
   Schema,
   SetRef,
+  SourceOption,
   Split,
   Template,
 } from "@/api/models"
@@ -32,11 +33,15 @@ function paging({ page = 1, pageSize = 50 }: ListParams) {
 
 export const endpoints = {
   sources: {
-    options: (signal?: AbortSignal) =>
-      api.get<Schema["SourceOption"][]>("/data-sources/options", signal),
+    options: (signal?: AbortSignal) => api.get<SourceOption[]>("/data-sources/options", signal),
     list: (params: ListParams, signal?: AbortSignal) =>
       api.get<Page<DataSource>>(`/data-sources${queryString(paging(params))}`, signal),
     create: (body: Schema["DataSourceWrite"]) => api.post<DataSource>("/data-sources", body),
+    files: (sourceId: string, params: ListParams, signal?: AbortSignal) =>
+      api.get<Page<Schema["DiscoveredBatteryFile"]>>(
+        `/data-sources/${sourceId}/files${queryString({ ...paging(params), q: params.q })}`,
+        signal,
+      ),
     importBatteries: (sourceId: string, batteries: Schema["BatteryInput"][]) =>
       api.post<ImportReport>(`/data-sources/${sourceId}/import`, { batteries }),
   },

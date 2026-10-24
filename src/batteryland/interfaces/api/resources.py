@@ -18,7 +18,9 @@ class DataSourceWrite(RequestModel):
 
 class SourceOption(RequestModel):
     root_alias: str
+    display_name: str
     availability: str
+    file_count: int
 
 
 class DataSource(RequestModel):
@@ -46,6 +48,14 @@ class Battery(BatteryInput):
 
 class BatteryImport(RequestModel):
     batteries: list[BatteryInput]
+
+
+class DiscoveredBatteryFile(RequestModel):
+    file_name: str
+    relative_key: str
+    size_bytes: int = Field(ge=0)
+    importable: bool
+    reason: str | None
 
 
 class ImportReport(RequestModel):
@@ -80,6 +90,17 @@ def add_source(
     body: DataSourceWrite, resources: Annotated[ResourceService, Depends(service)]
 ) -> dict[str, Any]:
     return {"data": resources.create_source(body.name, body.root_alias)}
+
+
+@router.get("/data-sources/{source_id}/files", response_model=Envelope[Page[DiscoveredBatteryFile]])
+def source_files(
+    source_id: UUID,
+    resources: Annotated[ResourceService, Depends(service)],
+    q: str | None = Query(default=None, max_length=200),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+) -> dict[str, Any]:
+    return {"data": resources.list_source_files(str(source_id), q, page, page_size)}
 
 
 @router.post("/data-sources/{source_id}/import", response_model=Envelope[ImportReport])

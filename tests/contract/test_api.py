@@ -18,7 +18,7 @@ def test_all_operations_declare_typed_success_and_uniform_errors(settings):
         for method, operation in path.items()
         if method in {"get", "post", "put", "patch", "delete"}
     ]
-    assert len(operations) == 50
+    assert len(operations) == 51
     for operation in operations:
         assert operation["responses"]["422"]["content"]["application/json"]["schema"][
             "$ref"

@@ -20,7 +20,10 @@ Environment:
   BATTERYLAND_UI_PORT          UI port (default: 5173)
   BATTERYLAND_DATA_DIR         Data directory (default: var)
   BATTERYLAND_TRAINING_PYTHON  Training Python (default: .venv-training/bin/python)
-  BATTERYLAND_SOURCE_ROOTS     Existing JSON mapping of data-source aliases
+  BATTERYLAND_SOURCE_ROOTS     JSON mapping of source aliases to existing dataset folders
+
+To register and browse an existing folder in the UI, configure it before launch, for example:
+  BATTERYLAND_SOURCE_ROOTS='{"calce":"/path/to/CALCE"}' scripts/run.sh
 HELP
     exit 0
   fi

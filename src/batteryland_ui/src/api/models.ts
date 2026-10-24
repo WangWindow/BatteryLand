@@ -2,6 +2,8 @@ import type { components } from "@/api/types"
 
 export type Schema = components["schemas"]
 export type DataSource = Schema["DataSource"]
+export type SourceOption = Schema["SourceOption"]
+export type DiscoveredBatteryFile = Schema["DiscoveredBatteryFile"]
 export type Battery = Schema["Battery"]
 export type Split = Schema["Split"]
 export type SplitWrite = Schema["SplitWrite"]

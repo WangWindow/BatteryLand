@@ -24,6 +24,11 @@ class ResourceService:
         with self.units() as unit:
             return unit.resources.list_sources(page, page_size)
 
+    def list_source_files(self, source_id: str, q: str | None, page: int, page_size: int) -> Record:
+        with self.units() as unit:
+            source = unit.resources.get_source(source_id)
+        return self.files.list_files(source["root_alias"], q, page, page_size)
+
     def import_batteries(self, source_id: str, batteries: list[Record]) -> Record:
         imported = existing_count = 0
         with self.units() as unit:
