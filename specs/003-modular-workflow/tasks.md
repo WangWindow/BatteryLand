@@ -69,7 +69,7 @@
 
 ## Phase 9: 收尾
 
-- [x] T022 执行 pytest/Ruff/ty、Biome/tsc/Vitest/build/Playwright、构建及契约漂移检查；更新 README.md、specs/003-modular-workflow/quickstart.md 与 coverage.md 的实测状态。等待维护者确认本地合并。
+- [x] T022 执行 pytest/Ruff/ty、Biome/tsc/Vitest/build/Playwright、构建及契约漂移检查；更新 README.md、specs/003-modular-workflow/quickstart.md 与 coverage.md 的实测状态，已快进合入main并删除任务分支。
 
 - [x] T023 前端国际化：新增简体中文/英文词典、语言切换与持久化；`scripts/check-i18n.ts`验证键树、占位符、引用和硬编码文本；同步更新宪章、规格、计划、契约与README。
 
@@ -94,3 +94,4 @@ T001→T002→T003/T004/T005→T006/T007→T008/T009/T010→US1/US2/US4→US5→
 - 2026-10-24：完整后端76 passed/4 skipped，Ruff/ty通过。
 - 2026-10-24：真实训练验收 `pytest tests/training --run-training --run-gpu` → 4 passed（119.28s），覆盖MyTask、CALCE CPU、CALCE cuda:0、真实HTTP重启/停止，使用独立scheduler派发。
 - 2026-10-24：真实浏览器MyTask `tests/run_e2e_real.sh` → 1 passed（26.0s），浏览器经真实后端、真实provider和独立scheduler完成执行；受控E2E夹具不用于该验收。
+- 2026-10-24：快进合入本地main并删除`003-modular-workflow`分支；未推送远程。
