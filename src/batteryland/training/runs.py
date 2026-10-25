@@ -11,6 +11,7 @@ from typing import Any
 from batteryland.common.errors import DomainError
 from batteryland.common.storage import contained_path
 from batteryland.config import Settings
+from batteryland.datasets.splits import SplitService
 from batteryland.experiments.receipt import issue_receipt, verify_receipt
 from batteryland.experiments.validated import parse_inputs
 from batteryland.results.storage import LocalResultFiles
@@ -31,18 +32,25 @@ class StartCommand:
     resolved_device: str
     config_text: str
     split_text: str
+    split_id: str
+    split_version: int
     receipt: dict[str, Any]
 
 
 class TrainingRunService:
-    def __init__(self, settings: Settings, gateway: DeeplatformGateway) -> None:
+    def __init__(
+        self, settings: Settings, gateway: DeeplatformGateway, splits: SplitService
+    ) -> None:
         self.settings = settings
         self.gateway = gateway
+        self.splits = splits
         self.materializer = ExecutionMaterializer(settings.data_dir)
         self.files = LocalResultFiles(settings.data_dir)
         self.file_resolver = BatteryFileResolver(settings.source_roots)
 
-    def validate(self, config_text: str, split_text: str) -> dict[str, Any]:
+    def validate(self, config_text: str, split_id: str, split_version: int) -> dict[str, Any]:
+        binding = self.splits.execution_binding(split_id, split_version)
+        split_text = json.dumps(binding["provider_split"], ensure_ascii=False)
         config, split = parse_inputs(config_text, split_text)
         commit = self.gateway.identity()
         provider = self.gateway.validate_structure(config)
@@ -56,10 +64,15 @@ class TrainingRunService:
         ]
         supported, limitations = execution_support(config, split, self.gateway.runtime)
         try:
-            self._resources(split)
-        except DomainError:
+            self._resources(binding)
+        except DomainError as error:
             supported = False
-            limitations = [*limitations, "source_files_missing_or_ambiguous"]
+            code = (
+                "ambiguous_member_file_names"
+                if "disambiguate identical file names" in error.message
+                else "source_files_missing_or_unreadable"
+            )
+            limitations = [*limitations, code]
         if not self.settings.validation_secret:
             raise DomainError("provider_unavailable", "Validation signing is not configured")
         receipt = issue_receipt(
@@ -69,27 +82,57 @@ class TrainingRunService:
             versions,
             self.settings.validation_secret,
             execution_supported=supported,
+            split_ref={"id": split_id, "version": split_version},
         )
         return {
             "valid": True,
             "config": config,
             "split": split,
+            "split_text": split_text,
+            "split_id": split_id,
+            "split_version": split_version,
             "receipt": receipt,
             "execution_supported": supported,
             "limitations": limitations,
         }
 
-    def _resources(self, split: dict[str, Any]) -> dict[str, Any]:
-        resolved = self.file_resolver.resolve(
-            [name for group in ("train", "val", "test") for name in split[group]]
-        )
+    def _resources(
+        self, binding: dict[str, Any], experiment_id: str | None = None
+    ) -> dict[str, Any]:
+        resolved = self.file_resolver.resolve_members(binding["members"])
+        data_pool: Path | None = None
+        if experiment_id is not None:
+            data_pool = self.settings.data_dir / "data-pools" / experiment_id
+            data_pool.mkdir(parents=True, exist_ok=True)
+            if data_pool.is_symlink():
+                raise DomainError("integration_precondition_failed", "Training data pool is unsafe")
+            for battery in resolved["batteries"]:
+                link = data_pool / battery["file_name"]
+                source = Path(battery["source_path"])
+                if link.is_symlink():
+                    if link.resolve() != source:
+                        raise DomainError(
+                            "integration_precondition_failed",
+                            "Training data pool member identity changed",
+                        )
+                elif link.exists():
+                    raise DomainError(
+                        "integration_precondition_failed", "Training data pool member is unsafe"
+                    )
+                else:
+                    link.symlink_to(source)
         return {
             "kind": "train",
             "splits": {
                 "split": {
-                    "ref": {"id": "provider", "version": 1},
-                    "provider_split": split,
+                    "ref": {
+                        "id": binding["split_id"],
+                        "version": binding["split_version"],
+                    },
+                    "provider_split": binding["provider_split"],
+                    "sources": binding["sources"],
                     **resolved,
+                    "data_pool": str(data_pool) if data_pool else None,
                 }
             },
         }
@@ -101,10 +144,14 @@ class TrainingRunService:
             body.split_text,
             self.settings.validation_secret,
             max_age_seconds=None,
+            split_ref={"id": body.split_id, "version": body.split_version},
         )
         if not claims["execution_supported"]:
             raise DomainError("unsupported_capability", "Provider cannot execute this split")
         config, split = parse_inputs(body.config_text, body.split_text)
+        binding = self.splits.execution_binding(body.split_id, body.split_version)
+        if json.dumps(binding["provider_split"], ensure_ascii=False) != body.split_text:
+            raise DomainError("invalid_input", "Validated split no longer matches its saved version")
         current_components = self.gateway.components()
         supported, _ = execution_support(config, split, self.gateway.runtime)
         if not supported:
@@ -169,7 +216,7 @@ class TrainingRunService:
                     "integration_precondition_failed",
                     "Resolved execution input is no longer valid",
                 )
-            resources = self._resources(split)
+            resources = self._resources(binding, identity)
             publish_file(marker_path, json.dumps(marker, sort_keys=True).encode())
             snapshot = {
                 "native_config": derived,

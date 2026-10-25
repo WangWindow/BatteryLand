@@ -34,7 +34,7 @@ def test_real_component_preview_upload_and_checkpoint_round_trip(client: TestCli
     assert client.get("/api/v1/checkpoints").json()["data"]["total"] == 1
 
 
-def test_unsupported_upload_is_rejected_and_capabilities_are_honest(
+def test_unsupported_upload_is_rejected_when_provider_is_unavailable(
     client: TestClient, monkeypatch
 ) -> None:
     provider = client.app.state.container.provider
@@ -47,11 +47,7 @@ def test_unsupported_upload_is_rejected_and_capabilities_are_honest(
 
     monkeypatch.setattr(provider, "_control", unavailable_catalog)
     assert client.get("/api/v1/components/model/cpmlp/schema").status_code == 503
-    status = client.get("/api/v1/capabilities")
-    assert status.status_code == 200
-    capabilities = {item["provider_id"]: item for item in status.json()["data"]}
-    assert capabilities["engine-execution/v1"]["available"] is True
-    assert capabilities["deeplatform"]["available"] is False
+    assert client.get("/api/v1/capabilities").status_code == 404
     failure = client.post(
         "/api/v1/components/uploads",
         data={"scope": "model"},

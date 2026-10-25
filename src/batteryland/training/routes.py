@@ -13,7 +13,8 @@ router = APIRouter(prefix="/api/v1", tags=["training and scheduling"])
 
 class ValidationRequest(RequestModel):
     config_text: str
-    split_text: str
+    split_id: str
+    split_version: int
 
 
 def training_service(request: Request) -> TrainingRunService:
@@ -24,7 +25,9 @@ def training_service(request: Request) -> TrainingRunService:
 def validate(
     body: ValidationRequest, service: Annotated[TrainingRunService, Depends(training_service)]
 ) -> dict[str, Any]:
-    return {"data": service.validate(body.config_text, body.split_text)}
+    return {
+        "data": service.validate(body.config_text, body.split_id, body.split_version)
+    }
 
 
 @router.get("/scheduler/status", response_model=Envelope[dict[str, Any]])

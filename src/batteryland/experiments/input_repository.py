@@ -58,6 +58,8 @@ class SqlValidatedInputRepository:
                 "split_text",
                 "config_sha256",
                 "split_sha256",
+                "split_id",
+                "split_version",
                 "config",
                 "split",
                 "receipt",

@@ -1,4 +1,4 @@
-from sqlalchemy import case, delete, func, or_, select, update
+from sqlalchemy import case, delete, false, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from batteryland.common.errors import DomainError
@@ -7,18 +7,20 @@ from batteryland.db.contracts import Record
 from batteryland.db.models import (
     BatteryRow,
     DatasetStatisticsRow,
+    DataSourceRow,
     DocumentRow,
     ExperimentRow,
     SplitMemberRow,
     SplitRow,
+    SplitSourceRow,
 )
 
 
-def split_header(row: SplitRow) -> Record:
+def split_header(row: SplitRow, sources: list[Record] | None = None) -> Record:
     return {
         "id": row.id,
         "name": row.name,
-        "source_id": row.source_id,
+        "sources": sources or [],
         "head_document_id": row.head_document_id,
         "revision": row.revision,
         "created_at": row.created_at,
@@ -29,19 +31,66 @@ class SqlSplitRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def add(self, identity: str, name: str, source_id: str, document_id: str) -> Record:
-        row = SplitRow(id=identity, name=name, source_id=source_id, head_document_id=document_id)
+    def sources(self, document_id: str) -> list[Record]:
+        rows = self.session.execute(
+            select(
+                DataSourceRow.id,
+                DataSourceRow.name,
+                DataSourceRow.root_alias,
+                DataSourceRow.revision,
+                SplitSourceRow.source_revision,
+            )
+            .join(SplitSourceRow, SplitSourceRow.source_id == DataSourceRow.id)
+            .where(SplitSourceRow.document_id == document_id)
+            .order_by(DataSourceRow.name, DataSourceRow.id)
+        )
+        return [
+            {
+                "id": identity,
+                "name": name,
+                "root_alias": alias,
+                "revision": revision,
+                "source_revision": source_revision,
+            }
+            for identity, name, alias, revision, source_revision in rows
+        ]
+
+    def add(
+        self, identity: str, name: str, document_id: str, sources: list[Record]
+    ) -> Record:
+        row = SplitRow(id=identity, name=name, head_document_id=document_id)
         self.session.add(row)
         self.session.flush()
-        return split_header(row)
+        self._add_sources(document_id, sources)
+        return split_header(row, self.sources(document_id))
+
+    def _add_sources(self, document_id: str, sources: list[Record]) -> None:
+        self.session.add_all(
+            [
+                SplitSourceRow(
+                    document_id=document_id,
+                    source_id=source["source_id"],
+                    source_revision=source["source_revision"],
+                )
+                for source in sources
+            ]
+        )
+        self.session.flush()
 
     def get(self, identity: str) -> Record:
         row = self.session.get(SplitRow, identity)
         if row is None:
             raise DomainError("not_found", "Split not found")
-        return split_header(row)
+        return split_header(row, self.sources(row.head_document_id))
 
-    def update(self, identity: str, revision: int, name: str, document_id: str) -> Record:
+    def update(
+        self,
+        identity: str,
+        revision: int,
+        name: str,
+        document_id: str,
+        sources: list[Record],
+    ) -> Record:
         updated = self.session.scalar(
             update(SplitRow)
             .where(SplitRow.id == identity, SplitRow.revision == revision)
@@ -50,6 +99,7 @@ class SqlSplitRepository:
         )
         if updated is None:
             raise DomainError("conflict", "Split revision has changed")
+        self._add_sources(document_id, sources)
         return self.get(identity)
 
     def add_members(self, document_id: str, partitions: dict[str, list[str]]) -> None:
@@ -79,11 +129,21 @@ class SqlSplitRepository:
         return row.summary if row is not None else None
 
     def list_splits(
-        self, source_id: str | None, q: str | None, page: int, page_size: int
+        self, source_ids: list[str] | None, q: str | None, page: int, page_size: int
     ) -> Record:
         statement = select(SplitRow)
-        if source_id:
-            statement = statement.where(SplitRow.source_id == source_id)
+        if source_ids is not None:
+            if not source_ids:
+                statement = statement.where(false())
+            else:
+                statement = (
+                    statement.join(
+                        SplitSourceRow,
+                        SplitSourceRow.document_id == SplitRow.head_document_id,
+                    )
+                    .where(SplitSourceRow.source_id.in_(source_ids))
+                    .distinct()
+                )
         if q:
             statement = statement.where(SplitRow.name.contains(q, autoescape=True))
         result = page_of(
@@ -103,6 +163,7 @@ class SqlSplitRepository:
             )
         }
         for item in result["items"]:
+            item["sources"] = self.sources(item["head_document_id"])
             item["head_version"] = item["version"] = item["revision"]
             item["counts"] = {
                 name: counts.get((item["head_document_id"], name), 0)
@@ -147,4 +208,7 @@ class SqlSplitRepository:
         )
         if used is not None:
             raise DomainError("resource_in_use", "Split is referenced by an experiment")
+        self.session.execute(
+            delete(SplitSourceRow).where(SplitSourceRow.document_id.in_(versions))
+        )
         self.session.execute(delete(SplitRow).where(SplitRow.id == identity))

@@ -91,6 +91,18 @@ class AnalysisService:
                     identity = f"source:{source_id}"
                     reference = {"source_id": source_id}
                     warnings = []
+                elif item.get("logical_dataset_id") is not None:
+                    dataset_id = str(item["logical_dataset_id"])
+                    dataset = unit.logical_datasets.get(dataset_id)
+                    member_ids = list(unit.logical_datasets.battery_ids(dataset_id))
+                    batteries = unit.resources.get_batteries(member_ids)
+                    identity = f"logical_dataset:{dataset_id}"
+                    reference = {"logical_dataset_id": dataset_id}
+                    warnings = (
+                        [f"{item['label']}: saved physical source data has changed"]
+                        if dataset["stale"]
+                        else []
+                    )
                 else:
                     group_name = item["named_group"]
                     unit.named_groups.get(group_name)

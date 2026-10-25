@@ -33,6 +33,7 @@ def test_all_operations_declare_typed_success_and_uniform_errors(settings):
     ):
         assert path in schema["paths"]
     for path in (
+        "/api/v1/capabilities",
         "/api/v1/worker/claims",
         "/api/v1/queue/submissions",
         "/api/v1/queue/dispatch",
@@ -71,7 +72,10 @@ def test_data_source_list_exposes_registered_battery_count(settings):
 
     assert "battery_count" in schema["components"]["schemas"]["DataSource"]["properties"]
     split_write = schema["components"]["schemas"]["SplitWrite"]["properties"]
-    assert "include_all_source" in split_write
-    assert "expected_source_revision" in split_write
+    source_selection = schema["components"]["schemas"]["SplitSourceSelection"]["properties"]
+    assert "source_selections" in split_write
+    assert "include_all" in source_selection
+    assert "expected_revision" in source_selection
+    assert "sources" in schema["components"]["schemas"]["Split"]["properties"]
     assert "post" in schema["paths"]["/api/v1/splits/preview"]
     assert "statistics" in schema["components"]["schemas"]["Split"]["properties"]

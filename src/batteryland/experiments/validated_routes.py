@@ -19,6 +19,8 @@ class ValidatedExperimentWrite(RequestModel):
     name: str = Field(min_length=1, max_length=200)
     config_text: str = Field(min_length=1, max_length=1024 * 1024)
     split_text: str = Field(min_length=1, max_length=8 * 1024 * 1024)
+    split_id: str = Field(min_length=1)
+    split_version: int = Field(ge=1)
     receipt: dict[str, Any]
 
 
@@ -39,6 +41,8 @@ class ValidatedExperiment(RequestModel):
     experiment_id: str
     config_text: str
     split_text: str
+    split_id: str | None
+    split_version: int | None
     config_sha256: str
     split_sha256: str
     config: dict[str, Any]
@@ -83,7 +87,16 @@ def create(
     body: ValidatedExperimentWrite,
     workflow: Annotated[ValidatedExperimentService, Depends(service)],
 ) -> dict[str, Any]:
-    return {"data": workflow.create(body.name, body.config_text, body.split_text, body.receipt)}
+    return {
+        "data": workflow.create(
+            body.name,
+            body.config_text,
+            body.split_text,
+            body.split_id,
+            body.split_version,
+            body.receipt,
+        )
+    }
 
 
 @router.get("/{experiment_id}", response_model=Envelope[ValidatedExperiment])
@@ -126,6 +139,8 @@ def update(
             body.name,
             body.config_text,
             body.split_text,
+            body.split_id,
+            body.split_version,
             body.receipt,
         )
     }

@@ -19,6 +19,7 @@ from batteryland.api.app import create_app
 from batteryland.config import Settings
 from batteryland.scheduler.processes import ProcessSupervisor
 from batteryland.scheduler.service import LocalScheduler
+from tests.support import register_split
 
 pytestmark = pytest.mark.training
 
@@ -58,10 +59,14 @@ def platform(settings):
         yield client, container, scheduler
 
 
-def validate_and_submit(client, name, config_text, split_text):
+def validate_and_submit(client, name, config_text, split_id, split_version):
     validation = client.post(
         "/api/v1/training/validation",
-        json={"config_text": config_text, "split_text": split_text},
+        json={
+            "config_text": config_text,
+            "split_id": split_id,
+            "split_version": split_version,
+        },
     )
     assert validation.status_code == 200, validation.text
     validated = validation.json()["data"]
@@ -73,7 +78,9 @@ def validate_and_submit(client, name, config_text, split_text):
         json={
             "name": name,
             "config_text": config_text,
-            "split_text": split_text,
+            "split_text": validated["split_text"],
+            "split_id": split_id,
+            "split_version": split_version,
             "receipt": validated["receipt"],
         },
     )
@@ -142,19 +149,30 @@ def calce_input(settings, device, epochs=1, early_stopping=True):
             if component.get("type") == "earlystop":
                 component["params"]["enable"] = False
     config_text = yaml.safe_dump(config, allow_unicode=True, sort_keys=False)
-    return config_text, split_text
+    return config_text, split
 
 
 @pytest.mark.gpu
 def test_real_catalog_and_mytask_use_the_training_environment(training_settings):
-    split_text = (
-        training_settings.provider_root / "datasets/batteryLife/data_split/CALCE.json"
-    ).read_text()
+    split = json.loads(
+        (training_settings.provider_root / "datasets/batteryLife/data_split/CALCE.json").read_text()
+    )
+    registered = register_split(
+        training_settings,
+        split["dataset"],
+        tuple(name for partition in ("train", "val", "test") for name in split[partition]),
+        {partition: tuple(split[partition]) for partition in ("train", "val", "test")},
+        root_alias="battery-life",
+    )
     config_text = yaml.safe_dump(
         {
             "mate": {"seed": 42, "device": "auto", "experiment": "real-mytask"},
             "task": {"type": "MyTask"},
             "hook": [{"type": "PrintStart"}, {"type": "PrintEnd"}],
+            "datafactory": {
+                "type": "BatteryLandBatteryLifeDatasetFactory",
+                "params": {"dataset": split["dataset"], "num_workers": 0},
+            },
         },
         allow_unicode=True,
         sort_keys=False,
@@ -165,7 +183,13 @@ def test_real_catalog_and_mytask_use_the_training_environment(training_settings)
         assert schema.status_code == 200, schema.text
         assert "d_model" in schema.json()["data"]["required"]
 
-        identity = validate_and_submit(client, "real-mytask", config_text, split_text)
+        identity = validate_and_submit(
+            client,
+            "real-mytask",
+            config_text,
+            registered["split"]["id"],
+            registered["split"]["version"],
+        )
         result = wait_terminal(client, container, scheduler, identity)
         assert result["state"] == "succeeded", diagnostics(container, identity)
 
@@ -187,9 +211,22 @@ def test_real_catalog_and_mytask_use_the_training_environment(training_settings)
 
 @pytest.mark.gpu
 def test_real_calce_single_epoch_results_and_artifacts(training_settings):
-    config_text, split_text = calce_input(training_settings, "cuda:0")
+    config_text, split = calce_input(training_settings, "cuda:0")
+    registered = register_split(
+        training_settings,
+        split["dataset"],
+        tuple(name for partition in ("train", "val", "test") for name in split[partition]),
+        {partition: tuple(split[partition]) for partition in ("train", "val", "test")},
+        root_alias="battery-life",
+    )
     with platform(training_settings) as (client, container, scheduler):
-        identity = validate_and_submit(client, "real-calce-cuda-0", config_text, split_text)
+        identity = validate_and_submit(
+            client,
+            "real-calce-cuda-0",
+            config_text,
+            registered["split"]["id"],
+            registered["split"]["version"],
+        )
         try:
             result = wait_terminal(client, container, scheduler, identity)
             assert result["state"] == "succeeded", diagnostics(container, identity)
@@ -261,8 +298,15 @@ def test_real_calce_single_epoch_results_and_artifacts(training_settings):
 
 @pytest.mark.gpu
 def test_real_training_survives_api_restart_and_stops_owned_group(training_settings):
-    config_text, split_text = calce_input(
+    config_text, split = calce_input(
         training_settings, "cuda:0", epochs=100_000, early_stopping=False
+    )
+    registered = register_split(
+        training_settings,
+        split["dataset"],
+        tuple(name for partition in ("train", "val", "test") for name in split[partition]),
+        {partition: tuple(split[partition]) for partition in ("train", "val", "test")},
+        root_alias="battery-life",
     )
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
@@ -324,7 +368,13 @@ def test_real_training_survives_api_restart_and_stops_owned_group(training_setti
     try:
         first_server = start_server()
         with httpx.Client(base_url=base_url, timeout=60, trust_env=False) as client:
-            identity = validate_and_submit(client, "restart-stop-calce", config_text, split_text)
+            identity = validate_and_submit(
+                client,
+                "restart-stop-calce",
+                config_text,
+                registered["split"]["id"],
+                registered["split"]["version"],
+            )
             receipt_path = (
                 training_settings.data_dir
                 / "training"

@@ -60,6 +60,40 @@ class BatteryRow(Identity, Base):
         "metadata", JSON, default=dict, server_default="{}"
     )
     availability: Mapped[str] = mapped_column(default="unchecked", server_default="unchecked")
+    file_size_bytes: Mapped[int | None]
+    modified_at_ns: Mapped[int | None]
+
+
+class CatalogScanRow(Base):
+    __tablename__ = "catalog_scans"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default="assets")
+    state: Mapped[str] = mapped_column(default="idle", server_default="idle")
+    generation: Mapped[int] = mapped_column(default=0, server_default="0")
+    file_count: Mapped[int] = mapped_column(default=0, server_default="0")
+    source_count: Mapped[int] = mapped_column(default=0, server_default="0")
+    started_at: Mapped[str | None]
+    completed_at: Mapped[str | None]
+    error: Mapped[str | None]
+
+
+class LogicalDatasetRow(Identity, Base):
+    __tablename__ = "logical_datasets"
+    name: Mapped[str] = mapped_column(unique=True)
+    description: Mapped[str] = mapped_column(default="", server_default="")
+    source_snapshot: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+
+
+class LogicalDatasetMemberRow(Base):
+    __tablename__ = "logical_dataset_members"
+    __table_args__ = (
+        UniqueConstraint("dataset_id", "battery_id"),
+        Index("ix_logical_dataset_member_battery", "battery_id"),
+    )
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("logical_datasets.id", ondelete="CASCADE"), primary_key=True
+    )
+    ordinal: Mapped[int] = mapped_column(primary_key=True)
+    battery_id: Mapped[str] = mapped_column(ForeignKey("batteries.id"))
 
 
 class NamedGroupRow(Identity, Base):
@@ -102,11 +136,21 @@ class DocumentRow(Identity, Base):
 
 class SplitRow(Identity, Base):
     __tablename__ = "splits"
-    __table_args__ = (UniqueConstraint("source_id", "name"),)
     name: Mapped[str]
-    source_id: Mapped[str] = mapped_column(ForeignKey("data_sources.id"))
     head_document_id: Mapped[str] = mapped_column(ForeignKey("document_versions.id"))
     revision: Mapped[int] = mapped_column(default=1, server_default="1")
+
+
+class SplitSourceRow(Base):
+    __tablename__ = "split_sources"
+    __table_args__ = (Index("ix_split_source", "source_id", "document_id"),)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("document_versions.id", ondelete="CASCADE"), primary_key=True
+    )
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("data_sources.id"), primary_key=True
+    )
+    source_revision: Mapped[int]
 
 
 class SplitMemberRow(Base):
@@ -186,6 +230,8 @@ class ValidatedInputRow(Base):
     split_text: Mapped[str]
     config_sha256: Mapped[str]
     split_sha256: Mapped[str]
+    split_id: Mapped[str | None]
+    split_version: Mapped[int | None]
     config: Mapped[dict[str, Any]] = mapped_column(JSON)
     split: Mapped[dict[str, Any]] = mapped_column(JSON)
     split_counts: Mapped[dict[str, int] | None] = mapped_column(JSON)

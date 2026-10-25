@@ -53,14 +53,18 @@ class SetRef(RequestModel):
     split: VersionRef | None = None
     source_id: UUID | None = None
     named_group: str | None = Field(default=None, min_length=1)
+    logical_dataset_id: UUID | None = None
     partitions: list[Literal["train", "val", "test"]] = Field(
         default=["train", "val", "test"], min_length=1
     )
 
     @model_validator(mode="after")
     def exactly_one_reference(self) -> SetRef:
-        if sum(value is not None for value in (self.split, self.source_id, self.named_group)) != 1:
-            raise ValueError("Specify exactly one of split, source_id, or named_group")
+        if sum(
+            value is not None
+            for value in (self.split, self.source_id, self.named_group, self.logical_dataset_id)
+        ) != 1:
+            raise ValueError("Specify exactly one dataset reference")
         return self
 
 

@@ -4,6 +4,8 @@ import pytest
 
 from batteryland.common.errors import DomainError
 from batteryland.common.storage import LocalSourceFiles
+from batteryland.config import Settings
+from batteryland.datasets.catalog import FixedCatalogIndexer
 from batteryland.datasets.service import ResourceService
 from batteryland.db.database import Database
 
@@ -69,14 +71,31 @@ def test_source_options_explain_configured_directories_without_paths(tmp_path: P
     assert str(tmp_path) not in str(option)
 
 
-def test_resource_service_scans_only_the_registered_source_root(tmp_path: Path) -> None:
+def test_resource_service_reads_indexed_files_without_scanning_the_source_root(
+    tmp_path: Path,
+) -> None:
     root = tmp_path / "source"
     root.mkdir()
     (root / "a.pkl").write_bytes(b"a")
+    settings = Settings(data_dir=tmp_path / "data", source_roots={"demo": root})
     database = Database(tmp_path / "platform.sqlite")
     database.initialize()
-    service = ResourceService(database.unit_of_work, LocalSourceFiles({"demo": root}))
-    source = service.create_source("Demo", "demo")
+    service = ResourceService(database.unit_of_work, LocalSourceFiles(settings.source_roots))
+    indexer = FixedCatalogIndexer(settings, service, database.unit_of_work)
+    indexer.index()
+    source = service.list_sources(1, 50)["items"][0]
+
+    class NoFilesystemReads:
+        def list_files(self, *args, **kwargs):
+            raise AssertionError("file listing unexpectedly scanned the filesystem")
+
+        def options(self):
+            raise AssertionError("source options unexpectedly scanned the filesystem")
+
+        def inspect(self, *args, **kwargs):
+            raise AssertionError("source inspection unexpectedly read the filesystem")
+
+    service.files = NoFilesystemReads()  # type: ignore[assignment]
 
     result = service.list_source_files(source["id"], None, 1, 50)
 

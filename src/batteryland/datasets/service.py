@@ -18,7 +18,22 @@ class ResourceService:
             return unit.resources.add_source(name, root_alias, availability, group_prefix)
 
     def source_options(self) -> list[Record]:
-        return self.files.options()
+        page = self.list_sources(1, 10000)
+        by_alias: dict[str, Record] = {}
+        for source in page["items"]:
+            item = by_alias.setdefault(
+                source["root_alias"],
+                {
+                    "root_alias": source["root_alias"],
+                    "display_name": source["name"],
+                    "availability": source["availability"],
+                    "file_count": 0,
+                },
+            )
+            item["file_count"] += source["available_battery_count"]
+            if source["availability"] == "available":
+                item["availability"] = "available"
+        return [by_alias[alias] for alias in sorted(by_alias)]
 
     def list_sources(self, page: int, page_size: int) -> Record:
         with self.units() as unit:
@@ -26,10 +41,40 @@ class ResourceService:
 
     def list_source_files(self, source_id: str, q: str | None, page: int, page_size: int) -> Record:
         with self.units() as unit:
-            source = unit.resources.get_source(source_id)
-        return self.files.list_files(
-            source["root_alias"], q, page, page_size, source["group_prefix"] or None
-        )
+            unit.resources.get_source(source_id)
+            batteries = unit.resources.list_batteries(
+                {"source_id": source_id, "q": q, "availability": "available"},
+                page,
+                page_size,
+            )
+        return batteries | {
+            "items": [
+                {
+                    "file_name": row["file_name"],
+                    "relative_key": row["relative_key"],
+                    "size_bytes": row["file_size_bytes"] or 0,
+                    "importable": True,
+                    "reason": None,
+                }
+                for row in batteries["items"]
+            ]
+        }
+
+    def sync_catalog_source(
+        self,
+        identity: str,
+        *,
+        root_available: bool,
+        batteries: list[Record],
+    ) -> Record:
+        with self.units() as unit:
+            return unit.resources.sync_catalog_source(
+                identity, root_available=root_available, batteries=batteries
+            )
+
+    def find_source(self, root_alias: str, group_prefix: str) -> Record | None:
+        with self.units() as unit:
+            return unit.resources.find_source(root_alias, group_prefix)
 
     def import_batteries(self, source_id: str, batteries: list[Record]) -> Record:
         imported = existing_count = 0
@@ -95,6 +140,10 @@ class ResourceService:
     def list_batteries(self, filters: dict[str, Any], page: int, page_size: int) -> Record:
         with self.units() as unit:
             return unit.resources.list_batteries(filters, page, page_size)
+
+    def battery_facets(self, source_ids: list[str] | None) -> Record:
+        with self.units() as unit:
+            return unit.resources.battery_facets(source_ids)
 
     def get_battery(self, identity: str) -> Record:
         with self.units() as unit:

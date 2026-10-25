@@ -21,7 +21,6 @@ from batteryland.db.contracts import Record
 from batteryland.scheduler.processes import ProcessSupervisor
 from batteryland.training.materializer import publish_file
 from batteryland.training.plugin_runtime import initialize_runtime
-from batteryland.training.resources import BatteryFileResolver
 from batteryland.training.runtime import TrainingRuntime
 from batteryland.training.split_support import (
     BUILTIN_BATTERY_FACTORY,
@@ -44,7 +43,6 @@ class DeeplatformGateway:
         self._component_snapshot: tuple[str, list[Record]] | None = None
         self._runtime_lock = threading.Lock()
         self._runtime_initialized = False
-        self.file_resolver = BatteryFileResolver(settings.source_roots)
 
     def identity(self) -> str:
         try:
@@ -301,16 +299,50 @@ class DeeplatformGateway:
                 "BatteryLife training requires nonempty train, val and test groups",
             )
 
-        wanted = [member for group in ("train", "val", "test") for member in reference[group]]
-        expected_resources = self.file_resolver.resolve(wanted)
-        if (
-            selected.get("source") != expected_resources["source"]
-            or selected.get("batteries") != expected_resources["batteries"]
-        ):
+        expected_pool = (
+            self.settings.data_dir.resolve() / "data-pools" / expected_experiment_id
+            if expected_experiment_id
+            else None
+        )
+        try:
+            data_pool = Path(selected["data_pool"]).resolve(strict=True)
+        except (KeyError, OSError, TypeError) as exc:
             raise DomainError(
                 "integration_precondition_failed",
-                "Registered resource references do not match the configured data source",
+                "The per-experiment training data pool is unavailable",
+            ) from exc
+        if (
+            expected_pool is None
+            or data_pool != expected_pool
+            or Path(selected["data_pool"]).is_symlink()
+            or not data_pool.is_dir()
+        ):
+            raise DomainError(
+                "integration_precondition_failed", "Training data pool is outside its managed root"
             )
+
+        members = selected.get("batteries")
+        if not isinstance(members, list) or not members:
+            raise DomainError("integration_precondition_failed", "Training split has no file map")
+        seen_names: set[str] = set()
+        for member in members:
+            name = member.get("file_name")
+            source_path = member.get("source_path")
+            if not isinstance(name, str) or name in seen_names or not isinstance(source_path, str):
+                raise DomainError("integration_precondition_failed", "Training split file map is invalid")
+            seen_names.add(name)
+            link = data_pool / name
+            try:
+                target = link.resolve(strict=True)
+                expected_source = Path(source_path).resolve(strict=True)
+            except OSError as exc:
+                raise DomainError(
+                    "integration_precondition_failed", "A staged battery file is missing"
+                ) from exc
+            if not link.is_symlink() or target != expected_source or not target.is_file():
+                raise DomainError(
+                    "integration_precondition_failed", "A staged battery file differs from its source"
+                )
 
     def prepare(self, materialized: Record) -> Record:
         self._ensure_runtime()
@@ -333,7 +365,7 @@ class DeeplatformGateway:
             snapshot["native_config"],
             snapshot["resources"],
             expected_split_path=Path(split_info["path"]) if local_adapter else None,
-            expected_experiment_id=materialized["experiment_id"] if local_adapter else None,
+            expected_experiment_id=materialized["experiment_id"],
         )
         current = {(item["scope"], item["type"]): item["source_hash"] for item in self.components()}
         for item in snapshot["components"]:
@@ -376,12 +408,6 @@ class DeeplatformGateway:
                 "needs_reconciliation", "Provider output directory is outside the managed root"
             )
         selected = snapshot["resources"]["splits"]["split"]
-        alias = selected["source"]["root_alias"]
-        root = self.settings.source_roots.get(alias)
-        if root is None:
-            raise DomainError(
-                "integration_precondition_failed", "Configured battery data source disappeared"
-            )
         return prepared | {
             "intent_id": materialized["intent_id"],
             "input_manifest_sha256": materialized["input_manifest_sha256"],
@@ -389,7 +415,7 @@ class DeeplatformGateway:
             "directory_ref": str(directory.relative_to(self.settings.data_dir.resolve())),
             "requested_device": config["mate"]["device"],
             "provider_commit": PROVIDER_COMMIT,
-            "data_source_root": str(root.resolve()),
+            "data_source_root": selected["data_pool"],
         }
 
     def spawn(self, prepared: Record) -> Record:
@@ -435,29 +461,3 @@ class DeeplatformGateway:
 
     def signal(self, receipt: Record, stage: str) -> Record:
         return self.supervisor.signal(receipt, stage)
-
-    def capabilities(self) -> list[Record]:
-        available = False
-        reason = "Training dependencies are unavailable in the current environment"
-        try:
-            self.identity()
-            self._control("catalog", {})
-            available = True
-            reason = ""
-        except DomainError as exc:
-            reason = exc.message
-        return [
-            {
-                "provider_id": "deeplatform",
-                "version": PROVIDER_COMMIT,
-                "available": available,
-                "reason": reason or None,
-                "supported_operations": ["train", "component_preview", "component_upload"],
-                "limitations": [
-                    "auto is unsupported",
-                    "custom split directory requires provider changes",
-                    "evaluation and transfer tasks are not yet declared",
-                    "effective device requires runtime evidence",
-                ],
-            }
-        ]

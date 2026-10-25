@@ -59,20 +59,16 @@ def make_split(
     ):
         raise DomainError("invalid_input", "Partition ratios must sum to one")
     roots = sorted({families[member] for member in battery_ids})
-    raw_counts = {name: len(roots) * ratios[name] for name in PARTITIONS}
+    unassigned = [root for root in roots if root not in assigned]
+    raw_counts = {name: len(unassigned) * ratios[name] for name in PARTITIONS}
     targets = {name: math.floor(raw_counts[name]) for name in PARTITIONS}
-    remaining = len(roots) - sum(targets.values())
+    remaining = len(unassigned) - sum(targets.values())
     remainders = sorted(
         PARTITIONS,
         key=lambda name: (-round(raw_counts[name] - targets[name], 12), PARTITIONS.index(name)),
     )
     for name in remainders[:remaining]:
         targets[name] += 1
-    for name in PARTITIONS:
-        targets[name] -= sum(group == name for group in assigned.values())
-        if targets[name] < 0:
-            raise DomainError("invalid_input", "Fixed members exceed the requested partition size")
-    unassigned = [root for root in roots if root not in assigned]
     random.Random(seed).shuffle(unassigned)
     position = 0
     for name in PARTITIONS:

@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from batteryland.common.errors import DomainError
 from batteryland.common.serialization import load_config, load_json
+from batteryland.datasets.splits import SplitService
 from batteryland.db.contracts import Record, UnitOfWorkFactory
 from batteryland.experiments.receipt import verify_receipt
 from batteryland.experiments.states import ACTIVE_STATES
@@ -50,14 +51,25 @@ def parse_inputs(config_text: str, split_text: str) -> tuple[Record, Record]:
 
 
 class ValidatedExperimentService:
-    def __init__(self, units: UnitOfWorkFactory, secret: str) -> None:
+    def __init__(self, units: UnitOfWorkFactory, secret: str, splits: SplitService) -> None:
         self.units = units
         self.secret = secret
+        self.splits = splits
 
-    def create(self, name: str, config_text: str, split_text: str, receipt: Record) -> Record:
-        claims, config, split = self._validated(config_text, split_text, receipt)
+    def create(
+        self,
+        name: str,
+        config_text: str,
+        split_text: str,
+        split_id: str,
+        split_version: int,
+        receipt: Record,
+    ) -> Record:
+        claims, config, split, binding = self._validated(
+            config_text, split_text, split_id, split_version, receipt
+        )
         identity = str(uuid4())
-        query = self._query(config)
+        query = self._query(config, split_id)
         with self.units() as unit:
             document = unit.documents.publish(
                 "experiment_draft",
@@ -66,20 +78,33 @@ class ValidatedExperimentService:
                 {"native_config": config, "bindings": {}},
             )
             unit.experiments.add(
-                identity, {"name": name, "kind": "train"}, document.id, self._references(), query
+                identity,
+                {"name": name, "kind": "train"},
+                document.id,
+                self._references(binding["split_document_id"]),
+                query,
             )
             unit.validated_inputs.add(
                 identity,
                 1,
-                self._input_value(config_text, split_text, config, split, receipt, claims),
+                self._input_value(
+                    config_text,
+                    split_text,
+                    split_id,
+                    split_version,
+                    config,
+                    split,
+                    receipt,
+                    claims,
+                ),
             )
         return self.get(identity)
 
     @staticmethod
-    def _query(config: Record) -> Record:
+    def _query(config: Record, split_id: str) -> Record:
         return {
             "source_id": None,
-            "split_id": None,
+            "split_id": split_id,
             "model_type": config.get("model", {}).get("type")
             if isinstance(config.get("model"), dict)
             else None,
@@ -92,27 +117,43 @@ class ValidatedExperimentService:
         }
 
     @staticmethod
-    def _references() -> Record:
+    def _references(split_document_id: str) -> Record:
         return {
-            "split_document_id": None,
+            "split_document_id": split_document_id,
             "source_split_document_id": None,
             "target_split_document_id": None,
             "checkpoint_id": None,
         }
 
     def _validated(
-        self, config_text: str, split_text: str, receipt: Record
-    ) -> tuple[Record, Record, Record]:
-        claims = verify_receipt(receipt, config_text, split_text, self.secret)
+        self,
+        config_text: str,
+        split_text: str,
+        split_id: str,
+        split_version: int,
+        receipt: Record,
+    ) -> tuple[Record, Record, Record, Record]:
+        binding = self.splits.execution_binding(split_id, split_version)
+        claims = verify_receipt(
+            receipt,
+            config_text,
+            split_text,
+            self.secret,
+            split_ref={"id": split_id, "version": split_version},
+        )
         if claims["provider_commit"] != PROVIDER_COMMIT:
             raise DomainError("integration_precondition_failed", "Provider revision has changed")
         config, split = parse_inputs(config_text, split_text)
-        return claims, config, split
+        if split != binding["provider_split"]:
+            raise DomainError("invalid_input", "Experiment split differs from its saved version")
+        return claims, config, split, binding
 
     @staticmethod
     def _input_value(
         config_text: str,
         split_text: str,
+        split_id: str,
+        split_version: int,
         config: Record,
         split: Record,
         receipt: Record,
@@ -121,6 +162,8 @@ class ValidatedExperimentService:
         return {
             "config_text": config_text,
             "split_text": split_text,
+            "split_id": split_id,
+            "split_version": split_version,
             "config_sha256": claims["config_sha256"],
             "split_sha256": claims["split_sha256"],
             "config": config,
@@ -136,9 +179,13 @@ class ValidatedExperimentService:
         name: str,
         config_text: str,
         split_text: str,
+        split_id: str,
+        split_version: int,
         receipt: Record,
     ) -> Record:
-        claims, config, split = self._validated(config_text, split_text, receipt)
+        claims, config, split, binding = self._validated(
+            config_text, split_text, split_id, split_version, receipt
+        )
         with self.units() as unit:
             header = unit.experiments.get(identity)
             unit.validated_inputs.get(identity)
@@ -155,13 +202,22 @@ class ValidatedExperimentService:
                 expected_revision,
                 {"name": name, "kind": "train"},
                 document.id,
-                self._references(),
-                self._query(config),
+                self._references(binding["split_document_id"]),
+                self._query(config, split_id),
             )
             unit.validated_inputs.add(
                 identity,
                 expected_revision + 1,
-                self._input_value(config_text, split_text, config, split, receipt, claims),
+                self._input_value(
+                    config_text,
+                    split_text,
+                    split_id,
+                    split_version,
+                    config,
+                    split,
+                    receipt,
+                    claims,
+                ),
             )
         return self.get(identity)
 

@@ -20,6 +20,7 @@ class Settings:
     checkpoint_limit: int = 1024 * 1024 * 1024
     validation_secret: str = ""
     auto_index_catalog: bool = False
+    catalog_scan_interval_seconds: int = 120
 
     @classmethod
     def from_env(cls, data_dir: Path | None = None) -> Settings:
@@ -44,4 +45,7 @@ class Settings:
             ),
             validation_secret=os.environ.get("BATTERYLAND_VALIDATION_SECRET", ""),
             auto_index_catalog=os.environ.get("BATTERYLAND_AUTO_INDEX_CATALOG", "1") != "0",
+            catalog_scan_interval_seconds=max(
+                15, int(os.environ.get("BATTERYLAND_CATALOG_SCAN_INTERVAL_SECONDS", "120"))
+            ),
         )

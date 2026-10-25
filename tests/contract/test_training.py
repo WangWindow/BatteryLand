@@ -33,42 +33,6 @@ def test_upload_checks_seeded_defaults_and_does_not_execute_source(settings: Set
     assert not (settings.provider_root / "components/uploaded/model/custom.py").exists()
 
 
-def test_custom_split_is_accepted_when_files_resolve(settings: Settings) -> None:
-    gateway = DeeplatformGateway(settings)
-    for name in ("a.pkl", "b.pkl", "c.pkl"):
-        (settings.source_roots["demo"] / name).write_bytes(name.encode())
-    config = {
-        "mate": {"seed": 42, "device": "cpu", "experiment": "demo"},
-        "task": {"type": "BatteryLifeRun"},
-        "datafactory": {
-            "type": "BatteryLandBatteryLifeDatasetFactory",
-            "params": {"dataset": "custom"},
-        },
-    }
-    split = {"dataset": "custom", "train": ["a.pkl"], "val": ["b.pkl"], "test": ["c.pkl"]}
-    resolved = gateway.file_resolver.resolve(["a.pkl", "b.pkl", "c.pkl"])
-    gateway._control = lambda operation, arguments: {
-        "valid": True,
-        "components": [],
-    }
-
-    result = gateway.validate(
-        config,
-        {
-            "kind": "train",
-            "splits": {
-                "split": {
-                    "provider_split": split,
-                    **resolved,
-                }
-            },
-        },
-    )
-
-    assert result["valid"] is True
-    assert result["provider_commit"]
-
-
 def test_real_provider_parameter_description_does_not_construct_components(settings: Settings):
     script = """
 import json, sys

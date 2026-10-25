@@ -123,35 +123,3 @@ class ArtifactService:
                 "invalid_input", "Select a registered file inside the artifact directory"
             )
         return self.files.resolve(value["relative_key"]), value["name"]
-
-    def capabilities(self) -> list[Record]:
-        return self.provider.capabilities() + [
-            {
-                "provider_id": "scheduler-local/v1",
-                "version": "1",
-                "available": True,
-                "supported_operations": ["fifo", "claim", "observe", "stop", "auto_gpu"],
-                "limitations": ["single active execution", "GPU training only"],
-            },
-            {
-                "provider_id": "basic-difference/v1",
-                "version": "1",
-                "available": True,
-                "supported_operations": ["counts", "overlap", "category_distribution"],
-                "limitations": ["registered metadata only"],
-            },
-            {
-                "provider_id": "basic-charts/v1",
-                "version": "1",
-                "available": True,
-                "supported_operations": [
-                    "metric_bar",
-                    "epoch_line",
-                    "prediction_scatter",
-                    "set_count_bar",
-                    "category_bar",
-                    "overlap_bar",
-                ],
-                "limitations": ["unknown units are isolated", "declarative data only"],
-            },
-        ]

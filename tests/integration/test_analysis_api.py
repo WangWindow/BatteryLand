@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from tests.integration.test_splits_api import setup_batteries
+from tests.integration.test_splits_api import selection, setup_batteries
 
 
 def test_real_set_counts_overlap_and_missing_categories(client: TestClient):
@@ -9,11 +9,7 @@ def test_real_set_counts_overlap_and_missing_categories(client: TestClient):
         "/api/v1/splits",
         json={
             "name": "analysis",
-            "source_id": source,
-            "expected_source_revision": client.get("/api/v1/data-sources").json()["data"]["items"][
-                0
-            ]["revision"],
-            "battery_ids": ids,
+            "source_selections": selection(client, source, ids),
             "method": "manual",
             "partitions": {"train": ids[:2], "val": ids[2:3], "test": ids[3:]},
         },

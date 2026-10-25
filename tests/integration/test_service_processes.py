@@ -73,7 +73,7 @@ def test_single_backend_process_exposes_scheduler_and_catalog(tmp_path):
             json={"name": "unvalidated", "native_config": {"mate": {"device": "cuda:0"}}},
             timeout=5,
         )
-        assert blocked.status_code == 501
+        assert blocked.status_code == 404
         status = httpx.get(base + "/api/v1/scheduler/status", timeout=2).json()["data"]
         assert status["enabled"] is True
         nodes_url = base + "/api/v1/scheduler/resources"

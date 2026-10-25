@@ -45,22 +45,8 @@ class Artifact(RequestModel):
     created_at: str
 
 
-class Capability(RequestModel):
-    provider_id: str
-    version: str
-    available: bool
-    reason: str | None = None
-    supported_operations: list[str]
-    limitations: list[str]
-
-
 def service(request: Request) -> ArtifactService:
     return cast(Container, request.app.state.container).artifacts
-
-
-@router.get("/capabilities", response_model=Envelope[list[Capability]])
-def capabilities(artifacts: Annotated[ArtifactService, Depends(service)]) -> dict[str, Any]:
-    return {"data": artifacts.capabilities()}
 
 
 @router.get("/components", response_model=Envelope[list[Component]])

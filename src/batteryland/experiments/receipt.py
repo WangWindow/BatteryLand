@@ -30,6 +30,7 @@ def issue_receipt(
     *,
     issued_at: datetime | None = None,
     execution_supported: bool = True,
+    split_ref: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not secret:
         raise ValueError("Validation signing secret must be configured")
@@ -41,6 +42,7 @@ def issue_receipt(
         "component_versions": sorted(component_versions),
         "issued_at": int((issued_at or datetime.now(UTC)).timestamp()),
         "execution_supported": execution_supported,
+        "split_ref": split_ref,
     }
     return claims | {"signature": _signature(claims, secret)}
 
@@ -53,6 +55,7 @@ def verify_receipt(
     *,
     now: datetime | None = None,
     max_age_seconds: int | None = RECEIPT_TTL_SECONDS,
+    split_ref: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not secret:
         raise DomainError("provider_unavailable", "Validation secret is not configured")
@@ -68,11 +71,20 @@ def verify_receipt(
             "component_versions",
             "issued_at",
             "execution_supported",
+            "split_ref",
         }
         or claims.get("schema_version") != 1
         or not isinstance(claims.get("issued_at"), int)
         or not isinstance(claims.get("provider_commit"), str)
         or not isinstance(claims.get("execution_supported"), bool)
+        or claims.get("split_ref") != split_ref
+        or claims.get("split_ref") is not None
+        and (
+            not isinstance(claims["split_ref"], dict)
+            or set(claims["split_ref"]) != {"id", "version"}
+            or not isinstance(claims["split_ref"].get("id"), str)
+            or not isinstance(claims["split_ref"].get("version"), int)
+        )
         or not isinstance(claims.get("config_sha256"), str)
         or not isinstance(claims.get("split_sha256"), str)
         or not isinstance(claims.get("component_versions"), list)

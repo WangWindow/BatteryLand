@@ -30,11 +30,16 @@ def setup_split(tmp_path: Path):
     batteries = resources.list_batteries({"source_id": source["id"]}, 1, 10)["items"]
     by_name = {battery["file_name"]: battery for battery in batteries}
     splits = SplitService(units, SQLiteDocumentStore(units))
+    source_revision = resources.list_sources(1, 10)["items"][0]["revision"]
     body = {
         "name": "Measured",
-        "source_id": source["id"],
-        "expected_source_revision": resources.list_sources(1, 10)["items"][0]["revision"],
-        "battery_ids": [by_name["a.pkl"]["id"], by_name["b.pkl"]["id"]],
+        "source_selections": [
+            {
+                "source_id": source["id"],
+                "expected_revision": source_revision,
+                "battery_ids": [by_name["a.pkl"]["id"], by_name["b.pkl"]["id"]],
+            }
+        ],
         "method": "manual",
         "partitions": {
             "train": [by_name["a.pkl"]["id"]],
@@ -117,5 +122,5 @@ def test_split_and_statistics_roll_back_together_when_profile_write_fails(
     with pytest.raises(RuntimeError, match="statistics unavailable"):
         splits.create(body)
 
-    assert splits.list(source["id"], None, 1, 10)["total"] == 0
+    assert splits.list([source["id"]], None, 1, 10)["total"] == 0
     database.engine.dispose()

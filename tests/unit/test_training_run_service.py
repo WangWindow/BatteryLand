@@ -3,8 +3,12 @@ from pathlib import Path
 import pytest
 
 from batteryland.common.errors import DomainError
+from batteryland.common.storage import LocalSourceFiles
 from batteryland.config import Settings
-from batteryland.experiments.receipt import issue_receipt
+from batteryland.datasets.service import ResourceService
+from batteryland.datasets.splits import SplitService
+from batteryland.db.database import Database
+from batteryland.documents.store import SQLiteDocumentStore
 from batteryland.training.runs import StartCommand, TrainingRunService
 
 COMMIT = "6b4c76d6e639ddaf9db9c15bf04771179a68d988"
@@ -18,7 +22,6 @@ datafactory:
   params:
     dataset: custom
 """
-SPLIT = '{"dataset":"custom","train":["a.pkl"],"val":["b.pkl"],"test":["c.pkl"]}'
 COMPONENTS = [
     {
         "scope": "datafactory",
@@ -77,14 +80,41 @@ def create_service(tmp_path: Path):
         source_roots={"pool": root},
         validation_secret=SECRET,
     )
+    database = Database(settings.data_dir / "platform.sqlite")
+    database.initialize()
+    resources = ResourceService(database.unit_of_work, LocalSourceFiles(settings.source_roots))
+    source = resources.create_source("Pool", "pool")
+    resources.import_batteries(source["id"], [{"file_name": name} for name in ("a.pkl", "b.pkl", "c.pkl")])
+    batteries = resources.list_batteries({"source_id": source["id"]}, 1, 10)["items"]
+    batteries_by_name = {item["file_name"]: item["id"] for item in batteries}
+    revision = resources.list_sources(1, 10)["items"][0]["revision"]
+    splits = SplitService(database.unit_of_work, SQLiteDocumentStore(database.unit_of_work))
+    split = splits.create(
+        {
+            "name": "custom",
+            "source_selections": [
+                {
+                    "source_id": source["id"],
+                    "expected_revision": revision,
+                    "battery_ids": list(batteries_by_name.values()),
+                }
+            ],
+            "method": "manual",
+            "partitions": {
+                "train": [batteries_by_name["a.pkl"]],
+                "val": [batteries_by_name["b.pkl"]],
+                "test": [batteries_by_name["c.pkl"]],
+            },
+        }
+    )
     gateway = GatewayStub(settings)
-    return TrainingRunService(settings, gateway), gateway
+    return TrainingRunService(settings, gateway, splits), gateway, split
 
 
 def test_custom_split_validation_signs_execution_supported_inputs(tmp_path: Path):
-    service, _ = create_service(tmp_path)
+    service, _, split = create_service(tmp_path)
 
-    result = service.validate(CONFIG, SPLIT)
+    result = service.validate(CONFIG, split["id"], split["version"])
 
     assert result["execution_supported"] is True
     assert result["limitations"] == []
@@ -92,24 +122,18 @@ def test_custom_split_validation_signs_execution_supported_inputs(tmp_path: Path
 
 
 def test_custom_split_requires_matching_config_dataset(tmp_path: Path):
-    service, _ = create_service(tmp_path)
+    service, _, split = create_service(tmp_path)
     mismatched = CONFIG.replace("dataset: custom", "dataset: another")
 
-    with pytest.raises(DomainError, match="match the split dataset") as error:
-        service.validate(mismatched, SPLIT)
+    with pytest.raises(DomainError, match="Config dataset must match the split dataset") as error:
+        service.validate(mismatched, split["id"], split["version"])
 
     assert error.value.symbol == "invalid_input"
 
 
 def test_start_materializes_the_custom_split_path_for_one_experiment(tmp_path: Path):
-    service, gateway = create_service(tmp_path)
-    receipt = issue_receipt(
-        CONFIG,
-        SPLIT,
-        COMMIT,
-        ["datafactory:batterylandbatterylifedatasetfactory:adapter-hash"],
-        SECRET,
-    )
+    service, gateway, split = create_service(tmp_path)
+    validation = service.validate(CONFIG, split["id"], split["version"])
 
     result = service.start(
         StartCommand(
@@ -117,8 +141,10 @@ def test_start_materializes_the_custom_split_path_for_one_experiment(tmp_path: P
             intent_id="intent-1",
             resolved_device="cuda:0",
             config_text=CONFIG,
-            split_text=SPLIT,
-            receipt=receipt,
+            split_text=validation["split_text"],
+            split_id=split["id"],
+            split_version=split["version"],
+            receipt=validation["receipt"],
         )
     )
 

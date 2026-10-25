@@ -13,17 +13,22 @@ def setup_batteries(client: TestClient) -> tuple[str, list[str]]:
     ]
 
 
+def selection(client: TestClient, source_id: str, battery_ids: list[str]) -> list[dict[str, object]]:
+    sources = client.get("/api/v1/data-sources", params={"page_size": 200}).json()["data"][
+        "items"
+    ]
+    source = next(item for item in sources if item["id"] == source_id)
+    return [{"source_id": source_id, "expected_revision": source["revision"], "battery_ids": battery_ids}]
+
+
 def test_split_versions_members_and_provider_export(client: TestClient) -> None:
     source, ids = setup_batteries(client)
     body = {
         "name": "custom",
-        "source_id": source,
-        "battery_ids": ids,
+        "source_selections": selection(client, source, ids),
         "method": "manual",
         "partitions": {"train": ids[:2], "val": ids[2:3], "test": ids[3:]},
     }
-    source_revision = client.get("/api/v1/data-sources").json()["data"]["items"][0]["revision"]
-    body["expected_source_revision"] = source_revision
     preview = client.post("/api/v1/splits/preview", json=body)
     assert preview.status_code == 200
     assert preview.json()["data"]["counts"] == {"all": 4, "train": 2, "val": 1, "test": 1}
@@ -56,11 +61,7 @@ def test_split_import_and_invalid_overlap(client: TestClient) -> None:
         "/api/v1/splits",
         json={
             "name": "bad",
-            "source_id": source,
-            "expected_source_revision": client.get("/api/v1/data-sources").json()["data"]["items"][
-                0
-            ]["revision"],
-            "battery_ids": ids[:1],
+            "source_selections": selection(client, source, ids[:1]),
             "method": "manual",
             "partitions": {"train": ids[:1], "val": ids[:1], "test": []},
         },
@@ -68,7 +69,7 @@ def test_split_import_and_invalid_overlap(client: TestClient) -> None:
     assert failure.status_code == 422
     imported = client.post(
         "/api/v1/splits/import",
-        data={"source_id": source},
+        data={"source_ids": source},
         files={
             "file": (
                 "split.json",

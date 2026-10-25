@@ -79,6 +79,8 @@ class LocalScheduler:
                     resolved_device=claim["resolved_device"],
                     config_text=original["config_text"],
                     split_text=original["split_text"],
+                    split_id=original["split_id"],
+                    split_version=original["split_version"],
                     receipt=original["receipt"],
                 )
             )

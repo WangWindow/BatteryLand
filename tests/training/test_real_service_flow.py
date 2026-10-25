@@ -1,5 +1,6 @@
 """Opt-in single-backend GPU acceptance with the pinned DeepPlatform subprocess."""
 
+import json
 import time
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from batteryland.api.app import create_app
 from batteryland.config import Settings
 from batteryland.scheduler.service import LocalScheduler
 from batteryland.training.runs import StartCommand
+from tests.support import register_split
 
 ROOT = Path(__file__).resolve().parents[2]
 PROVIDER = ROOT / "src/deeplatform"
@@ -32,12 +34,26 @@ def test_real_gpu_experiment_uses_a_fresh_id_and_returns_results(tmp_path, reque
         .replace("epochs: 100", "epochs: 1", 1)
         .replace("num_workers: 8", "num_workers: 0", 1)
     )
-    split = (PROVIDER / "datasets/batteryLife/data_split/CALCE.json").read_text()
+    split_document = json.loads(
+        (PROVIDER / "datasets/batteryLife/data_split/CALCE.json").read_text()
+    )
+    registered = register_split(
+        settings,
+        "CALCE",
+        tuple(split_document[partition][index] for partition in ("train", "val", "test") for index in range(len(split_document[partition]))),
+        {partition: tuple(split_document[partition]) for partition in ("train", "val", "test")},
+        root_alias="provider",
+    )
+    split = registered["split"]
     with TestClient(create_app(settings)) as client:
         container = client.app.state.container
         validated = client.post(
             "/api/v1/training/validation",
-            json={"config_text": config, "split_text": split},
+            json={
+                "config_text": config,
+                "split_id": split["id"],
+                "split_version": split["version"],
+            },
         )
         assert validated.status_code == 200, validated.text
         receipt = validated.json()["data"]["receipt"]
@@ -47,7 +63,9 @@ def test_real_gpu_experiment_uses_a_fresh_id_and_returns_results(tmp_path, reque
             json={
                 "name": f"gpu-{requested_device}",
                 "config_text": config,
-                "split_text": split,
+                "split_text": validated.json()["data"]["split_text"],
+                "split_id": split["id"],
+                "split_version": split["version"],
                 "receipt": receipt,
             },
         )
@@ -73,7 +91,9 @@ def test_real_gpu_experiment_uses_a_fresh_id_and_returns_results(tmp_path, reque
                 intent_id=claim["intent_id"],
                 resolved_device=claim["resolved_device"],
                 config_text=config,
-                split_text=split,
+                split_text=validated.json()["data"]["split_text"],
+                split_id=split["id"],
+                split_version=split["version"],
                 receipt=receipt,
             )
         )

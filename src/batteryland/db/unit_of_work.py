@@ -1,7 +1,11 @@
 from sqlalchemy.orm import Session
 
 from batteryland.components.repository import SqlArtifactRepository
-from batteryland.datasets.catalog_repository import SqlNamedGroupRepository
+from batteryland.datasets.catalog_repository import (
+    SqlCatalogRepository,
+    SqlLogicalDatasetRepository,
+    SqlNamedGroupRepository,
+)
 from batteryland.datasets.repository import SqlResourceRepository
 from batteryland.datasets.split_repository import SqlSplitRepository
 from batteryland.documents.repository import SqlDocumentRepository
@@ -15,6 +19,8 @@ class SqlUnitOfWork:
     def __init__(self, session: Session) -> None:
         self.resources = SqlResourceRepository(session)
         self.named_groups = SqlNamedGroupRepository(session)
+        self.catalog = SqlCatalogRepository(session)
+        self.logical_datasets = SqlLogicalDatasetRepository(session)
         self.validated_inputs = SqlValidatedInputRepository(session)
         self.workers = SqlWorkerRepository(session)
         self.documents = SqlDocumentRepository(session)

@@ -48,3 +48,61 @@ class BatteryFileResolver:
             "integration_precondition_failed",
             "Selected battery files are missing, unreadable or span multiple configured pools",
         )
+
+    def resolve_members(self, members: list[dict[str, Any]]) -> dict[str, Any]:
+        if not members:
+            raise DomainError("invalid_input", "A training split must select at least one battery")
+
+        names: set[str] = set()
+        resolved_members = []
+        aliases: set[str] = set()
+        for member in members:
+            name = member.get("file_name")
+            alias = member.get("root_alias")
+            relative_key = member.get("relative_key")
+            root = self.roots.get(alias)
+            if (
+                not isinstance(name, str)
+                or not name
+                or not isinstance(alias, str)
+                or not isinstance(relative_key, str)
+                or root is None
+            ):
+                raise DomainError(
+                    "integration_precondition_failed", "A selected battery source is unavailable"
+                )
+            if name in names:
+                raise DomainError(
+                    "invalid_input",
+                    "BatteryLife training cannot disambiguate identical file names across sources",
+                    details={"file_name": name},
+                )
+            names.add(name)
+            root = root.resolve()
+            path = (root / relative_key).resolve(strict=False)
+            if not path.is_relative_to(root) or not path.is_file() or not os.access(path, os.R_OK):
+                raise DomainError(
+                    "integration_precondition_failed",
+                    "A selected battery file is missing or unreadable",
+                    details={"file_name": name, "source_id": member.get("source_id")},
+                )
+            if path.name != name:
+                raise DomainError(
+                    "integration_precondition_failed", "Battery file identity changed on disk"
+                )
+            aliases.add(alias)
+            resolved_members.append(
+                {
+                    "battery_id": member["id"],
+                    "source_id": member["source_id"],
+                    "root_alias": alias,
+                    "file_name": name,
+                    "relative_key": relative_key,
+                    "source_path": str(path),
+                }
+            )
+
+        return {
+            "source_roots": sorted(aliases),
+            "batteries": resolved_members,
+        }

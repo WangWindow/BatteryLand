@@ -16,6 +16,8 @@ from batteryland.components.routes import router as components_router
 from batteryland.config import Settings
 from batteryland.container import Container
 from batteryland.datasets.catalog_routes import router as named_groups_router
+from batteryland.datasets.catalog_status_routes import router as catalog_status_router
+from batteryland.datasets.logical_routes import router as logical_datasets_router
 from batteryland.datasets.routes import router as resources_router
 from batteryland.datasets.split_routes import router as splits_router
 from batteryland.experiments.validated_routes import router as validated_experiments_router
@@ -68,8 +70,23 @@ def create_app(
                 except TimeoutError:
                     pass
 
-        task = None
+        async def synchronize_catalog() -> None:
+            while not stopped.is_set():
+                try:
+                    await run_in_threadpool(container.catalog_indexer.index)
+                except Exception:
+                    logging.getLogger(__name__).exception("Asset catalog synchronization failed")
+                try:
+                    await asyncio.wait_for(
+                        stopped.wait(), timeout=configuration.catalog_scan_interval_seconds
+                    )
+                except TimeoutError:
+                    pass
+
+        tasks: list[asyncio.Task[None]] = []
         try:
+            if configuration.auto_index_catalog:
+                tasks.append(asyncio.create_task(synchronize_catalog()))
             if start_monitor:
                 scheduler = LocalScheduler(
                     container.scheduler_state,
@@ -80,12 +97,12 @@ def create_app(
                     configuration.data_dir,
                 )
                 app.state.scheduler = scheduler
-                task = asyncio.create_task(schedule_local(scheduler))
+                tasks.append(asyncio.create_task(schedule_local(scheduler)))
             yield
         finally:
             stopped.set()
-            if task:
-                await task
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
             container.close()
 
     app = FastAPI(
@@ -96,6 +113,8 @@ def create_app(
     )
     app.state.settings = configuration
     app.include_router(resources_router)
+    app.include_router(catalog_status_router)
+    app.include_router(logical_datasets_router)
     app.include_router(named_groups_router)
     app.include_router(splits_router)
     app.include_router(scheduler_router)

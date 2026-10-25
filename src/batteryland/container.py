@@ -8,6 +8,7 @@ from batteryland.common.storage import LocalSourceFiles, ManagedArtifacts
 from batteryland.components.service import ArtifactService
 from batteryland.config import Settings
 from batteryland.datasets.catalog import FixedCatalogIndexer, NamedGroupService
+from batteryland.datasets.logical import LogicalDatasetService
 from batteryland.datasets.service import ResourceService
 from batteryland.datasets.splits import SplitService
 from batteryland.db.database import Database
@@ -45,11 +46,15 @@ class Container:
         )
         self.splits = SplitService(self.database.unit_of_work, self.documents)
         self.named_groups = NamedGroupService(self.database.unit_of_work)
+        self.logical_datasets = LogicalDatasetService(self.database.unit_of_work)
+        self.catalog_indexer = FixedCatalogIndexer(
+            settings, self.resources, self.database.unit_of_work
+        )
         training_settings = replace(settings, data_dir=settings.data_dir / "training")
         self.provider = DeeplatformGateway(training_settings)
-        self.training_runs = TrainingRunService(training_settings, self.provider)
+        self.training_runs = TrainingRunService(training_settings, self.provider, self.splits)
         self.validated_experiments = ValidatedExperimentService(
-            self.database.unit_of_work, settings.validation_secret
+            self.database.unit_of_work, settings.validation_secret, self.splits
         )
         self.scheduler_state = SchedulerStateService(self.database.unit_of_work)
 
@@ -69,8 +74,6 @@ class Container:
             BasicDifferenceAnalyzer(),
             BasicChartBuilder(),
         )
-        if settings.auto_index_catalog:
-            FixedCatalogIndexer(settings, self.resources, self.database.unit_of_work).index()
 
     def close(self) -> None:
         self.database.engine.dispose()

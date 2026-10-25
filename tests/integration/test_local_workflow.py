@@ -8,8 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from batteryland.api.app import create_app
-from batteryland.experiments.receipt import issue_receipt
 from batteryland.scheduler.service import LocalScheduler
+from tests.support import register_split
 
 COMMIT = "6b4c76d6e639ddaf9db9c15bf04771179a68d988"
 CONFIG = """mate:
@@ -21,7 +21,6 @@ datafactory:
   params:
     dataset: demo
 """
-SPLIT = '{"dataset":"demo","train":["a.pkl"],"val":["b.pkl"],"test":["c.pkl"]}'
 
 
 class GpuSampler:
@@ -124,8 +123,13 @@ class TrainingStub:
 @pytest.mark.parametrize("case", range(3))
 def test_one_backend_port_validates_and_runs_once_with_local_coordinator(settings, tmp_path, case):
     configured = replace(settings, validation_secret="local-secret", auto_index_catalog=False)
-    for name in ("a.pkl", "b.pkl", "c.pkl"):
-        (configured.source_roots["demo"] / name).write_bytes(name.encode())
+    registered = register_split(
+        configured,
+        "demo",
+        ("a.pkl", "b.pkl", "c.pkl"),
+        {"train": ("a.pkl",), "val": ("b.pkl",), "test": ("c.pkl",)},
+        root_alias="demo",
+    )
     with TestClient(create_app(configured)) as client:
         container = client.app.state.container
         container.training_runs.gateway.identity = lambda: COMMIT
@@ -135,18 +139,24 @@ def test_one_backend_port_validates_and_runs_once_with_local_coordinator(setting
         }
         validation = client.post(
             "/api/v1/training/validation",
-            json={"config_text": CONFIG, "split_text": SPLIT},
+            json={
+                "config_text": CONFIG,
+                "split_id": registered["split"]["id"],
+                "split_version": registered["split"]["version"],
+            },
         )
         assert validation.status_code == 200, validation.text
-        assert validation.json()["data"]["execution_supported"] is False
-        receipt = issue_receipt(CONFIG, SPLIT, COMMIT, [], "local-secret")
+        validated = validation.json()["data"]
+        assert validated["execution_supported"] is True
         created = client.post(
             "/api/v1/validated-experiments",
             json={
                 "name": f"local run {case}",
                 "config_text": CONFIG,
-                "split_text": SPLIT,
-                "receipt": receipt,
+                "split_text": validated["split_text"],
+                "split_id": registered["split"]["id"],
+                "split_version": registered["split"]["version"],
+                "receipt": validated["receipt"],
             },
         )
         assert created.status_code == 201, created.text
@@ -190,14 +200,40 @@ def test_one_backend_port_validates_and_runs_once_with_local_coordinator(setting
 
 def test_local_stop_never_restarts_an_experiment(settings, tmp_path):
     configured = replace(settings, validation_secret="local-secret", auto_index_catalog=False)
+    registered = register_split(
+        configured,
+        "demo",
+        ("a.pkl", "b.pkl", "c.pkl"),
+        {"train": ("a.pkl",), "val": ("b.pkl",), "test": ("c.pkl",)},
+        root_alias="demo",
+    )
     with TestClient(create_app(configured)) as client:
-        receipt = issue_receipt(CONFIG, SPLIT, COMMIT, [], "local-secret")
+        container = client.app.state.container
+        container.training_runs.gateway.identity = lambda: COMMIT
+        container.training_runs.gateway.validate_structure = lambda config: {
+            "valid": True,
+            "components": [],
+        }
+        validated = client.post(
+            "/api/v1/training/validation",
+            json={
+                "config_text": CONFIG,
+                "split_id": registered["split"]["id"],
+                "split_version": registered["split"]["version"],
+            },
+        ).json()["data"]
         identity = client.post(
             "/api/v1/validated-experiments",
-            json={"name": "stop", "config_text": CONFIG, "split_text": SPLIT, "receipt": receipt},
+            json={
+                "name": "stop",
+                "config_text": CONFIG,
+                "split_text": validated["split_text"],
+                "split_id": registered["split"]["id"],
+                "split_version": registered["split"]["version"],
+                "receipt": validated["receipt"],
+            },
         ).json()["data"]["id"]
         client.post(f"/api/v1/validated-experiments/{identity}/submit").raise_for_status()
-        container = client.app.state.container
         sampler = GpuSampler()
         sampler.available = True
         training = TrainingStub(tmp_path / "stopped-report.txt")

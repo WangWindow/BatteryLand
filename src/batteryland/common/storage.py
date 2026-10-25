@@ -121,12 +121,14 @@ class LocalSourceFiles:
                 resolved = path.resolve(strict=True)
                 if not resolved.is_relative_to(root) or not os.access(resolved, os.R_OK):
                     continue
+                stat = resolved.stat()
                 relative_key = path.relative_to(root).as_posix()
                 candidates.append(
                     {
                         "file_name": path.name,
                         "relative_key": relative_key,
-                        "size_bytes": resolved.stat().st_size,
+                        "size_bytes": stat.st_size,
+                        "modified_at_ns": stat.st_mtime_ns,
                         "importable": True,
                         "reason": None,
                     }
