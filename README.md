@@ -46,6 +46,15 @@ API 文档位于 <http://127.0.0.1:8000/docs>；资源快照见
 `GET /api/v1/scheduler/resources`。前端当前仍在按已稳定的 API 契约调整，
 本阶段以 API 与训练流程验证为准。
 
+后端命令行使用 Typer，运行 `uv run batteryland --help` 可查看命令和选项。常用命令：
+
+```bash
+uv run batteryland init --data-dir var
+uv run batteryland serve --host 127.0.0.1 --port 8000
+uv run batteryland import-bundled --source-id <UUID>
+uv run batteryland reconcile --experiment-id <UUID>
+```
+
 ## 后端目录
 
 `src/batteryland/` 以功能为一级目录，进入目录即可找到该功能的路由、用例和存储实现：
