@@ -7,6 +7,7 @@ from pathlib import Path
 
 DEFAULT_PROVIDER_ROOT = Path(__file__).resolve().parents[1] / "deeplatform"
 DEFAULT_TRAINING_PYTHON = Path(__file__).resolve().parents[2] / ".venv-training/bin/python"
+DEFAULT_SOURCE_ROOT = Path("/data/BatteryLife_Processed")
 
 
 @dataclass(frozen=True)
@@ -20,10 +21,16 @@ class Settings:
     terminate_timeout: float = 5.0
     component_limit: int = 1024 * 1024
     checkpoint_limit: int = 1024 * 1024 * 1024
+    validation_secret: str = ""
+    service_token: str = ""
+    auto_index_catalog: bool = False
 
     @classmethod
     def from_env(cls, data_dir: Path | None = None) -> Settings:
-        roots = json.loads(os.environ.get("BATTERYLAND_SOURCE_ROOTS", "{}"))
+        default_roots = (
+            {"battery_life": str(DEFAULT_SOURCE_ROOT)} if DEFAULT_SOURCE_ROOT.is_dir() else {}
+        )
+        roots = json.loads(os.environ.get("BATTERYLAND_SOURCE_ROOTS", json.dumps(default_roots)))
         if not isinstance(roots, dict) or not all(
             isinstance(key, str) and isinstance(value, str) for key, value in roots.items()
         ):
@@ -39,4 +46,7 @@ class Settings:
                 if training_python
                 else DEFAULT_TRAINING_PYTHON
             ),
+            validation_secret=os.environ.get("BATTERYLAND_VALIDATION_SECRET", ""),
+            service_token=os.environ.get("BATTERYLAND_SERVICE_TOKEN", ""),
+            auto_index_catalog=os.environ.get("BATTERYLAND_AUTO_INDEX_CATALOG", "1") != "0",
         )

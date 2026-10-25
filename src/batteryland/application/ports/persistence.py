@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
 from typing import Any, Protocol
 
@@ -8,7 +8,9 @@ type Record = dict[str, Any]
 
 
 class ResourceRepository(Protocol):
-    def add_source(self, name: str, root_alias: str, availability: str) -> Record: ...
+    def add_source(
+        self, name: str, root_alias: str, availability: str, group_prefix: str = ""
+    ) -> Record: ...
     def get_source(self, identity: str) -> Record: ...
     def increment_source_revision(self, identity: str) -> int: ...
     def list_sources(self, page: int, page_size: int) -> Record: ...
@@ -59,6 +61,56 @@ class UnitOfWork(Protocol):
 
     @property
     def results(self) -> ResultRepository: ...
+
+    @property
+    def validated_inputs(self) -> ValidatedInputRepository: ...
+
+    @property
+    def workers(self) -> WorkerRepository: ...
+
+    @property
+    def named_groups(self) -> NamedGroupRepository: ...
+
+
+class NamedGroupRepository(Protocol):
+    def put(
+        self, name: str, digest: str, document: Record, counts: Record, members: Sequence[Record]
+    ) -> Record: ...
+    def list(self, page: int, page_size: int) -> Record: ...
+    def get(self, name: str) -> Record: ...
+    def members(self, name: str, partition: str | None, page: int, page_size: int) -> Record: ...
+
+
+class ValidatedInputRepository(Protocol):
+    def add(self, experiment_id: str, version: int, value: Record) -> None: ...
+    def get(self, experiment_id: str, version: int | None = None) -> Record: ...
+    def members(
+        self,
+        experiment_id: str,
+        version: int | None,
+        partition: str | None,
+        page: int,
+        page_size: int,
+    ) -> Record: ...
+
+
+class WorkerRepository(Protocol):
+    def heartbeat(self, node_id: str, resources: Record) -> Record: ...
+    def nodes(self) -> list[Record]: ...
+    def claim(
+        self, identity: str, revision: int, node_id: str, device: str, request_id: str
+    ) -> tuple[Record, bool]: ...
+    def active(self, node_id: str) -> list[Record]: ...
+    def ensure_owner(self, identity: str, claim_token: str) -> None: ...
+    def event(
+        self,
+        identity: str,
+        event_id: str,
+        claim_token: str,
+        expected_revision: int,
+        kind: str,
+        data: Record,
+    ) -> Record: ...
 
 
 class SplitRepository(Protocol):

@@ -1,8 +1,9 @@
 import hashlib
 import os
+import re
 import tempfile
 from collections import Counter
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import BinaryIO
 from uuid import uuid4
 
@@ -44,10 +45,27 @@ class LocalSourceFiles:
         available = target.is_file() if relative_key else target.is_dir()
         return "available" if available and os.access(target, os.R_OK) else "missing"
 
-    def list_files(self, alias: str, q: str | None, page: int, page_size: int) -> Record:
+    def list_files(
+        self, alias: str, q: str | None, page: int, page_size: int, group_prefix: str | None = None
+    ) -> Record:
         if type(page) is not int or page < 1 or type(page_size) is not int or page_size < 1:
             raise DomainError("invalid_input", "File discovery pagination is invalid")
         candidates = self._scan(alias)
+        if group_prefix is not None:
+            candidates = [
+                item
+                for item in candidates
+                if (
+                    ""
+                    if PurePosixPath(item["relative_key"]).parent.as_posix() == "."
+                    else PurePosixPath(item["relative_key"]).parent.as_posix()
+                )
+                == group_prefix
+            ]
+            counts = Counter(item["file_name"] for item in candidates)
+            for item in candidates:
+                item["importable"] = counts[item["file_name"]] == 1
+                item["reason"] = None if item["importable"] else "duplicate_file_name"
         query = q.strip().casefold() if q else ""
         matches = [
             item
@@ -178,3 +196,54 @@ class ManagedArtifacts:
         if not path.is_file():
             raise DomainError("not_found", "Artifact file is unavailable")
         return path
+
+    def save_execution(
+        self, experiment_id: str, stream: BinaryIO, filename: str, expected_sha256: str, limit: int
+    ) -> Record:
+        if (
+            not filename
+            or "/" in filename
+            or "\\" in filename
+            or filename in {".", ".."}
+            or re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None
+        ):
+            raise DomainError("invalid_input", "Artifact name or checksum is invalid")
+        key = f"worker-artifacts/{experiment_id}/{expected_sha256}/{filename}"
+        target = contained_path(self.root, key)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary: Path | None = None
+        digest = hashlib.sha256()
+        size = 0
+        try:
+            with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as output:
+                temporary = Path(output.name)
+                while chunk := stream.read(1024 * 1024):
+                    size += len(chunk)
+                    if size > limit:
+                        raise DomainError("invalid_input", "Artifact exceeds the upload limit")
+                    digest.update(chunk)
+                    output.write(chunk)
+                output.flush()
+                os.fsync(output.fileno())
+            if digest.hexdigest() != expected_sha256:
+                raise DomainError("invalid_input", "Artifact checksum differs")
+            try:
+                os.link(temporary, target)
+            except FileExistsError:
+                if target.is_symlink() or target.stat().st_size != size:
+                    raise DomainError("conflict", "Existing artifact differs") from None
+                with target.open("rb") as existing:
+                    actual = hashlib.file_digest(existing, "sha256").hexdigest()
+                if actual != expected_sha256:
+                    raise DomainError("conflict", "Existing artifact checksum differs") from None
+        finally:
+            if temporary:
+                temporary.unlink(missing_ok=True)
+        return {
+            "name": filename,
+            "relative_key": key,
+            "sha256": expected_sha256,
+            "size": size,
+            "availability": "available",
+            "is_directory": False,
+        }

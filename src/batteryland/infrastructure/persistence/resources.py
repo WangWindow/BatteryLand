@@ -30,6 +30,7 @@ def source_value(row: DataSourceRow) -> Record:
         "id": row.id,
         "name": row.name,
         "root_alias": row.root_alias,
+        "group_prefix": row.group_prefix,
         "revision": row.revision,
         "battery_count": 0,
         "availability": row.availability,
@@ -54,8 +55,12 @@ class SqlResourceRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def add_source(self, name: str, root_alias: str, availability: str) -> Record:
-        row = DataSourceRow(name=name, root_alias=root_alias, availability=availability)
+    def add_source(
+        self, name: str, root_alias: str, availability: str, group_prefix: str = ""
+    ) -> Record:
+        row = DataSourceRow(
+            name=name, root_alias=root_alias, availability=availability, group_prefix=group_prefix
+        )
         self.session.add(row)
         self.session.flush()
         return source_value(row)

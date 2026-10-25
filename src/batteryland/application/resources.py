@@ -12,10 +12,10 @@ class ResourceService:
         self.units = units
         self.files = files
 
-    def create_source(self, name: str, root_alias: str) -> Record:
+    def create_source(self, name: str, root_alias: str, group_prefix: str = "") -> Record:
         availability = self.files.inspect(root_alias)
         with self.units() as unit:
-            return unit.resources.add_source(name, root_alias, availability)
+            return unit.resources.add_source(name, root_alias, availability, group_prefix)
 
     def source_options(self) -> list[Record]:
         return self.files.options()
@@ -27,7 +27,9 @@ class ResourceService:
     def list_source_files(self, source_id: str, q: str | None, page: int, page_size: int) -> Record:
         with self.units() as unit:
             source = unit.resources.get_source(source_id)
-        return self.files.list_files(source["root_alias"], q, page, page_size)
+        return self.files.list_files(
+            source["root_alias"], q, page, page_size, source["group_prefix"] or None
+        )
 
     def import_batteries(self, source_id: str, batteries: list[Record]) -> Record:
         imported = existing_count = 0
