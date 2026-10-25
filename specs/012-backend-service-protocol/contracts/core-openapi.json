@@ -364,20 +364,23 @@
         "operationId": "list_batteries_api_v1_batteries_get",
         "parameters": [
           {
-            "name": "source_id",
+            "name": "source_ids",
             "in": "query",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "type": "string",
-                  "format": "uuid"
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Source Id"
+              "title": "Source Ids"
             }
           },
           {
@@ -458,6 +461,87 @@
                 }
               ],
               "title": "Nominal Capacity Ah"
+            }
+          },
+          {
+            "name": "temperature_c_min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Temperature C Min"
+            }
+          },
+          {
+            "name": "temperature_c_max",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Temperature C Max"
+            }
+          },
+          {
+            "name": "nominal_capacity_ah_min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Nominal Capacity Ah Min"
+            }
+          },
+          {
+            "name": "nominal_capacity_ah_max",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Nominal Capacity Ah Max"
+            }
+          },
+          {
+            "name": "availability",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Availability"
             }
           },
           {
@@ -568,6 +652,119 @@
         }
       }
     },
+    "/api/v1/batteries/facets": {
+      "get": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Battery Facets",
+        "operationId": "battery_facets_api_v1_batteries_facets_get",
+        "parameters": [
+          {
+            "name": "source_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_dict_str__Any__"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
     "/api/v1/batteries/{battery_id}": {
       "get": {
         "tags": [
@@ -594,6 +791,768 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_Battery_"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/status": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Get Status",
+        "operationId": "get_status_api_v1_catalog_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CatalogStatus_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logical-datasets/preview": {
+      "post": {
+        "tags": [
+          "logical-datasets"
+        ],
+        "summary": "Preview",
+        "operationId": "preview_api_v1_logical_datasets_preview_post",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 40,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_Page_Battery__"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/logical-datasets": {
+      "post": {
+        "tags": [
+          "logical-datasets"
+        ],
+        "summary": "Create",
+        "operationId": "create_api_v1_logical_datasets_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogicalDatasetWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_LogicalDataset_"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "logical-datasets"
+        ],
+        "summary": "List Datasets",
+        "operationId": "list_datasets_api_v1_logical_datasets_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_Page_LogicalDataset__"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/logical-datasets/{dataset_id}": {
+      "get": {
+        "tags": [
+          "logical-datasets"
+        ],
+        "summary": "Get",
+        "operationId": "get_api_v1_logical_datasets__dataset_id__get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_LogicalDataset_"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "logical-datasets"
+        ],
+        "summary": "Delete",
+        "operationId": "delete_api_v1_logical_datasets__dataset_id__delete",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_dict_str__bool__"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/logical-datasets/{dataset_id}/members": {
+      "get": {
+        "tags": [
+          "logical-datasets"
+        ],
+        "summary": "Members",
+        "operationId": "members_api_v1_logical_datasets__dataset_id__members_get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_Page_LogicalDatasetMember__"
                 }
               }
             }
@@ -1044,20 +2003,23 @@
         "operationId": "list_splits_api_v1_splits_get",
         "parameters": [
           {
-            "name": "source_id",
+            "name": "source_ids",
             "in": "query",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "type": "string",
-                  "format": "uuid"
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Source Id"
+              "title": "Source Ids"
             }
           },
           {
@@ -2115,97 +3077,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_Queue_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Content",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Not Implemented",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Service Unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/capabilities": {
-      "get": {
-        "tags": [
-          "components and artifacts"
-        ],
-        "summary": "Capabilities",
-        "operationId": "capabilities_api_v1_capabilities_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_list_Capability__"
                 }
               }
             }
@@ -5588,6 +6459,28 @@
             "type": "string",
             "title": "Availability"
           },
+          "file_size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Size Bytes"
+          },
+          "modified_at_ns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified At Ns"
+          },
           "created_at": {
             "type": "string",
             "title": "Created At"
@@ -5603,16 +6496,21 @@
           "parent_battery_id",
           "metadata",
           "availability",
+          "file_size_bytes",
+          "modified_at_ns",
           "created_at"
         ],
         "title": "Battery"
       },
       "Body_import_split_api_v1_splits_import_post": {
         "properties": {
-          "source_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Source Id"
+          "source_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Source Ids"
           },
           "file": {
             "type": "string",
@@ -5622,7 +6520,7 @@
         },
         "type": "object",
         "required": [
-          "source_id",
+          "source_ids",
           "file"
         ],
         "title": "Body_import_split_api_v1_splits_import_post"
@@ -5678,21 +6576,25 @@
         ],
         "title": "Body_upload_component_api_v1_components_uploads_post"
       },
-      "Capability": {
+      "CatalogStatus": {
         "properties": {
-          "provider_id": {
+          "state": {
             "type": "string",
-            "title": "Provider Id"
+            "title": "State"
           },
-          "version": {
-            "type": "string",
-            "title": "Version"
+          "generation": {
+            "type": "integer",
+            "title": "Generation"
           },
-          "available": {
-            "type": "boolean",
-            "title": "Available"
+          "file_count": {
+            "type": "integer",
+            "title": "File Count"
           },
-          "reason": {
+          "source_count": {
+            "type": "integer",
+            "title": "Source Count"
+          },
+          "started_at": {
             "anyOf": [
               {
                 "type": "string"
@@ -5701,33 +6603,43 @@
                 "type": "null"
               }
             ],
-            "title": "Reason"
+            "title": "Started At"
           },
-          "supported_operations": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Supported Operations"
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
           },
-          "limitations": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Limitations"
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "provider_id",
-          "version",
-          "available",
-          "supported_operations",
-          "limitations"
+          "state",
+          "generation",
+          "file_count",
+          "source_count",
+          "started_at",
+          "completed_at",
+          "error"
         ],
-        "title": "Capability"
+        "title": "CatalogStatus"
       },
       "Category": {
         "type": "string",
@@ -6220,6 +7132,10 @@
             "type": "integer",
             "title": "Battery Count"
           },
+          "available_battery_count": {
+            "type": "integer",
+            "title": "Available Battery Count"
+          },
           "availability": {
             "type": "string",
             "title": "Availability"
@@ -6238,6 +7154,7 @@
           "group_prefix",
           "revision",
           "battery_count",
+          "available_battery_count",
           "availability",
           "created_at"
         ],
@@ -6431,6 +7348,29 @@
         ],
         "title": "Envelope[Battery]"
       },
+      "Envelope_CatalogStatus_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "const": 0,
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "$ref": "#/components/schemas/CatalogStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[CatalogStatus]"
+      },
       "Envelope_ChartBundle_": {
         "properties": {
           "code": {
@@ -6545,6 +7485,29 @@
           "data"
         ],
         "title": "Envelope[LogChunk]"
+      },
+      "Envelope_LogicalDataset_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "const": 0,
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "$ref": "#/components/schemas/LogicalDataset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[LogicalDataset]"
       },
       "Envelope_NamedGroupDetail_": {
         "properties": {
@@ -6683,6 +7646,52 @@
           "data"
         ],
         "title": "Envelope[Page[ExperimentSummary]]"
+      },
+      "Envelope_Page_LogicalDatasetMember__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "const": 0,
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Page_LogicalDatasetMember_"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[Page[LogicalDatasetMember]]"
+      },
+      "Envelope_Page_LogicalDataset__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "const": 0,
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Page_LogicalDataset_"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[Page[LogicalDataset]]"
       },
       "Envelope_Page_Member__": {
         "properties": {
@@ -7020,33 +8029,6 @@
         ],
         "title": "Envelope[list[Artifact]]"
       },
-      "Envelope_list_Capability__": {
-        "properties": {
-          "code": {
-            "type": "integer",
-            "const": 0,
-            "title": "Code",
-            "default": 0
-          },
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "ok"
-          },
-          "data": {
-            "items": {
-              "$ref": "#/components/schemas/Capability"
-            },
-            "type": "array",
-            "title": "Data"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "Envelope[list[Capability]]"
-      },
       "Envelope_list_Component__": {
         "properties": {
           "code": {
@@ -7333,6 +8315,171 @@
           "state"
         ],
         "title": "LogChunk"
+      },
+      "LogicalDataset": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "source_snapshot": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Source Snapshot"
+          },
+          "member_count": {
+            "type": "integer",
+            "title": "Member Count"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "source_snapshot",
+          "member_count",
+          "stale",
+          "created_at"
+        ],
+        "title": "LogicalDataset"
+      },
+      "LogicalDatasetMember": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "file_name": {
+            "type": "string",
+            "title": "File Name"
+          },
+          "relative_key": {
+            "type": "string",
+            "title": "Relative Key"
+          },
+          "parent_battery_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Battery Id"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "availability": {
+            "type": "string",
+            "title": "Availability"
+          },
+          "file_size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Size Bytes"
+          },
+          "modified_at_ns": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified At Ns"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "ordinal": {
+            "type": "integer",
+            "title": "Ordinal"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "source_id",
+          "file_name",
+          "relative_key",
+          "parent_battery_id",
+          "metadata",
+          "availability",
+          "file_size_bytes",
+          "modified_at_ns",
+          "created_at",
+          "ordinal"
+        ],
+        "title": "LogicalDatasetMember"
+      },
+      "LogicalDatasetWrite": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Description",
+            "default": ""
+          },
+          "source_selections": {
+            "items": {
+              "$ref": "#/components/schemas/SourceSelection"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Source Selections"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "source_selections"
+        ],
+        "title": "LogicalDatasetWrite"
       },
       "Member": {
         "properties": {
@@ -7728,6 +8875,68 @@
         ],
         "title": "Page[ExperimentSummary]"
       },
+      "Page_LogicalDatasetMember_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LogicalDatasetMember"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[LogicalDatasetMember]"
+      },
+      "Page_LogicalDataset_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LogicalDataset"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[LogicalDataset]"
+      },
       "Page_Member_": {
         "properties": {
           "items": {
@@ -8065,6 +9274,24 @@
         ],
         "title": "PredictionRow"
       },
+      "PreviewWrite": {
+        "properties": {
+          "source_selections": {
+            "items": {
+              "$ref": "#/components/schemas/SourceSelection"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Source Selections"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_selections"
+        ],
+        "title": "PreviewWrite"
+      },
       "ProviderSplit": {
         "properties": {
           "dataset": {
@@ -8354,6 +9581,18 @@
             ],
             "title": "Named Group"
           },
+          "logical_dataset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logical Dataset Id"
+          },
           "partitions": {
             "items": {
               "type": "string",
@@ -8409,6 +9648,48 @@
         ],
         "title": "SourceOption"
       },
+      "SourceSelection": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Source Id"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "include_all": {
+            "type": "boolean",
+            "title": "Include All",
+            "default": false
+          },
+          "battery_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Battery Ids"
+          },
+          "excluded_battery_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Excluded Battery Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_id",
+          "expected_revision"
+        ],
+        "title": "SourceSelection"
+      },
       "Split": {
         "properties": {
           "id": {
@@ -8419,9 +9700,24 @@
             "type": "string",
             "title": "Name"
           },
-          "source_id": {
-            "type": "string",
-            "title": "Source Id"
+          "sources": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "logical_dataset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logical Dataset Id"
           },
           "revision": {
             "type": "integer",
@@ -8474,7 +9770,7 @@
         "required": [
           "id",
           "name",
-          "source_id",
+          "sources",
           "revision",
           "head_version",
           "version",
@@ -8547,10 +9843,12 @@
       },
       "SplitPreviewResponse": {
         "properties": {
-          "source_revision": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Source Revision"
+          "source_revisions": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Source Revisions"
           },
           "counts": {
             "$ref": "#/components/schemas/SplitPreviewCounts"
@@ -8559,23 +9857,27 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "source_revision",
+          "source_revisions",
           "counts"
         ],
         "title": "SplitPreviewResponse"
       },
-      "SplitUpdate": {
+      "SplitSourceSelection": {
         "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name"
-          },
           "source_id": {
             "type": "string",
             "format": "uuid",
             "title": "Source Id"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "include_all": {
+            "type": "boolean",
+            "title": "Include All",
+            "default": false
           },
           "battery_ids": {
             "items": {
@@ -8585,15 +9887,49 @@
             "type": "array",
             "title": "Battery Ids"
           },
-          "include_all_source": {
-            "type": "boolean",
-            "title": "Include All Source",
-            "default": false
+          "excluded_battery_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Excluded Battery Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_id",
+          "expected_revision"
+        ],
+        "title": "SplitSourceSelection"
+      },
+      "SplitUpdate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
           },
-          "expected_source_revision": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Expected Source Revision"
+          "source_selections": {
+            "items": {
+              "$ref": "#/components/schemas/SplitSourceSelection"
+            },
+            "type": "array",
+            "title": "Source Selections"
+          },
+          "logical_dataset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logical Dataset Id"
           },
           "method": {
             "type": "string",
@@ -8647,8 +9983,6 @@
         "type": "object",
         "required": [
           "name",
-          "source_id",
-          "expected_source_revision",
           "method",
           "expected_revision"
         ],
@@ -8662,28 +9996,24 @@
             "minLength": 1,
             "title": "Name"
           },
-          "source_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Source Id"
-          },
-          "battery_ids": {
+          "source_selections": {
             "items": {
-              "type": "string",
-              "format": "uuid"
+              "$ref": "#/components/schemas/SplitSourceSelection"
             },
             "type": "array",
-            "title": "Battery Ids"
+            "title": "Source Selections"
           },
-          "include_all_source": {
-            "type": "boolean",
-            "title": "Include All Source",
-            "default": false
-          },
-          "expected_source_revision": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Expected Source Revision"
+          "logical_dataset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logical Dataset Id"
           },
           "method": {
             "type": "string",
@@ -8732,8 +10062,6 @@
         "type": "object",
         "required": [
           "name",
-          "source_id",
-          "expected_source_revision",
           "method"
         ],
         "title": "SplitWrite"
@@ -8908,6 +10236,28 @@
             "type": "string",
             "title": "Split Text"
           },
+          "split_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split Id"
+          },
+          "split_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split Version"
+          },
           "config_sha256": {
             "type": "string",
             "title": "Config Sha256"
@@ -8962,6 +10312,8 @@
           "experiment_id",
           "config_text",
           "split_text",
+          "split_id",
+          "split_version",
           "config_sha256",
           "split_sha256",
           "config",
@@ -8993,6 +10345,16 @@
             "minLength": 1,
             "title": "Split Text"
           },
+          "split_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Split Id"
+          },
+          "split_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Split Version"
+          },
           "receipt": {
             "additionalProperties": true,
             "type": "object",
@@ -9010,6 +10372,8 @@
           "name",
           "config_text",
           "split_text",
+          "split_id",
+          "split_version",
           "receipt",
           "expected_revision"
         ],
@@ -9035,6 +10399,16 @@
             "minLength": 1,
             "title": "Split Text"
           },
+          "split_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Split Id"
+          },
+          "split_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Split Version"
+          },
           "receipt": {
             "additionalProperties": true,
             "type": "object",
@@ -9047,6 +10421,8 @@
           "name",
           "config_text",
           "split_text",
+          "split_id",
+          "split_version",
           "receipt"
         ],
         "title": "ValidatedExperimentWrite"
@@ -9057,16 +10433,21 @@
             "type": "string",
             "title": "Config Text"
           },
-          "split_text": {
+          "split_id": {
             "type": "string",
-            "title": "Split Text"
+            "title": "Split Id"
+          },
+          "split_version": {
+            "type": "integer",
+            "title": "Split Version"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "config_text",
-          "split_text"
+          "split_id",
+          "split_version"
         ],
         "title": "ValidationRequest"
       },
