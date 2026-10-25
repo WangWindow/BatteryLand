@@ -36,11 +36,12 @@ API 环境不安装 PyTorch；训练依赖由根项目的 `training` 组统一�
 2. 使用校验收据调用 `POST /api/v1/validated-experiments` 保存草稿，可在提交前更新。
 3. 调用 `POST /api/v1/validated-experiments/{id}/submit` 冻结输入并排队。
 4. 内部调度器在 GPU 可用时解析 `auto`，或保留明确指定的 `cuda:N`，并只启动一次训练。
-5. 通过实验 ID 查询状态、日志、指标、结果和产物；运行中可调用实验停止接口。
+5. 通过实验 ID 查询状态、日志、指标、结果和产物；运行中可调用
+   `POST /api/v1/validated-experiments/{id}/stop` 停止。
 
 每个实验 ID 只能执行一次。相同配置的再次训练应创建新实验。自定义划分可校验和保存，
-但当前 DeepPlatform 只能执行其内置划分；不能执行的收据会声明这一限制并阻止提交。
-内置划分中的重名文件也会标记为歧义，不作为可执行输入。独立评估与迁移训练尚待提供者支持。
+通过校验后，后端按实验 ID 将用户划分写入隔离的运行目录。内置划分不是运行前提；
+重名文件若无法唯一解析会被拒绝。独立评估与迁移训练尚待提供者支持。
 
 API 文档位于 <http://127.0.0.1:8000/docs>；资源快照见
 `GET /api/v1/scheduler/resources`。前端当前仍在按已稳定的 API 契约调整，
@@ -51,8 +52,6 @@ API 文档位于 <http://127.0.0.1:8000/docs>；资源快照见
 ```bash
 uv run batteryland init --data-dir var
 uv run batteryland serve --host 127.0.0.1 --port 8000
-uv run batteryland import-bundled --source-id <UUID>
-uv run batteryland reconcile --experiment-id <UUID>
 ```
 
 ## 后端目录
@@ -62,7 +61,7 @@ uv run batteryland reconcile --experiment-id <UUID>
 | 目录 | 职责 |
 | --- | --- |
 | `datasets/` | 固定电池目录、命名集合、划分与统计 |
-| `experiments/` | 实验草稿、校验输入、模板和状态 |
+| `experiments/` | 已校验输入、实验状态和版本 |
 | `training/` | DeepPlatform 校验、适配和训练子进程 |
 | `scheduler/` | FIFO、资源采样、停止和执行记录 |
 | `results/`、`analytics/` | 指标、产物、比较与图表数据 |

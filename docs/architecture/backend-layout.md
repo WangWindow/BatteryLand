@@ -6,9 +6,9 @@
 
 ```text
 src/batteryland/
-  api/          FastAPI 应用、统一响应与旧接口兼容门禁
+  api/          FastAPI 应用与统一响应
   datasets/     固定电池池、命名集合、划分及统计
-  experiments/  实验草稿、已校验输入、模板和状态
+  experiments/  已校验输入、实验状态和执行记录
   training/     DeepPlatform 适配、配置校验、子进程与回执
   scheduler/    FIFO、GPU/CPU/内存采样、认领与停止
   results/      指标、日志、产物和结果查询
@@ -24,8 +24,9 @@ src/batteryland/
 
 FastAPI 路由调用用例服务；用例经仓储访问 SQLite 或经 `training/` 适配器调用
 DeepPlatform。`db/models.py` 只定义 ORM 映射，不作为 API DTO。调度器属于后端进程，
-真正训练由 `.venv-training` 的独立解释器执行。前端只调用公开 HTTP API。
+真正训练由独立训练解释器执行。前端只调用公开 HTTP API。
 
-`experiments/legacy_execution.py` 与部分旧写接口为历史数据兼容保留，生产入口已关闭其
-写操作。新的完整配置/划分流程使用 `experiments/validated_routes.py`；资源状态由
-`scheduler/routes.py` 和 `training/routes.py` 提供。
+训练配置与划分只通过 provider 校验后的 `validated-experiments` 流程保存和排队。
+调度器状态、队列和资源分别由 `/scheduler/status`、`/scheduler/queue` 与
+`/scheduler/resources` 提供。内部认领和进程事件由本地调度器直接调用服务，不暴露
+worker HTTP 协议。固定数据源只提供浏览接口，逻辑数据集划分由 `/splits` 管理。
