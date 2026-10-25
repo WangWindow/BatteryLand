@@ -329,7 +329,9 @@ class DeeplatformGateway:
             name = member.get("file_name")
             source_path = member.get("source_path")
             if not isinstance(name, str) or name in seen_names or not isinstance(source_path, str):
-                raise DomainError("integration_precondition_failed", "Training split file map is invalid")
+                raise DomainError(
+                    "integration_precondition_failed", "Training split file map is invalid"
+                )
             seen_names.add(name)
             link = data_pool / name
             try:
@@ -341,7 +343,8 @@ class DeeplatformGateway:
                 ) from exc
             if not link.is_symlink() or target != expected_source or not target.is_file():
                 raise DomainError(
-                    "integration_precondition_failed", "A staged battery file differs from its source"
+                    "integration_precondition_failed",
+                    "A staged battery file differs from its source",
                 )
 
     def prepare(self, materialized: Record) -> Record:
@@ -408,6 +411,19 @@ class DeeplatformGateway:
                 "needs_reconciliation", "Provider output directory is outside the managed root"
             )
         selected = snapshot["resources"]["splits"]["split"]
+        source_aliases = selected.get("source_roots")
+        if not isinstance(source_aliases, list) or not source_aliases:
+            raise DomainError(
+                "integration_precondition_failed", "Training split has no configured data source"
+            )
+        allowed_source_roots = []
+        for alias in source_aliases:
+            root = self.settings.source_roots.get(alias) if isinstance(alias, str) else None
+            if root is None:
+                raise DomainError(
+                    "integration_precondition_failed", "Training split source is not configured"
+                )
+            allowed_source_roots.append(str(root.resolve()))
         return prepared | {
             "intent_id": materialized["intent_id"],
             "input_manifest_sha256": materialized["input_manifest_sha256"],
@@ -416,6 +432,7 @@ class DeeplatformGateway:
             "requested_device": config["mate"]["device"],
             "provider_commit": PROVIDER_COMMIT,
             "data_source_root": selected["data_pool"],
+            "allowed_source_roots": allowed_source_roots,
         }
 
     def spawn(self, prepared: Record) -> Record:
@@ -430,8 +447,17 @@ class DeeplatformGateway:
             )
         directory = Path(prepared["directory"])
         environment = self.worker.environment(self.environment())
+        environment.pop("BATTERYLAND_ALLOWED_SOURCE_ROOTS", None)
         if prepared.get("data_source_root"):
             environment["BATTERYLAND_DATA_ROOT"] = prepared["data_source_root"]
+            allowed_source_roots = prepared.get("allowed_source_roots")
+            if not isinstance(allowed_source_roots, list) or not all(
+                isinstance(root, str) for root in allowed_source_roots
+            ):
+                raise DomainError(
+                    "integration_precondition_failed", "Training data source allowlist is invalid"
+                )
+            environment["BATTERYLAND_ALLOWED_SOURCE_ROOTS"] = json.dumps(allowed_source_roots)
         receipt = self.supervisor.start(
             [
                 str(self.worker.python),

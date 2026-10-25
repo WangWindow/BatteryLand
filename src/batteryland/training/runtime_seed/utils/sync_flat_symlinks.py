@@ -1,5 +1,6 @@
 """Create the stable flat data view expected by the default BatteryLife loader."""
 
+import json
 import os
 from pathlib import Path
 
@@ -8,6 +9,17 @@ def sync_flat_symlinks(src_root: str, dst_dir: str, exclude_in_src: list[str]) -
     configured_root = os.environ.get("BATTERYLAND_DATA_ROOT", src_root)
     source = Path(configured_root).resolve()
     destination = Path(dst_dir).resolve()
+    try:
+        configured_source_roots = json.loads(
+            os.environ.get("BATTERYLAND_ALLOWED_SOURCE_ROOTS", "[]")
+        )
+    except ValueError as exc:
+        raise ValueError("BATTERYLAND_ALLOWED_SOURCE_ROOTS must be a JSON array") from exc
+    if not isinstance(configured_source_roots, list) or not all(
+        isinstance(root, str) for root in configured_source_roots
+    ):
+        raise ValueError("BATTERYLAND_ALLOWED_SOURCE_ROOTS must be a JSON array of paths")
+    allowed_source_roots = tuple(Path(root).resolve() for root in configured_source_roots)
     if not source.is_dir():
         raise FileNotFoundError(f"Battery data source does not exist: {source}")
     destination.mkdir(parents=True, exist_ok=True)
@@ -25,7 +37,13 @@ def sync_flat_symlinks(src_root: str, dst_dir: str, exclude_in_src: list[str]) -
         ):
             continue
         resolved = path.resolve()
-        if resolved.is_relative_to(source):
+        # Per-experiment pool links are checked by the gateway before the worker starts.
+        is_validated_pool_link = (
+            path.is_symlink()
+            and path.parent == source
+            and any(resolved.is_relative_to(root) for root in allowed_source_roots)
+        )
+        if resolved.is_relative_to(source) or is_validated_pool_link:
             expected.setdefault(path.name, resolved)
 
     for existing in destination.iterdir():
