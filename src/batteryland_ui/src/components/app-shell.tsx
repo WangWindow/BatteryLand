@@ -2,12 +2,12 @@ import {
   BoxesIcon,
   ChartLineIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   DatabaseIcon,
   FlaskConicalIcon,
   LayersIcon,
   ListOrderedIcon,
-  PanelLeftCloseIcon,
-  PanelLeftOpenIcon,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -186,61 +186,58 @@ export function AppShell() {
       >
         {t("common.skipToContent")}
       </a>
-      <aside
-        id="workbench-sidebar"
-        className="hidden border-r bg-sidebar md:sticky md:top-0 md:flex md:h-svh md:flex-col"
-      >
-        <div
-          className={cn(
-            "flex h-14 flex-nowrap items-center border-b",
-            sidebarCollapsed ? "justify-center gap-1 px-1" : "justify-between gap-2 px-4",
-          )}
-        >
-          <span
-            role="img"
-            aria-label={t("common.appName")}
+      <div className="relative hidden h-svh md:sticky md:top-0 md:block">
+        <aside id="workbench-sidebar" className="flex h-full flex-col border-r bg-sidebar">
+          <div
             className={cn(
-              "flex shrink-0 items-center justify-center rounded-md bg-primary font-semibold text-primary-foreground",
-              sidebarCollapsed ? "size-6 text-[0.625rem]" : "size-8 text-sm",
+              "flex h-14 flex-nowrap items-center border-b",
+              sidebarCollapsed ? "justify-center px-1" : "justify-start px-4",
             )}
           >
-            BL
-          </span>
-          <Button
-            aria-controls="workbench-sidebar"
-            aria-expanded={!sidebarCollapsed}
-            aria-label={
-              sidebarCollapsed ? t("common.nav.expandSidebar") : t("common.nav.collapseSidebar")
-            }
-            className={sidebarCollapsed ? "size-6" : undefined}
-            onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-            size="icon"
-            title={
-              sidebarCollapsed ? t("common.nav.expandSidebar") : t("common.nav.collapseSidebar")
-            }
-            type="button"
-            variant="ghost"
+            <span
+              role="img"
+              aria-label={t("common.appName")}
+              className={cn(
+                "flex shrink-0 items-center justify-center rounded-md bg-primary font-semibold text-primary-foreground",
+                sidebarCollapsed ? "size-6 text-[0.625rem]" : "size-8 text-sm",
+              )}
+            >
+              BL
+            </span>
+          </div>
+          <div className={cn("flex-1 overflow-y-auto py-3", sidebarCollapsed ? "px-2" : "px-3")}>
+            <Navigation collapsed={sidebarCollapsed} />
+          </div>
+          <div
+            className={cn("border-t py-3", sidebarCollapsed ? "flex justify-center px-2" : "px-3")}
           >
-            {sidebarCollapsed ? (
-              <PanelLeftOpenIcon aria-hidden="true" />
-            ) : (
-              <PanelLeftCloseIcon aria-hidden="true" />
-            )}
-          </Button>
-        </div>
-        <div className={cn("flex-1 overflow-y-auto py-3", sidebarCollapsed ? "px-2" : "px-3")}>
-          <Navigation collapsed={sidebarCollapsed} />
-        </div>
-        <div
-          className={cn("border-t py-3", sidebarCollapsed ? "flex justify-center px-2" : "px-3")}
+            <SettingsMenu
+              appearance={appearance}
+              onAppearanceChange={setAppearance}
+              collapsed={sidebarCollapsed}
+            />
+          </div>
+        </aside>
+        <Button
+          aria-controls="workbench-sidebar"
+          aria-expanded={!sidebarCollapsed}
+          aria-label={
+            sidebarCollapsed ? t("common.nav.expandSidebar") : t("common.nav.collapseSidebar")
+          }
+          className="absolute top-1/2 -right-4 z-30 hidden size-8 -translate-y-1/2 rounded-full border-sidebar-border bg-sidebar text-sidebar-foreground shadow-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:inline-flex"
+          onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+          size="icon"
+          title={sidebarCollapsed ? t("common.nav.expandSidebar") : t("common.nav.collapseSidebar")}
+          type="button"
+          variant="outline"
         >
-          <SettingsMenu
-            appearance={appearance}
-            onAppearanceChange={setAppearance}
-            collapsed={sidebarCollapsed}
-          />
-        </div>
-      </aside>
+          {sidebarCollapsed ? (
+            <ChevronRightIcon aria-hidden="true" className="size-4" />
+          ) : (
+            <ChevronLeftIcon aria-hidden="true" className="size-4" />
+          )}
+        </Button>
+      </div>
       <div className="flex min-w-0 flex-col">
         <header className="flex flex-col gap-2 border-b bg-card px-4 py-3 md:hidden">
           <div className="flex items-center justify-between gap-2">

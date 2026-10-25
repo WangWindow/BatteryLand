@@ -63,6 +63,37 @@ async function importAndValidate(page: Page, name: string, editSeed?: string) {
 
 test.describe.configure({ mode: "serial" })
 
+test("sidebar toggle stays centered on the edge at its full size", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto("/resources")
+
+  const sidebar = page.getByRole("complementary")
+  const toggle = page.getByRole("button", { name: "折叠侧边栏" })
+  await expect(toggle).toBeVisible()
+  const expandedSidebar = await sidebar.boundingBox()
+  const expandedToggle = await toggle.boundingBox()
+  if (!expandedSidebar || !expandedToggle) throw new Error("Expanded sidebar bounds are missing")
+  expect(expandedToggle.width).toBe(32)
+  expect(expandedToggle.y + expandedToggle.height / 2).toBeCloseTo(400, 0)
+  expect(expandedToggle.x + expandedToggle.width / 2).toBeCloseTo(
+    expandedSidebar.x + expandedSidebar.width,
+    0,
+  )
+
+  await toggle.click()
+  const collapsedToggle = page.getByRole("button", { name: "展开侧边栏" })
+  await expect(collapsedToggle).toBeVisible()
+  const collapsedSidebar = await sidebar.boundingBox()
+  const collapsedButton = await collapsedToggle.boundingBox()
+  if (!collapsedSidebar || !collapsedButton) throw new Error("Collapsed sidebar bounds are missing")
+  expect(collapsedButton.width).toBe(32)
+  expect(collapsedButton.y + collapsedButton.height / 2).toBeCloseTo(400, 0)
+  expect(collapsedButton.x + collapsedButton.width / 2).toBeCloseTo(
+    collapsedSidebar.x + collapsedSidebar.width,
+    0,
+  )
+})
+
 test("fixed datasets flow through splitting, configuration, training, results and comparisons", async ({
   page,
   request,
