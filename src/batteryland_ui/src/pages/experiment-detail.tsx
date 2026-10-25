@@ -8,6 +8,15 @@ import { ErrorNotice, Loading, PageHeader, StateTag } from "../components/common
 import { bytes, date, partitions } from "../lib/format"
 
 const terminal = new Set(["succeeded", "failed", "stopped", "needs_reconciliation"])
+
+function displayLogText(text: string): string {
+  return text
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.slice(line.lastIndexOf("\r") + 1))
+    .join("\n")
+}
+
 export default function ExperimentDetailPage() {
   const { id = "" } = useParams()
   const client = useQueryClient(),
@@ -214,7 +223,7 @@ export default function ExperimentDetailPage() {
                   <Loading label="等待训练日志" />
                 ) : (
                   <pre className="log-view" ref={logRef}>
-                    {logText || "暂无日志输出。"}
+                    {logText ? displayLogText(logText) : "暂无日志输出。"}
                   </pre>
                 )}
               </section>
