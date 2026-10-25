@@ -45,6 +45,8 @@ def experiment_header(
     }
     value["requested_device"] = query.requested_device if query else None
     value["effective_device"] = execution.effective_device if execution else None
+    value["actual_device"] = execution.actual_device if execution else None
+    value["actual_gpu_uuid"] = execution.actual_gpu_uuid if execution else None
     value["execution"] = (
         None
         if execution is None

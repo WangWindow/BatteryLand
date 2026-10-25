@@ -22,6 +22,7 @@ from batteryland.interfaces.api.resources import router as resources_router
 from batteryland.interfaces.api.results import router as results_router
 from batteryland.interfaces.api.schemas import ErrorData, ErrorEnvelope, ErrorField
 from batteryland.interfaces.api.splits import router as splits_router
+from batteryland.interfaces.api.validated_experiments import router as validated_experiments_router
 
 ERRORS = {
     "invalid_input": (1001, 422),
@@ -92,6 +93,7 @@ def create_app(
     app.include_router(components_router)
     app.include_router(results_router)
     app.include_router(analysis_router)
+    app.include_router(validated_experiments_router)
 
     @app.exception_handler(DomainError)
     async def business_error(request: Request, exc: DomainError) -> JSONResponse:

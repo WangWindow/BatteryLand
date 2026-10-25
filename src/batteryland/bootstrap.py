@@ -10,6 +10,7 @@ from batteryland.application.ports.training import TrainingGateway
 from batteryland.application.resources import ResourceService
 from batteryland.application.results import ResultService
 from batteryland.application.splits import SplitService
+from batteryland.application.validated_experiments import ValidatedExperimentService
 from batteryland.config import Settings
 from batteryland.domain.scheduling import FifoPolicy
 from batteryland.infrastructure.analysis import BasicChartBuilder, BasicDifferenceAnalyzer
@@ -51,6 +52,9 @@ class Container:
         self.configurations = ConfigurationService(self.database.unit_of_work, self.documents)
         self.experiments = ExperimentService(
             self.database.unit_of_work, self.documents, self.training
+        )
+        self.validated_experiments = ValidatedExperimentService(
+            self.database.unit_of_work, settings.validation_secret
         )
 
         self.execution = ExecutionService(
