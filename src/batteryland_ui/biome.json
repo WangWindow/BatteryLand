@@ -1,66 +1,40 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
+    "ignoreUnknown": true,
     "includes": [
-      "**",
-      "!**/dist",
-      "!**/node_modules",
-      "!**/playwright-report",
-      "!**/test-results",
-      "!src/api/types.ts"
+      "src/**/*",
+      "!src/api/schema.ts",
+      "e2e/**/*",
+      "vite.config.ts",
+      "playwright.config.ts",
+      "tests/**/*",
+      "package.json"
     ]
   },
   "formatter": {
-    "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 100
-  },
-  "css": {
-    "parser": {
-      "tailwindDirectives": true
-    }
+    "lineWidth": 110
   },
   "javascript": {
     "formatter": {
       "quoteStyle": "double",
-      "semicolons": "asNeeded"
+      "semicolons": "asNeeded",
+      "trailingCommas": "all"
     }
   },
   "linter": {
     "enabled": true,
     "rules": {
-      "preset": "recommended",
-      "a11y": {
-        "useKeyWithClickEvents": "off"
-      },
-      "correctness": {
-        "useExhaustiveDependencies": "off"
-      },
-      "suspicious": {
-        "noArrayIndexKey": "off"
-      }
+      "preset": "recommended"
     }
   },
-  "overrides": [
-    {
-      "includes": ["src/components/ui/**"],
-      "linter": {
-        "rules": {
-          "a11y": {
-            "noRedundantRoles": "off",
-            "useSemanticElements": "off"
-          },
-          "security": {
-            "noDangerouslySetInnerHtml": "off"
-          },
-          "suspicious": {
-            "noDoubleEquals": "off"
-          }
-        }
-      }
-    }
-  ],
   "assist": {
     "actions": {
       "source": {

@@ -1,96 +1,48 @@
-import i18n from "@/i18n"
-
-const STATE_TONES: Record<
-  string,
-  "default" | "secondary" | "destructive" | "outline" | "success" | "warning"
-> = {
-  draft: "outline",
-  queued: "secondary",
-  starting: "warning",
-  running: "default",
-  stopping: "warning",
-  stopped: "outline",
-  cancelled: "outline",
-  succeeded: "success",
-  failed: "destructive",
-  needs_reconciliation: "destructive",
+export const partitions = ["train", "val", "test"] as const
+export const partLabel = { train: "训练集", val: "验证集", test: "测试集" }
+export const categories: Record<string, string> = {
+  task: "任务",
+  model: "模型",
+  datafactory: "数据处理",
+  optimizers: "优化器",
+  schedulers: "学习率调度",
+  loss: "损失函数",
+  metric: "评估指标",
+  runtime: "运行环境",
+  others: "扩展组件",
+  validate: "验证器",
 }
-
-export function stateLabel(state: string | null | undefined): string {
-  if (!state) {
-    return i18n.t("common.unknown")
-  }
-  return i18n.t(`common.state.${state}`, { defaultValue: state })
+export const metadataNames: Record<string, string> = {
+  chemistry: "化学体系",
+  material: "材料",
+  temperature_c: "温度 (°C)",
+  nominal_capacity_ah: "标称容量 (Ah)",
+  cycle_count: "循环次数",
+  cycle_life: "循环寿命",
 }
-
-export function stateTone(
-  state: string | null | undefined,
-): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" {
-  if (!state) {
-    return "outline"
-  }
-  return STATE_TONES[state] ?? "outline"
+export const sourcePalette = ["#0969da", "#1a7f37", "#8250df", "#bc4c00", "#bf3989", "#0a7f83"]
+export function sourceColor(id: string): string {
+  const hash = [...id].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 0)
+  return sourcePalette[hash % sourcePalette.length]
 }
-
-export function formatDate(value: string | null | undefined): string {
-  if (!value) {
-    return "—"
-  }
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-  return new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en-US" : "zh-CN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date)
+export function display(value: unknown): string {
+  return value === null || value === undefined || value === ""
+    ? "—"
+    : typeof value === "object"
+      ? JSON.stringify(value)
+      : String(value)
 }
-
-export function formatBytes(value: number | null | undefined): string {
-  if (value === null || value === undefined) {
-    return "—"
-  }
-  if (value < 1024) {
-    return `${value} B`
-  }
-  const units = ["KiB", "MiB", "GiB", "TiB"]
-  let size = value
-  let unit = "B"
-  for (const next of units) {
-    if (size < 1024) {
-      break
-    }
-    size /= 1024
-    unit = next
-  }
-  return `${size.toFixed(size >= 10 ? 0 : 1)} ${unit}`
+export function number(value: unknown): string {
+  return typeof value === "number"
+    ? new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 4 }).format(value)
+    : "—"
 }
-
-export function formatMetric(value: number | null | undefined, unit?: string | null): string {
-  if (value === null || value === undefined) {
-    return i18n.t("common.unavailable")
-  }
-  const text = Number.isInteger(value) ? String(value) : value.toFixed(4).replace(/0+$/, "")
-  return unit && unit !== "unknown" ? `${text} ${unit}` : text
+export function bytes(value?: number | null): string {
+  if (value == null) return "—"
+  if (value < 1024) return `${value} B`
+  const i = Math.min(3, Math.floor(Math.log(value) / Math.log(1024)))
+  return `${(value / 1024 ** i).toFixed(1)} ${["B", "KB", "MB", "GB"][i]}`
 }
-
-export function enumLabel(
-  value: string | null | undefined,
-  group: "kinds" | "collection" | "availability" | "stages" | "artifactKinds" | "state",
-): string {
-  if (!value) {
-    return "—"
-  }
-  return i18n.t(`common.${group}.${value}`, { defaultValue: value })
-}
-
-export function shortId(value: string | null | undefined): string {
-  if (!value) {
-    return "—"
-  }
-  return value.slice(0, 8)
-}
-
-export function filenameOf(value: string): string {
-  return value.split("/").pop() || value
+export function date(value: string): string {
+  return new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
 }

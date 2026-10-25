@@ -1,55 +1,12 @@
-# BatteryLand Workbench UI
+# BatteryLand UI
 
-Simplified but real frontend for BatteryLand. It communicates with the backend
-engine only through the versioned `/api/v1` HTTP contract, and never reads
-SQLite, JSON documents, run directories, or provider internals.
+React application for the BatteryLand FastAPI service. It uses GitHub Primer React for interface components and design tokens, React Router for navigation, TanStack Query for API state, and ECharts for charts.
 
-## Responsibilities
-
-- `src/api/`: generated OpenAPI DTOs, one fetch client, endpoint functions.
-- `src/pages/`: resource, split, template, component, experiment, queue,
-  detail, and comparison workflows.
-- `src/visualizer/`: chart transforms and browser rendering. The comparison page
-  loads it with `React.lazy`, so ordinary pages never request the chart chunk.
-- `src/i18n/`: simplified Chinese and English catalogs and language state.
-- `src/hooks/`: abortable query lifecycle and incremental log cursor polling.
-
-The backend runs scheduling internally through a replaceable policy interface.
-Only the backend and frontend need to be started.
-
-## Commands
-
-```bash
+```sh
 bun install --frozen-lockfile
-bun run dev                 # http://127.0.0.1:5173, proxies /api to :8000
-bun run typecheck
-bun run check               # Biome + i18n contract
-bun run test                # Vitest + React Testing Library
-bun run test:e2e            # real HTTP backend + controlled training + integrated scheduler + Chromium
-bun run test:e2e:real       # real deeplatform MyTask + real backend + integrated scheduler + Chromium
-bun run build
-bun run verify              # typecheck + check + test + build
-bun run generate:api        # regenerate src/api/types.ts from the current 004 OpenAPI snapshot
+bun run dev
 ```
 
-`E2E_BACKEND_PORT` defaults to `8010`; `E2E_BASE_URL` can point Playwright at an
-already running application. The E2E fixture backend uses a controlled training
-subprocess only inside the test service; it is not a production capability.
+Vite proxies `/api` to `http://127.0.0.1:8000`. Set `VITE_PROXY_TARGET` to change the backend address. Regenerate API types after changing the OpenAPI contract with `bun run generate:api`.
 
-## Internationalization Contract
-
-Every user-facing string, accessible label, empty state, error, button, and chart
-description must live in `src/i18n/messages/`. Each feature file declares the
-Chinese tree and its English counterpart with `defineMessages`, so a missing key
-or changed tree fails TypeScript compilation.
-
-`scripts/check-i18n.ts` additionally enforces:
-- identical key trees and `{{placeholder}}` sets in `zh-CN` and `en`;
-- every statically referenced `t("key")` exists in both catalogs;
-- no hardcoded Chinese text in source;
-- no hardcoded JSX text or literal `placeholder`, `title`, `aria-label`,
-  `aria-description`, `alt` values;
-- `toast.*` and `set*Error`/`set*Message` calls use translations.
-
-Add or change both languages in the same change. Technical identifiers, state
-enum values, commands, UUIDs, units, and JSON field names may remain literal.
+Run `bun run verify` for type checks, formatting, unit tests, and a production build. Run `bun run test:e2e:workbench` for the browser workflow against the versioned API contract fixtures.
