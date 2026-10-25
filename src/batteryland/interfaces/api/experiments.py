@@ -11,6 +11,7 @@ from batteryland.application.experiments import ExperimentService
 from batteryland.application.serialization import load_config, load_json
 from batteryland.bootstrap import Container
 from batteryland.domain.errors import DomainError
+from batteryland.interfaces.api.legacy import require_legacy_writes
 from batteryland.interfaces.api.schemas import Envelope, Page, RequestModel
 
 router = APIRouter(prefix="/api/v1", tags=["configurations"])
@@ -132,14 +133,26 @@ def list_templates(
     return {"data": service.list(q, page, page_size)}
 
 
-@router.post("/templates", status_code=201, response_model=Envelope[Template])
+@router.post(
+    "/templates",
+    status_code=201,
+    response_model=Envelope[Template],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def create_template(
     body: TemplateWrite, service: Annotated[ConfigurationService, Depends(templates)]
 ) -> dict[str, Any]:
     return {"data": service.create(body.name, body.native_config)}
 
 
-@router.post("/templates/import", status_code=201, response_model=Envelope[Template])
+@router.post(
+    "/templates/import",
+    status_code=201,
+    response_model=Envelope[Template],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def import_template(
     name: Annotated[str, Form(min_length=1)],
     file: Annotated[UploadFile, File()],
@@ -157,7 +170,12 @@ def get_template(
     return {"data": service.get(str(template_id), version)}
 
 
-@router.put("/templates/{template_id}", response_model=Envelope[Template])
+@router.put(
+    "/templates/{template_id}",
+    response_model=Envelope[Template],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def update_template(
     template_id: UUID,
     body: TemplateUpdate,
@@ -228,14 +246,26 @@ def list_experiments(
     return {"data": service.list(filters, page, page_size)}
 
 
-@router.post("/experiments", status_code=201, response_model=Envelope[Experiment])
+@router.post(
+    "/experiments",
+    status_code=201,
+    response_model=Envelope[Experiment],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def create_experiment(
     body: ExperimentWrite, service: Annotated[ExperimentService, Depends(experiments)]
 ) -> dict[str, Any]:
     return {"data": service.create(body.model_dump(mode="json", exclude_none=True))}
 
 
-@router.post("/experiments/import", status_code=201, response_model=Envelope[Experiment])
+@router.post(
+    "/experiments/import",
+    status_code=201,
+    response_model=Envelope[Experiment],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def import_experiment(
     name: Annotated[str, Form(min_length=1)],
     file: Annotated[UploadFile, File()],
@@ -268,7 +298,12 @@ def get_experiment(
     return {"data": service.get(str(experiment_id))}
 
 
-@router.patch("/experiments/{experiment_id}", response_model=Envelope[Experiment])
+@router.patch(
+    "/experiments/{experiment_id}",
+    response_model=Envelope[Experiment],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def update_experiment(
     experiment_id: UUID,
     body: ExperimentPatch,
@@ -290,7 +325,12 @@ def delete_experiment(
     return {"data": service.delete(str(experiment_id))}
 
 
-@router.post("/experiments/{experiment_id}/validate", response_model=Envelope[Validation])
+@router.post(
+    "/experiments/{experiment_id}/validate",
+    response_model=Envelope[Validation],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def validate_experiment(
     experiment_id: UUID, service: Annotated[ExperimentService, Depends(experiments)]
 ) -> dict[str, Any]:
@@ -298,7 +338,11 @@ def validate_experiment(
 
 
 @router.post(
-    "/experiments/{experiment_id}/copy", status_code=201, response_model=Envelope[Experiment]
+    "/experiments/{experiment_id}/copy",
+    status_code=201,
+    response_model=Envelope[Experiment],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
 )
 def copy_experiment(
     experiment_id: UUID,

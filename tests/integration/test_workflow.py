@@ -3,13 +3,13 @@ import math
 import time
 
 from fastapi.testclient import TestClient
-from tests.integration.test_scheduler import ControlledTraining, advance
-from tests.integration.test_splits_api import setup_batteries
 
 from batteryland.application.bundled import BundledImportService
 from batteryland.config import Settings
 from batteryland.infrastructure.bundled import load_bundled
 from batteryland.interfaces.api.app import create_app
+from tests.integration.test_scheduler import ControlledTraining, advance
+from tests.integration.test_splits_api import setup_batteries
 
 
 def test_resource_to_frozen_execution_and_result_traceability(settings: Settings):

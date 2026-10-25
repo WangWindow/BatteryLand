@@ -6,6 +6,7 @@ from pydantic import Field
 
 from batteryland.application.execution import ExecutionService
 from batteryland.bootstrap import Container
+from batteryland.domain.errors import DomainError
 from batteryland.interfaces.api.experiments import Experiment
 from batteryland.interfaces.api.schemas import Envelope, RequestModel
 
@@ -33,7 +34,21 @@ def service(request: Request) -> ExecutionService:
     return cast(Container, request.app.state.container).execution
 
 
-@router.post("/queue/submissions", status_code=202, response_model=Envelope[list[Experiment]])
+def legacy_execution(request: Request) -> None:
+    if not request.app.state.legacy_execution_enabled:
+        raise DomainError(
+            "unsupported_capability",
+            "Execution submission is handled by the validated workflow and independent scheduler",
+        )
+
+
+@router.post(
+    "/queue/submissions",
+    status_code=202,
+    response_model=Envelope[list[Experiment]],
+    dependencies=[Depends(legacy_execution)],
+    deprecated=True,
+)
 def submit(
     body: Submission, execution: Annotated[ExecutionService, Depends(service)]
 ) -> dict[str, Any]:
@@ -45,7 +60,13 @@ def queue(execution: Annotated[ExecutionService, Depends(service)]) -> dict[str,
     return {"data": execution.queue()}
 
 
-@router.post("/queue/dispatch", status_code=202, response_model=Envelope[Experiment])
+@router.post(
+    "/queue/dispatch",
+    status_code=202,
+    response_model=Envelope[Experiment],
+    dependencies=[Depends(legacy_execution)],
+    deprecated=True,
+)
 def dispatch(
     body: Dispatch,
     response: Response,

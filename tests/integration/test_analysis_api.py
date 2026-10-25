@@ -3,11 +3,11 @@ import io
 import json
 
 from fastapi.testclient import TestClient
-from tests.integration.test_scheduler import ControlledTraining, advance, draft
-from tests.integration.test_splits_api import setup_batteries
 
 from batteryland.config import Settings
 from batteryland.interfaces.api.app import create_app
+from tests.integration.test_scheduler import ControlledTraining, advance, draft
+from tests.integration.test_splits_api import setup_batteries
 
 
 def test_comparison_union_missing_values_and_declarative_charts(settings: Settings):

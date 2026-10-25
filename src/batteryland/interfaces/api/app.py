@@ -20,11 +20,12 @@ from batteryland.interfaces.api.experiments import router as experiments_router
 from batteryland.interfaces.api.named_groups import router as named_groups_router
 from batteryland.interfaces.api.resources import router as resources_router
 from batteryland.interfaces.api.results import router as results_router
-from batteryland.interfaces.api.schemas import ErrorData, ErrorEnvelope, ErrorField
+from batteryland.interfaces.api.schemas import Envelope, ErrorData, ErrorEnvelope, ErrorField
 from batteryland.interfaces.api.splits import router as splits_router
 from batteryland.interfaces.api.training import router as training_router
 from batteryland.interfaces.api.validated_experiments import router as validated_experiments_router
 from batteryland.interfaces.api.workers import router as workers_router
+from batteryland.scheduler.local import LocalScheduler
 
 ERRORS = {
     "invalid_input": (1001, 422),
@@ -48,15 +49,21 @@ def create_app(
     settings: Settings | None = None,
     *,
     training: TrainingGateway | None = None,
-    start_monitor: bool = True,
+    start_monitor: bool = False,
+    legacy_writes: bool | None = None,
 ) -> FastAPI:
     """Build the API without importing or launching the training framework."""
     configuration = settings or Settings.from_env()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-        container = Container(configuration, training=training)
+        container = Container(
+            configuration,
+            training=training,
+            legacy_provider=training is not None or (legacy_writes is True),
+        )
         app.state.container = container
+        app.state.scheduler = None
         stopped = asyncio.Event()
 
         async def coordinate() -> None:
@@ -70,10 +77,34 @@ def create_app(
                 except TimeoutError:
                     pass
 
+        async def schedule_local(scheduler: LocalScheduler) -> None:
+            while not stopped.is_set():
+                try:
+                    await run_in_threadpool(scheduler.tick)
+                except Exception:
+                    logging.getLogger(__name__).exception("Local scheduler tick failed")
+                try:
+                    await asyncio.wait_for(stopped.wait(), timeout=5)
+                except TimeoutError:
+                    pass
+
         task = None
         try:
-            await run_in_threadpool(container.execution.recover)
-            task = asyncio.create_task(coordinate()) if start_monitor else None
+            if training is not None:
+                await run_in_threadpool(container.execution.recover)
+            if start_monitor and training is None and container.training_runs is not None:
+                scheduler = LocalScheduler(
+                    container.workers,
+                    container.execution,
+                    container.training_runs,
+                    container.results,
+                    container.artifacts,
+                    configuration.data_dir,
+                )
+                app.state.scheduler = scheduler
+                task = asyncio.create_task(schedule_local(scheduler))
+            elif start_monitor and training is not None:
+                task = asyncio.create_task(coordinate())
             yield
         finally:
             stopped.set()
@@ -88,6 +119,10 @@ def create_app(
         responses={status: {"model": ErrorEnvelope} for _, status in ERRORS.values()},
     )
     app.state.settings = configuration
+    app.state.legacy_execution_enabled = training is not None
+    app.state.legacy_writes_enabled = (
+        training is not None if legacy_writes is None else legacy_writes
+    )
     app.include_router(resources_router)
     app.include_router(named_groups_router)
     app.include_router(splits_router)
@@ -97,8 +132,12 @@ def create_app(
     app.include_router(results_router)
     app.include_router(analysis_router)
     app.include_router(validated_experiments_router)
-    app.include_router(training_router)
     app.include_router(workers_router)
+    app.include_router(training_router)
+
+    @app.get("/api/v1/health", response_model=Envelope[dict[str, str]], tags=["service"])
+    def health() -> dict[str, object]:
+        return {"data": {"service": "data", "status": "ready"}}
 
     @app.exception_handler(DomainError)
     async def business_error(request: Request, exc: DomainError) -> JSONResponse:

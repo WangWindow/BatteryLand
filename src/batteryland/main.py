@@ -11,6 +11,7 @@ from batteryland.bootstrap import Container
 from batteryland.config import Settings
 from batteryland.domain.errors import DomainError
 from batteryland.infrastructure.bundled import load_bundled
+from batteryland.infrastructure.training.gateway import DeeplatformGateway
 
 
 def main() -> None:
@@ -34,14 +35,16 @@ def main() -> None:
 
             from batteryland.interfaces.api.app import create_app
 
-            uvicorn.run(create_app(settings), host=args.host, port=args.port, workers=1)
+            uvicorn.run(
+                create_app(settings, start_monitor=True), host=args.host, port=args.port, workers=1
+            )
             return
         container = Container(settings)
         try:
             if args.command == "init":
                 result = {"initialized": True, "data_dir": str(settings.data_dir)}
             elif args.command == "import-bundled":
-                container.provider.identity()
+                DeeplatformGateway(settings).identity()
                 with container.database.unit_of_work() as unit:
                     source = unit.resources.get_source(str(args.source_id))
                 root = settings.source_roots.get(source["root_alias"])

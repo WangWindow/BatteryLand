@@ -8,6 +8,7 @@ from pydantic import Field, StrictBool, StrictFloat, StrictInt, StrictStr
 from batteryland.application.splits import SplitService
 from batteryland.bootstrap import Container
 from batteryland.domain.errors import DomainError
+from batteryland.interfaces.api.legacy import require_legacy_writes
 from batteryland.interfaces.api.resources import Battery
 from batteryland.interfaces.api.schemas import Envelope, Page, RequestModel
 
@@ -116,21 +117,38 @@ def list_splits(
     return {"data": splits.list(str(source_id) if source_id else None, q, page, page_size)}
 
 
-@router.post("", status_code=201, response_model=Envelope[Split])
+@router.post(
+    "",
+    status_code=201,
+    response_model=Envelope[Split],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def create_split(
     body: SplitWrite, splits: Annotated[SplitService, Depends(service)]
 ) -> dict[str, Any]:
     return {"data": splits.create(body.model_dump(mode="json", exclude_none=True))}
 
 
-@router.post("/preview", response_model=Envelope[SplitPreviewResponse])
+@router.post(
+    "/preview",
+    response_model=Envelope[SplitPreviewResponse],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def preview_split(
     body: SplitWrite, splits: Annotated[SplitService, Depends(service)]
 ) -> dict[str, Any]:
     return {"data": splits.preview(body.model_dump(mode="json", exclude_none=True))}
 
 
-@router.post("/import", status_code=201, response_model=Envelope[Split])
+@router.post(
+    "/import",
+    status_code=201,
+    response_model=Envelope[Split],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def import_split(
     source_id: Annotated[UUID, Form()],
     file: Annotated[UploadFile, File()],
@@ -151,7 +169,12 @@ def get_split(
     return {"data": splits.get(str(split_id), version)}
 
 
-@router.put("/{split_id}", response_model=Envelope[Split])
+@router.put(
+    "/{split_id}",
+    response_model=Envelope[Split],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def update_split(
     split_id: UUID, body: SplitUpdate, splits: Annotated[SplitService, Depends(service)]
 ) -> dict[str, Any]:
@@ -164,7 +187,12 @@ def update_split(
     }
 
 
-@router.delete("/{split_id}", response_model=Envelope[dict[str, bool]])
+@router.delete(
+    "/{split_id}",
+    response_model=Envelope[dict[str, bool]],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def delete_split(
     split_id: UUID, splits: Annotated[SplitService, Depends(service)]
 ) -> dict[str, Any]:

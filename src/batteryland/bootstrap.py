@@ -22,26 +22,35 @@ from batteryland.infrastructure.files import LocalSourceFiles, ManagedArtifacts
 from batteryland.infrastructure.persistence.database import Database
 from batteryland.infrastructure.results import LocalResultFiles
 from batteryland.infrastructure.scheduling import RuntimeLease
+from batteryland.infrastructure.training.disabled import DisabledTrainingGateway
 from batteryland.infrastructure.training.gateway import DeeplatformGateway
 from batteryland.infrastructure.training.materializer import ExecutionMaterializer
 from batteryland.infrastructure.training.runs import TrainingRunService
 
 
 class Container:
-    def __init__(self, settings: Settings, training: TrainingGateway | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        training: TrainingGateway | None = None,
+        *,
+        legacy_provider: bool = True,
+    ) -> None:
         self.settings = settings
         self.lease = RuntimeLease(settings.data_dir)
         try:
             self.database = Database(settings.data_dir / "platform.sqlite")
             self.database.initialize()
-            self._compose(settings, training)
+            self._compose(settings, training, legacy_provider)
         except BaseException:
             if hasattr(self, "database"):
                 self.database.engine.dispose()
             self.lease.close()
             raise
 
-    def _compose(self, settings: Settings, training: TrainingGateway | None) -> None:
+    def _compose(
+        self, settings: Settings, training: TrainingGateway | None, legacy_provider: bool
+    ) -> None:
         self.documents = SQLiteDocumentStore(
             self.database.unit_of_work, settings.data_dir / "documents"
         )
@@ -51,12 +60,18 @@ class Container:
         )
         self.splits = SplitService(self.database.unit_of_work, self.documents)
         self.named_groups = NamedGroupService(self.database.unit_of_work)
-        self.provider = DeeplatformGateway(settings)
         training_settings = replace(settings, data_dir=settings.data_dir / "training")
-        self.training_runs = TrainingRunService(
-            training_settings, DeeplatformGateway(training_settings)
+        self.provider = DeeplatformGateway(settings if legacy_provider else training_settings)
+        self.training_runs = (
+            None if legacy_provider else TrainingRunService(training_settings, self.provider)
         )
-        self.training = training if training is not None else self.provider
+        self.training = (
+            training
+            if training is not None
+            else DeeplatformGateway(settings)
+            if legacy_provider
+            else DisabledTrainingGateway()
+        )
         self.configurations = ConfigurationService(self.database.unit_of_work, self.documents)
         self.experiments = ExperimentService(
             self.database.unit_of_work, self.documents, self.training
@@ -82,6 +97,7 @@ class Container:
             self.provider,
             ManagedArtifacts(settings.data_dir),
             settings.checkpoint_limit,
+            external_execution=not legacy_provider,
         )
         self.results = ResultService(
             self.database.unit_of_work, self.documents, LocalResultFiles(settings.data_dir)

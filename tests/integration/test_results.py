@@ -2,10 +2,10 @@ import base64
 import json
 
 from fastapi.testclient import TestClient
-from tests.integration.test_scheduler import ControlledTraining, advance, draft
 
 from batteryland.config import Settings
 from batteryland.interfaces.api.app import create_app
+from tests.integration.test_scheduler import ControlledTraining, advance, draft
 
 
 def prepare_completed(client, container):

@@ -6,6 +6,7 @@ from pydantic import Field
 
 from batteryland.application.resources import ResourceService
 from batteryland.bootstrap import Container
+from batteryland.interfaces.api.legacy import require_legacy_writes
 from batteryland.interfaces.api.schemas import Envelope, Page, RequestModel
 
 router = APIRouter(prefix="/api/v1", tags=["resources"])
@@ -87,7 +88,13 @@ def source_options(resources: Annotated[ResourceService, Depends(service)]) -> d
     return {"data": resources.source_options()}
 
 
-@router.post("/data-sources", status_code=201, response_model=Envelope[DataSource])
+@router.post(
+    "/data-sources",
+    status_code=201,
+    response_model=Envelope[DataSource],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def add_source(
     body: DataSourceWrite, resources: Annotated[ResourceService, Depends(service)]
 ) -> dict[str, Any]:
@@ -105,7 +112,12 @@ def source_files(
     return {"data": resources.list_source_files(str(source_id), q, page, page_size)}
 
 
-@router.post("/data-sources/{source_id}/import", response_model=Envelope[ImportReport])
+@router.post(
+    "/data-sources/{source_id}/import",
+    response_model=Envelope[ImportReport],
+    dependencies=[Depends(require_legacy_writes)],
+    deprecated=True,
+)
 def import_batteries(
     source_id: UUID,
     body: BatteryImport,

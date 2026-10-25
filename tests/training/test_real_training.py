@@ -42,7 +42,7 @@ def training_settings(tmp_path, monkeypatch):
 
 @contextmanager
 def platform(settings):
-    app = create_app(settings, start_monitor=False)
+    app = create_app(settings, start_monitor=False, legacy_writes=True)
     with TestClient(app) as client:
         yield client, app.state.container
 
