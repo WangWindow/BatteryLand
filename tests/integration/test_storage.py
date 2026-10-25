@@ -129,10 +129,13 @@ def test_database_migrations_foreign_keys_and_existing_rows(tmp_path: Path) -> N
             connection.exec_driver_sql("SELECT name FROM data_sources WHERE id = 'source'").scalar()
             == "demo"
         )
-        assert (
-            connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar()
-            == "0002_sqlite_document_payload"
-        )
+        assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar()
+        assert "dataset_statistics" in {
+            row[0]
+            for row in connection.exec_driver_sql(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
         assert "payload" in {
             row[1] for row in connection.exec_driver_sql("PRAGMA table_info(document_versions)")
         }

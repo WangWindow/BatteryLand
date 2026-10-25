@@ -3,8 +3,8 @@ import math
 import time
 
 from fastapi.testclient import TestClient
-from test_scheduler import ControlledTraining, advance
-from test_splits_api import setup_batteries
+from tests.integration.test_scheduler import ControlledTraining, advance
+from tests.integration.test_splits_api import setup_batteries
 
 from batteryland.application.bundled import BundledImportService
 from batteryland.config import Settings

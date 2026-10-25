@@ -2,7 +2,7 @@ import threading
 
 import pytest
 from fastapi.testclient import TestClient
-from test_scheduler import ControlledTraining, advance, dispatch_next, draft
+from tests.integration.test_scheduler import ControlledTraining, advance, dispatch_next, draft
 
 from batteryland.bootstrap import Container
 from batteryland.config import Settings
