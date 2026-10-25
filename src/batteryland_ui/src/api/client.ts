@@ -124,6 +124,16 @@ export const api = {
   get<T>(path: string, signal?: AbortSignal): Promise<T> {
     return request<T>(path, { signal })
   },
+  async getDocument<T>(path: string, signal?: AbortSignal): Promise<T> {
+    const response = await fetch(`${API_BASE}${path}`, {
+      headers: { Accept: "application/json" },
+      signal,
+    })
+    if (!response.ok) {
+      throw await toApiError(response)
+    }
+    return (await response.json()) as T
+  },
   post<T>(path: string, body: unknown = {}, signal?: AbortSignal): Promise<T> {
     return request<T>(path, { method: "POST", body: JSON.stringify(body), signal })
   },

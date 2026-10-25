@@ -8,47 +8,50 @@ import type {
   Component,
   DataSource,
   DifferenceResult,
-  Experiment,
-  ImportReport,
+  ExperimentSummary,
   LogChunk,
+  Metric,
+  NamedGroup,
   Page,
   Queue,
+  ResourceNode,
   Result,
   Schema,
-  SetRef,
   SourceOption,
   Split,
   SplitPreviewResponse,
-  Template,
+  SplitWrite,
+  TrainingValidation,
+  ValidatedExperiment,
 } from "@/api/models"
 
-export type ListParams = {
+export type PageParams = {
   page?: number
   pageSize?: number
   q?: string
 }
 
-function paging({ page = 1, pageSize = 50 }: ListParams) {
+function pagination({ page = 1, pageSize = 50 }: PageParams) {
   return { page, page_size: pageSize }
 }
 
 export const endpoints = {
   sources: {
+    list: (params: PageParams = {}, signal?: AbortSignal) =>
+      api.get<Page<DataSource>>(`/data-sources${queryString(pagination(params))}`, signal),
     options: (signal?: AbortSignal) => api.get<SourceOption[]>("/data-sources/options", signal),
-    list: (params: ListParams, signal?: AbortSignal) =>
-      api.get<Page<DataSource>>(`/data-sources${queryString(paging(params))}`, signal),
-    create: (body: Schema["DataSourceWrite"]) => api.post<DataSource>("/data-sources", body),
-    files: (sourceId: string, params: ListParams, signal?: AbortSignal) =>
+    files: (sourceId: string, params: PageParams = {}, signal?: AbortSignal) =>
       api.get<Page<Schema["DiscoveredBatteryFile"]>>(
-        `/data-sources/${sourceId}/files${queryString({ ...paging(params), q: params.q })}`,
+        `/data-sources/${encodeURIComponent(sourceId)}/files${queryString({
+          ...pagination(params),
+          q: params.q,
+        })}`,
         signal,
       ),
-    importBatteries: (sourceId: string, batteries: Schema["BatteryInput"][]) =>
-      api.post<ImportReport>(`/data-sources/${sourceId}/import`, { batteries }),
   },
   batteries: {
     list: (
-      params: ListParams & {
+      params: PageParams & {
         sourceId?: string
         chemistry?: string
         material?: string
@@ -59,7 +62,7 @@ export const endpoints = {
     ) =>
       api.get<Page<Battery>>(
         `/batteries${queryString({
-          ...paging(params),
+          ...pagination(params),
           q: params.q,
           source_id: params.sourceId,
           chemistry: params.chemistry,
@@ -69,21 +72,48 @@ export const endpoints = {
         })}`,
         signal,
       ),
-    get: (id: string, signal?: AbortSignal) => api.get<Battery>(`/batteries/${id}`, signal),
+    get: (id: string, signal?: AbortSignal) =>
+      api.get<Battery>(`/batteries/${encodeURIComponent(id)}`, signal),
+  },
+  groups: {
+    list: (params: PageParams = {}, signal?: AbortSignal) =>
+      api.get<Page<NamedGroup>>(`/catalog/named-groups${queryString(pagination(params))}`, signal),
+    get: (name: string, signal?: AbortSignal) =>
+      api.get<Schema["NamedGroupDetail"]>(
+        `/catalog/named-groups/${encodeURIComponent(name)}`,
+        signal,
+      ),
+    members: (
+      name: string,
+      params: { partition?: "train" | "val" | "test"; page?: number; pageSize?: number },
+      signal?: AbortSignal,
+    ) =>
+      api.get<Page<Schema["Member"]>>(
+        `/catalog/named-groups/${encodeURIComponent(name)}/members${queryString({
+          partition: params.partition,
+          page: params.page ?? 1,
+          page_size: params.pageSize ?? 100,
+        })}`,
+        signal,
+      ),
   },
   splits: {
-    list: (params: ListParams & { sourceId?: string }, signal?: AbortSignal) =>
+    list: (params: PageParams & { sourceId?: string } = {}, signal?: AbortSignal) =>
       api.get<Page<Split>>(
-        `/splits${queryString({ ...paging(params), q: params.q, source_id: params.sourceId })}`,
+        `/splits${queryString({
+          ...pagination(params),
+          q: params.q,
+          source_id: params.sourceId,
+        })}`,
         signal,
       ),
     get: (id: string, version?: number, signal?: AbortSignal) =>
-      api.get<Split>(`/splits/${id}${queryString({ version })}`, signal),
-    preview: (body: Schema["SplitWrite"]) =>
-      api.post<SplitPreviewResponse>("/splits/preview", body),
-    create: (body: Schema["SplitWrite"]) => api.post<Split>("/splits", body),
-    update: (id: string, body: Schema["SplitUpdate"]) => api.put<Split>(`/splits/${id}`, body),
-    remove: (id: string) => api.delete<{ deleted: boolean }>(`/splits/${id}`),
+      api.get<Split>(`/splits/${encodeURIComponent(id)}${queryString({ version })}`, signal),
+    preview: (body: SplitWrite) => api.post<SplitPreviewResponse>("/splits/preview", body),
+    create: (body: SplitWrite) => api.post<Split>("/splits", body),
+    update: (id: string, body: Schema["SplitUpdate"]) =>
+      api.put<Split>(`/splits/${encodeURIComponent(id)}`, body),
+    remove: (id: string) => api.delete<{ deleted: boolean }>(`/splits/${encodeURIComponent(id)}`),
     members: (
       id: string,
       params: {
@@ -91,20 +121,25 @@ export const endpoints = {
         partition?: "train" | "val" | "test"
         page?: number
         pageSize?: number
-      },
+      } = {},
       signal?: AbortSignal,
     ) =>
-      api.get<Page<Battery>>(
-        `/splits/${id}/members${queryString({
+      api.get<Page<Schema["Battery"]>>(
+        `/splits/${encodeURIComponent(id)}/members${queryString({
           version: params.version,
           partition: params.partition,
           page: params.page ?? 1,
-          page_size: params.pageSize ?? 50,
+          page_size: params.pageSize ?? 100,
         })}`,
         signal,
       ),
     export: (id: string, version?: number) =>
-      downloadToFile(`/splits/${id}/export${queryString({ version })}`),
+      downloadToFile(`/splits/${encodeURIComponent(id)}/export${queryString({ version })}`),
+    exportDocument: (id: string, version?: number, signal?: AbortSignal) =>
+      api.getDocument<Schema["ProviderSplit"]>(
+        `/splits/${encodeURIComponent(id)}/export${queryString({ version })}`,
+        signal,
+      ),
     import: (sourceId: string, file: File) => {
       const form = new FormData()
       form.set("source_id", sourceId)
@@ -112,74 +147,67 @@ export const endpoints = {
       return api.upload<Split>("/splits/import", form)
     },
   },
-  templates: {
-    list: (params: ListParams, signal?: AbortSignal) =>
-      api.get<Page<Template>>(
-        `/templates${queryString({ ...paging(params), q: params.q })}`,
-        signal,
-      ),
-    get: (id: string, version?: number, signal?: AbortSignal) =>
-      api.get<Template>(`/templates/${id}${queryString({ version })}`, signal),
-    create: (body: Schema["TemplateWrite"]) => api.post<Template>("/templates", body),
-    update: (id: string, body: Schema["TemplateUpdate"]) =>
-      api.put<Template>(`/templates/${id}`, body),
-    remove: (id: string) => api.delete<{ deleted: boolean }>(`/templates/${id}`),
-    import: (name: string, file: File) => {
-      const form = new FormData()
-      form.set("name", name)
-      form.set("file", file)
-      return api.upload<Template>("/templates/import", form)
-    },
-    export: (id: string, version?: number) =>
-      downloadToFile(`/templates/${id}/export${queryString({ version })}`),
-  },
   experiments: {
     list: (
-      params: ListParams & {
+      params: PageParams & {
         state?: string
-        splitId?: string
-        sourceId?: string
         modelType?: string
         taskType?: string
         requestedDevice?: string
-      },
+      } = {},
       signal?: AbortSignal,
     ) =>
-      api.get<Page<Experiment>>(
-        `/experiments${queryString({
-          ...paging(params),
+      api.get<Page<ExperimentSummary>>(
+        `/validated-experiments${queryString({
+          ...pagination(params),
           q: params.q,
           state: params.state,
-          split_id: params.splitId,
-          source_id: params.sourceId,
           model_type: params.modelType,
           task_type: params.taskType,
           requested_device: params.requestedDevice,
         })}`,
         signal,
       ),
-    get: (id: string, signal?: AbortSignal) => api.get<Experiment>(`/experiments/${id}`, signal),
-    create: (body: Schema["ExperimentWrite"]) => api.post<Experiment>("/experiments", body),
-    update: (id: string, body: Schema["ExperimentPatch"]) =>
-      api.patch<Experiment>(`/experiments/${id}`, body),
-    remove: (id: string) => api.delete<{ deleted: boolean }>(`/experiments/${id}`),
-    validate: (id: string) => api.post<Schema["Validation"]>(`/experiments/${id}/validate`),
-    copy: (id: string, name?: string) =>
-      api.post<Experiment>(`/experiments/${id}/copy`, name ? { name } : {}),
-    queue: (ids: string[]) => api.post<Experiment[]>("/queue/submissions", { experiment_ids: ids }),
-    stop: (id: string) => api.post<Experiment>(`/experiments/${id}/stop`),
-    export: (id: string) => downloadToFile(`/experiments/${id}/export`),
-    import: (name: string, kind: string, bindings: string, file: File) => {
-      const form = new FormData()
-      form.set("name", name)
-      form.set("kind", kind)
-      form.set("bindings", bindings)
-      form.set("file", file)
-      return api.upload<Experiment>("/experiments/import", form)
-    },
+    get: (id: string, version?: number, signal?: AbortSignal) =>
+      api.get<ValidatedExperiment>(
+        `/validated-experiments/${encodeURIComponent(id)}${queryString({ version })}`,
+        signal,
+      ),
+    create: (body: Schema["ValidatedExperimentWrite"]) =>
+      api.post<ValidatedExperiment>("/validated-experiments", body),
+    update: (id: string, body: Schema["ValidatedExperimentUpdate"]) =>
+      api.put<ValidatedExperiment>(`/validated-experiments/${encodeURIComponent(id)}`, body),
+    submit: (id: string) =>
+      api.post<ValidatedExperiment>(`/validated-experiments/${encodeURIComponent(id)}/submit`),
+    stop: (id: string) =>
+      api.post<ValidatedExperiment>(`/validated-experiments/${encodeURIComponent(id)}/stop`),
+    members: (
+      id: string,
+      params: {
+        version?: number
+        partition?: "train" | "val" | "test"
+        page?: number
+        pageSize?: number
+      } = {},
+      signal?: AbortSignal,
+    ) =>
+      api.get<Page<Schema["SplitMember"]>>(
+        `/validated-experiments/${encodeURIComponent(id)}/members${queryString({
+          version: params.version,
+          partition: params.partition,
+          page: params.page ?? 1,
+          page_size: params.pageSize ?? 100,
+        })}`,
+        signal,
+      ),
+    validate: (body: Schema["ValidationRequest"]) =>
+      api.post<TrainingValidation>("/training/validation", body),
   },
-  queue: {
-    get: (signal?: AbortSignal) => api.get<Queue>("/queue", signal),
+  scheduler: {
+    queue: (signal?: AbortSignal) => api.get<Queue>("/scheduler/queue", signal),
+    status: (signal?: AbortSignal) =>
+      api.get<Schema["Envelope_dict_str__Any__"]["data"]>("/scheduler/status", signal),
+    resources: (signal?: AbortSignal) => api.get<ResourceNode[]>("/scheduler/resources", signal),
   },
   components: {
     list: (scope?: string, signal?: AbortSignal) =>
@@ -196,18 +224,12 @@ export const endpoints = {
       return api.upload<Schema["ComponentUpload"]>("/components/uploads", form)
     },
     checkpoints: (
-      params: {
-        componentId?: string
-        sourceExperimentId?: string
-        page?: number
-        pageSize?: number
-      },
+      params: { componentId?: string; page?: number; pageSize?: number } = {},
       signal?: AbortSignal,
     ) =>
       api.get<Page<Artifact>>(
         `/checkpoints${queryString({
           component_id: params.componentId,
-          source_experiment_id: params.sourceExperimentId,
           page: params.page ?? 1,
           page_size: params.pageSize ?? 50,
         })}`,
@@ -217,70 +239,58 @@ export const endpoints = {
       const form = new FormData()
       form.set("file", file)
       form.set("component_id", componentId)
-      if (sourceExperimentId) {
-        form.set("source_experiment_id", sourceExperimentId)
-      }
+      if (sourceExperimentId) form.set("source_experiment_id", sourceExperimentId)
       return api.upload<Artifact>("/checkpoints", form)
     },
     capabilities: (signal?: AbortSignal) => api.get<Capability[]>("/capabilities", signal),
   },
   results: {
-    metricNames: async (id: string, stage: string, signal?: AbortSignal) => {
-      const names = new Set<string>()
-      for (let page = 1; ; page++) {
-        const result = await api.get<Page<Schema["Metric"]>>(
-          `/experiments/${id}/metrics${queryString({ stage, page, page_size: 200 })}`,
-          signal,
-        )
-        for (const row of result.items) names.add(row.name)
-        if (page * result.page_size >= result.total || !result.items.length) break
-      }
-      return [...names]
-    },
     get: (id: string, signal?: AbortSignal) =>
-      api.get<Result>(`/experiments/${id}/results`, signal),
+      api.get<Result>(`/experiments/${encodeURIComponent(id)}/results`, signal),
+    metrics: (
+      id: string,
+      params: { stage?: string; name?: string; page?: number; pageSize?: number } = {},
+      signal?: AbortSignal,
+    ) =>
+      api.get<Page<Metric>>(
+        `/experiments/${encodeURIComponent(id)}/metrics${queryString({
+          stage: params.stage,
+          name: params.name,
+          page: params.page ?? 1,
+          page_size: params.pageSize ?? 200,
+        })}`,
+        signal,
+      ),
     artifacts: (id: string, signal?: AbortSignal) =>
-      api.get<Artifact[]>(`/experiments/${id}/artifacts`, signal),
+      api.get<Artifact[]>(`/experiments/${encodeURIComponent(id)}/artifacts`, signal),
     logs: (
       id: string,
       params: { stream: "train" | "console"; cursor?: string },
       signal?: AbortSignal,
     ) =>
       api.get<LogChunk>(
-        `/experiments/${id}/logs${queryString({
+        `/experiments/${encodeURIComponent(id)}/logs${queryString({
           stream: params.stream,
           cursor: params.cursor,
           limit_bytes: 65536,
         })}`,
         signal,
       ),
-    download: (artifactId: string) => downloadToFile(`/artifacts/${artifactId}/download`),
+    download: (artifactId: string) =>
+      downloadToFile(`/artifacts/${encodeURIComponent(artifactId)}/download`),
   },
   analysis: {
-    compare: (
-      body: { experiment_ids: string[]; metrics?: string[]; battery_ids?: string[] },
-      signal?: AbortSignal,
-    ) => api.post<ComparisonData>("/comparisons", body, signal),
-    export: (body: { experiment_ids: string[]; metrics?: string[]; format: "json" | "csv" }) =>
-      downloadToFile(`/comparisons/export`, {
+    compare: (body: Schema["ComparisonRequest"], signal?: AbortSignal) =>
+      api.post<ComparisonData>("/comparisons", body, signal),
+    export: (body: Schema["ComparisonExport"]) =>
+      downloadToFile("/comparisons/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       }),
-    charts: (
-      body: {
-        chart_type: string
-        experiment_ids?: string[]
-        sets?: SetRef[]
-        metric?: string
-        stage?: "train" | "validation" | "test"
-        category?: string
-      },
-      signal?: AbortSignal,
-    ) => api.post<ChartBundle>("/charts", body, signal),
-    differences: (
-      body: { sets: SetRef[]; analysis_kind: string; category?: string },
-      signal?: AbortSignal,
-    ) => api.post<DifferenceResult>("/differences", body, signal),
+    charts: (body: Schema["ChartRequest"], signal?: AbortSignal) =>
+      api.post<ChartBundle>("/charts", body, signal),
+    differences: (body: Schema["DifferenceRequest"], signal?: AbortSignal) =>
+      api.post<DifferenceResult>("/differences", body, signal),
   },
 }

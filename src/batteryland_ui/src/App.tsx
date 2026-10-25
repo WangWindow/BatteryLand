@@ -12,14 +12,16 @@ const ResourcesPage = lazy(() =>
 const SplitsPage = lazy(() =>
   import("@/pages/splits-page").then((module) => ({ default: module.SplitsPage })),
 )
-const TemplatesPage = lazy(() =>
-  import("@/pages/templates-page").then((module) => ({ default: module.TemplatesPage })),
-)
 const ComponentsPage = lazy(() =>
   import("@/pages/components-page").then((module) => ({ default: module.ComponentsPage })),
 )
 const ExperimentsPage = lazy(() =>
   import("@/pages/experiments-page").then((module) => ({ default: module.ExperimentsPage })),
+)
+const ExperimentEditorPage = lazy(() =>
+  import("@/pages/experiment-editor-page").then((module) => ({
+    default: module.ExperimentEditorPage,
+  })),
 )
 const ExperimentDetailPage = lazy(() =>
   import("@/pages/experiment-detail-page").then((module) => ({
@@ -52,9 +54,10 @@ export function App() {
             <Route index element={<Navigate to="/resources" replace />} />
             <Route path="/resources" element={<ResourcesPage />} />
             <Route path="/splits" element={<SplitsPage />} />
-            <Route path="/templates" element={<TemplatesPage />} />
             <Route path="/components" element={<ComponentsPage />} />
             <Route path="/experiments" element={<ExperimentsPage />} />
+            <Route path="/experiments/new" element={<ExperimentEditorPage />} />
+            <Route path="/experiments/:experimentId/edit" element={<ExperimentEditorPage />} />
             <Route path="/experiments/:experimentId" element={<ExperimentDetailPage />} />
             <Route path="/queue" element={<QueuePage />} />
             <Route path="/compare" element={<ComparisonPage />} />

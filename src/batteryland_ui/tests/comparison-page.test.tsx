@@ -1,14 +1,14 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { MemoryRouter } from "react-router-dom"
-import { expect, it, vi } from "vitest"
+import { afterEach, beforeEach, expect, it, vi } from "vitest"
 
 import { endpoints } from "@/api/endpoints"
 import type { Split } from "@/api/models"
 import i18n from "@/i18n"
 import { ComparisonPage } from "@/pages/comparison-page"
+import { renderPage } from "./render"
 
-it("builds a battery-set chart without requiring any experiment selection", async () => {
+beforeEach(async () => {
   await i18n.changeLanguage("zh-CN")
   vi.spyOn(endpoints.experiments, "list").mockResolvedValue({
     items: [],
@@ -16,6 +16,23 @@ it("builds a battery-set chart without requiring any experiment selection", asyn
     page: 1,
     page_size: 50,
   })
+  vi.spyOn(endpoints.sources, "list").mockResolvedValue({
+    items: [],
+    total: 0,
+    page: 1,
+    page_size: 200,
+  })
+  vi.spyOn(endpoints.groups, "list").mockResolvedValue({
+    items: [],
+    total: 0,
+    page: 1,
+    page_size: 200,
+  })
+})
+
+afterEach(() => vi.restoreAllMocks())
+
+it("builds a battery-set chart without requiring any experiment selection", async () => {
   const split = {
     id: "split-1",
     name: "Battery set",
@@ -40,26 +57,29 @@ it("builds a battery-set chart without requiring any experiment selection", asyn
     warnings: [],
   })
   const user = userEvent.setup()
-  render(
-    <MemoryRouter>
-      <ComparisonPage />
-    </MemoryRouter>,
-  )
-  await user.click(screen.getByLabelText(i18n.t("compare.chartType")))
-  await user.click(screen.getByRole("option", { name: "集合数量" }))
-  const splitControl = document.getElementById("set-split-set-1")
+  renderPage(<ComparisonPage />)
+  await user.click(screen.getByRole("tab", { name: "数据集差异" }))
+  const splitControl = document.getElementById("set-ref-set-1")
   expect(splitControl).not.toBeNull()
   if (!splitControl) throw new Error("Missing split selector")
   await user.click(splitControl)
   await user.click(await screen.findByRole("option", { name: /Battery set/ }))
-  const generate = screen.getByRole("button", { name: "生成图表" })
+  const secondSplitControl = document.getElementById("set-ref-set-2")
+  expect(secondSplitControl).not.toBeNull()
+  if (!secondSplitControl) throw new Error("Missing second split selector")
+  await user.click(secondSplitControl)
+  await user.click(await screen.findByRole("option", { name: /Battery set/ }))
+  const generate = screen.getByRole("button", { name: "绘制图表" })
   expect(generate).toBeEnabled()
   await user.click(generate)
   await waitFor(() =>
     expect(charts).toHaveBeenCalledWith(
       expect.objectContaining({
         chart_type: "set_count_bar",
-        sets: [expect.objectContaining({ split: { id: "split-1", version: 2 } })],
+        sets: [
+          expect.objectContaining({ split: { id: "split-1", version: 2 } }),
+          expect.objectContaining({ split: { id: "split-1", version: 2 } }),
+        ],
       }),
       expect.any(AbortSignal),
     ),

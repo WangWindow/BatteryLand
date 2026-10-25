@@ -1,3 +1,4 @@
+import { QueryClientProvider } from "@tanstack/react-query"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { BrowserRouter } from "react-router-dom"
@@ -5,6 +6,7 @@ import { BrowserRouter } from "react-router-dom"
 import "@/i18n"
 import "./index.css"
 import App from "@/App"
+import { queryClient } from "@/api/query-client"
 import { applyAppearancePreference, readAppearancePreference } from "@/components/appearance"
 import { Toaster } from "@/components/ui/sonner"
 
@@ -18,8 +20,10 @@ if (!root) {
 createRoot(root).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
-      <Toaster position="top-right" />
+      <QueryClientProvider client={queryClient}>
+        <App />
+        <Toaster position="top-right" />
+      </QueryClientProvider>
     </BrowserRouter>
   </StrictMode>,
 )

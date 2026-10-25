@@ -150,7 +150,8 @@ export function ComponentsPage() {
   return (
     <>
       <PageHeader
-        title={t("components.title")}
+        title={t("workflow.market.title")}
+        description={t("workflow.market.description")}
         actions={
           <>
             <Dialog
@@ -390,62 +391,46 @@ export function ComponentsPage() {
             />
           ) : null}
           {components.data && components.data.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("components.columns.scope")}</TableHead>
-                    <TableHead>{t("components.columns.type")}</TableHead>
-                    <TableHead>{t("components.columns.origin")}</TableHead>
-                    <TableHead>{t("components.columns.commit")}</TableHead>
-                    <TableHead>{t("components.columns.parameters")}</TableHead>
-                    <TableHead className="text-right">{t("components.columns.actions")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {components.data.map((component: Component) => (
-                    <TableRow key={component.id}>
-                      <TableCell>
-                        <span className="flex items-center gap-1.5">
-                          {component.scope === "model" ? (
-                            <LayersIcon
-                              aria-hidden="true"
-                              className="size-3.5 text-muted-foreground"
-                            />
-                          ) : (
-                            <BoxesIcon
-                              aria-hidden="true"
-                              className="size-3.5 text-muted-foreground"
-                            />
-                          )}
-                          {component.scope}
-                        </span>
-                      </TableCell>
-                      <TableCell className="font-medium">{component.type}</TableCell>
-                      <TableCell>{component.origin}</TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {shortId(component.provider_commit)}
-                      </TableCell>
-                      <TableCell>
-                        {component.schema
-                          ? t("components.schemaAvailable")
-                          : t("components.schemaMissing")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={!component.schema}
-                          onClick={() => setSchemaTarget(component)}
-                        >
-                          <ChevronDownIcon data-icon="inline-start" />
-                          {t("components.viewSchema")}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {components.data.map((component: Component) => (
+                <article
+                  key={component.id}
+                  className="flex min-h-44 flex-col justify-between rounded-lg border bg-card p-4 transition-colors hover:border-primary/40"
+                >
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                        {component.scope === "model" ? (
+                          <LayersIcon aria-hidden="true" className="size-4" />
+                        ) : (
+                          <BoxesIcon aria-hidden="true" className="size-4" />
+                        )}
+                      </span>
+                      <span className="rounded-full border px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                        {component.scope}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">{component.type}</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">{component.origin}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+                    <span className="font-mono text-[0.7rem] text-muted-foreground">
+                      {shortId(component.provider_commit)}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!component.schema}
+                      onClick={() => setSchemaTarget(component)}
+                    >
+                      <ChevronDownIcon data-icon="inline-start" />
+                      {t("workflow.market.previewSchema")}
+                    </Button>
+                  </div>
+                </article>
+              ))}
             </div>
           ) : null}
         </CardContent>

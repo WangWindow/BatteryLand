@@ -28,6 +28,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         } as React.CSSProperties
       }
       toastOptions={{
+        style: { pointerEvents: "none" },
         classNames: {
           toast: "cn-toast",
         },

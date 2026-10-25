@@ -3,7 +3,6 @@ import {
   ChartLineIcon,
   ChevronDownIcon,
   DatabaseIcon,
-  FileJsonIcon,
   FlaskConicalIcon,
   LayersIcon,
   ListOrderedIcon,
@@ -31,24 +30,23 @@ const NAV_GROUPS = [
     labelKey: "common.nav.groupPrepare",
     icon: DatabaseIcon,
     items: [
-      { to: "/resources", labelKey: "common.nav.resources", icon: DatabaseIcon },
-      { to: "/splits", labelKey: "common.nav.splits", icon: LayersIcon },
-      { to: "/templates", labelKey: "common.nav.templates", icon: FileJsonIcon },
-      { to: "/components", labelKey: "common.nav.components", icon: BoxesIcon },
+      { to: "/resources", labelKey: "workflow.nav.datasets", icon: DatabaseIcon },
+      { to: "/splits", labelKey: "workflow.nav.splits", icon: LayersIcon },
+      { to: "/components", labelKey: "workflow.nav.components", icon: BoxesIcon },
     ],
   },
   {
     labelKey: "common.nav.groupExecute",
     icon: FlaskConicalIcon,
     items: [
-      { to: "/experiments", labelKey: "common.nav.experiments", icon: FlaskConicalIcon },
-      { to: "/queue", labelKey: "common.nav.queue", icon: ListOrderedIcon },
+      { to: "/experiments", labelKey: "workflow.nav.experiments", icon: FlaskConicalIcon },
+      { to: "/queue", labelKey: "workflow.nav.queue", icon: ListOrderedIcon },
     ],
   },
   {
     labelKey: "common.nav.groupAnalyze",
     icon: ChartLineIcon,
-    items: [{ to: "/compare", labelKey: "common.nav.compare", icon: ChartLineIcon }],
+    items: [{ to: "/compare", labelKey: "workflow.nav.compare", icon: ChartLineIcon }],
   },
 ]
 

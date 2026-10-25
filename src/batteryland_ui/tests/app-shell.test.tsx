@@ -93,7 +93,7 @@ describe("workbench shell settings", () => {
     await user.click(prepareGroup)
 
     expect(prepareGroup).toHaveAttribute("aria-expanded", "true")
-    expect(screen.getAllByRole("link", { name: "数据来源与电池" })).toHaveLength(2)
+    expect(screen.getAllByRole("link", { name: "数据集目录" })).toHaveLength(2)
   })
 
   it("keeps every route reachable from the collapsed icon rail", () => {
@@ -101,8 +101,8 @@ describe("workbench shell settings", () => {
 
     const sidebar = screen.getByRole("complementary")
     expect(within(sidebar).getByRole("button", { name: "展开侧边栏" })).toBeInTheDocument()
-    expect(within(sidebar).getByRole("link", { name: "数据来源与电池" })).toBeInTheDocument()
-    expect(within(sidebar).getByRole("link", { name: "调度队列" })).toBeInTheDocument()
-    expect(within(sidebar).getByRole("link", { name: "结果比较" })).toBeInTheDocument()
+    expect(within(sidebar).getByRole("link", { name: "数据集目录" })).toBeInTheDocument()
+    expect(within(sidebar).getByRole("link", { name: "任务与资源" })).toBeInTheDocument()
+    expect(within(sidebar).getByRole("link", { name: "结果分析" })).toBeInTheDocument()
   })
 })
