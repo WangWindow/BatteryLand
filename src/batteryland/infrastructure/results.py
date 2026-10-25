@@ -2,8 +2,10 @@
 
 import base64
 import codecs
+import fcntl
 import hashlib
 import json
+import os
 from pathlib import Path
 from uuid import uuid4
 
@@ -114,6 +116,30 @@ class LocalResultFiles:
             "availability": "available",
             "is_directory": False,
         }
+
+    def append_report(self, identity: str, stream: str, offset: int, content: bytes) -> Record:
+        if stream not in {"console", "train", "metrics"} or offset < 0 or len(content) > 256 * 1024:
+            raise DomainError("invalid_input", "Invalid report stream, offset or chunk size")
+        filename = "metrics.jsonl" if stream == "metrics" else f"{stream}.log"
+        key = f"worker-output/{identity}/{filename}"
+        path = contained_path(self.root, key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a+b") as output:
+            fcntl.flock(output, fcntl.LOCK_EX)
+            output.seek(0, os.SEEK_END)
+            size = output.tell()
+            if offset < size:
+                output.seek(offset)
+                if output.read(len(content)) != content:
+                    raise DomainError("conflict", "Report chunk conflicts with stored bytes")
+            elif offset == size:
+                output.write(content)
+                output.flush()
+                os.fsync(output.fileno())
+            else:
+                raise DomainError("conflict", "Report chunk is out of order")
+            output.seek(0, os.SEEK_END)
+            return {"offset": output.tell(), "relative_key": key}
 
     def metrics_batch(self, key: str, cursor: Record | None) -> Record:
         path = contained_path(self.root, key)

@@ -54,6 +54,11 @@ class SqlArtifactRepository:
         )
         if row is None:
             return self.add(value)
+        if any(
+            getattr(row, key) != value.get(key)
+            for key in ("kind", "origin", "name", "component_id")
+        ):
+            raise DomainError("conflict", "Artifact identity already has different metadata")
         for key in ("sha256", "size", "availability"):
             setattr(row, key, value[key])
         self.session.flush()

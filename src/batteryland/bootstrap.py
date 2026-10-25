@@ -13,6 +13,7 @@ from batteryland.application.resources import ResourceService
 from batteryland.application.results import ResultService
 from batteryland.application.splits import SplitService
 from batteryland.application.validated_experiments import ValidatedExperimentService
+from batteryland.application.worker_protocol import WorkerProtocolService
 from batteryland.config import Settings
 from batteryland.domain.scheduling import FifoPolicy
 from batteryland.infrastructure.analysis import BasicChartBuilder, BasicDifferenceAnalyzer
@@ -63,6 +64,7 @@ class Container:
         self.validated_experiments = ValidatedExperimentService(
             self.database.unit_of_work, settings.validation_secret
         )
+        self.workers = WorkerProtocolService(self.database.unit_of_work)
 
         self.execution = ExecutionService(
             self.database.unit_of_work,

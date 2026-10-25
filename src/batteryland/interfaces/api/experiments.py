@@ -89,6 +89,8 @@ class Experiment(RequestModel):
     version: int | None = None
     requested_device: str | None = None
     effective_device: str | None = None
+    actual_device: str | None = None
+    actual_gpu_uuid: str | None = None
     execution: ExecutionSummary | None = None
     collection: CollectionSummary
     native_config: dict[str, Any] | None = None

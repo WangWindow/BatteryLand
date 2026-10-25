@@ -15,11 +15,13 @@ class ArtifactService:
         provider: ComponentGateway,
         files: ArtifactFiles,
         checkpoint_limit: int,
+        external_execution: bool = False,
     ) -> None:
         self.units = units
         self.provider = provider
         self.files = files
         self.checkpoint_limit = checkpoint_limit
+        self.external_execution = external_execution
         self._registry_lock = threading.RLock()
 
     def components(self, scope: str | None = None) -> list[Record]:
@@ -77,6 +79,33 @@ class ArtifactService:
             )
         return self.public(value)
 
+    def upload_execution_artifact(
+        self,
+        experiment_id: str,
+        filename: str,
+        kind: str,
+        expected_sha256: str,
+        stream: BinaryIO,
+    ) -> Record:
+        if kind not in {"checkpoint", "config", "file", "status", "input_manifest"}:
+            raise DomainError("invalid_input", "Unknown execution artifact kind")
+        with self.units() as unit:
+            unit.experiments.get(experiment_id)
+        value = self.files.save_execution(
+            experiment_id, stream, filename, expected_sha256, self.checkpoint_limit
+        )
+        with self.units() as unit:
+            stored = unit.artifacts.upsert(
+                value
+                | {
+                    "component_id": None,
+                    "experiment_id": experiment_id,
+                    "kind": kind,
+                    "origin": "deeplatform_process",
+                }
+            )
+        return self.public(stored)
+
     def checkpoints(self, filters: Record, page: int, page_size: int) -> Record:
         with self.units() as unit:
             result = unit.artifacts.checkpoints(filters, page, page_size)
@@ -98,14 +127,25 @@ class ArtifactService:
         return self.files.resolve(value["relative_key"]), value["name"]
 
     def capabilities(self) -> list[Record]:
-        return self.provider.capabilities() + [
+        execution = (
             {
+                "provider_id": "scheduler-local/v1",
+                "version": "1",
+                "available": True,
+                "supported_operations": ["fifo", "claim", "observe", "stop", "auto_gpu"],
+                "limitations": ["single active execution", "GPU training only"],
+            }
+            if self.external_execution
+            else {
                 "provider_id": "engine-execution/v1",
                 "version": "1",
                 "available": True,
                 "supported_operations": ["fifo", "dispatch", "observe", "stop"],
                 "limitations": ["explicit devices only", "single active execution"],
-            },
+            }
+        )
+        return self.provider.capabilities() + [
+            execution,
             {
                 "provider_id": "basic-difference/v1",
                 "version": "1",

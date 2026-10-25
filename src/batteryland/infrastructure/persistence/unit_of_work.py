@@ -9,6 +9,7 @@ from batteryland.infrastructure.persistence.resources import SqlResourceReposito
 from batteryland.infrastructure.persistence.results import SqlResultRepository
 from batteryland.infrastructure.persistence.splits import SqlSplitRepository
 from batteryland.infrastructure.persistence.validated_inputs import SqlValidatedInputRepository
+from batteryland.infrastructure.persistence.workers import SqlWorkerRepository
 
 
 class SqlUnitOfWork:
@@ -16,6 +17,7 @@ class SqlUnitOfWork:
         self.resources = SqlResourceRepository(session)
         self.named_groups = SqlNamedGroupRepository(session)
         self.validated_inputs = SqlValidatedInputRepository(session)
+        self.workers = SqlWorkerRepository(session)
         self.documents = SqlDocumentRepository(session)
         self.splits = SqlSplitRepository(session)
         self.templates = SqlTemplateRepository(session)
