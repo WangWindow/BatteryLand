@@ -4,7 +4,7 @@ from dataclasses import replace
 
 from fastapi.testclient import TestClient
 
-from batteryland.interfaces.api.app import create_app
+from batteryland.api.app import create_app
 
 
 def test_custom_split_is_saved_as_valid_but_declared_unavailable(settings):

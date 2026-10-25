@@ -6,7 +6,7 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 
-from batteryland.infrastructure.persistence.database import Database
+from batteryland.db.database import Database
 
 
 def test_existing_validated_input_gets_member_index_on_upgrade(tmp_path):
@@ -14,10 +14,7 @@ def test_existing_validated_input_gets_member_index_on_upgrade(tmp_path):
     config = Config()
     config.set_main_option(
         "script_location",
-        str(
-            Path(__file__).resolve().parents[2]
-            / "src/batteryland/infrastructure/persistence/migrations"
-        ),
+        str(Path(__file__).resolve().parents[2] / "src/batteryland/db/migrations"),
     )
     with database.engine.begin() as connection:
         config.attributes["connection"] = connection

@@ -1,6 +1,6 @@
 import pytest
 
-from batteryland.domain.scheduling import FifoPolicy
+from batteryland.scheduler.policy import FifoPolicy
 
 
 def test_fifo_preserves_the_persisted_queue_order():

@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from batteryland.application.resources import ResourceService
-from batteryland.infrastructure.files import LocalSourceFiles
-from batteryland.infrastructure.persistence.database import Database
+from batteryland.common.storage import LocalSourceFiles
+from batteryland.datasets.service import ResourceService
+from batteryland.db.database import Database
 
 
 def test_source_listing_counts_registered_batteries_and_revision_updates(tmp_path: Path) -> None:

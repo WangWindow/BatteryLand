@@ -4,10 +4,10 @@ import time
 
 from fastapi.testclient import TestClient
 
-from batteryland.application.bundled import BundledImportService
+from batteryland.api.app import create_app
 from batteryland.config import Settings
-from batteryland.infrastructure.bundled import load_bundled
-from batteryland.interfaces.api.app import create_app
+from batteryland.datasets.bundled import BundledImportService
+from batteryland.datasets.bundled_loader import load_bundled
 from tests.integration.test_scheduler import ControlledTraining, advance
 from tests.integration.test_splits_api import setup_batteries
 

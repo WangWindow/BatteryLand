@@ -3,8 +3,8 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
-from batteryland.domain.validation_receipt import issue_receipt
-from batteryland.interfaces.api.app import create_app
+from batteryland.api.app import create_app
+from batteryland.experiments.receipt import issue_receipt
 
 CONFIG = "mate:\n  device: auto\n"
 SPLIT = '{"dataset":"demo","train":["a.pkl"],"val":["b.pkl"],"test":["c.pkl"]}'
@@ -194,9 +194,21 @@ def test_atomic_single_claim_and_idempotent_start_event(settings):
             ).status_code
             == 200
         )
+        continued_log = {
+            "claim_token": data["claim_token"],
+            "offset": 0,
+            "text": "line one\nline two\n",
+        }
+        continued = client.put(
+            f"/api/v1/worker/experiments/{first['id']}/logs/console",
+            headers=headers,
+            json=continued_log,
+        )
+        assert continued.status_code == 200, continued.text
+        assert continued.json()["data"]["offset"] == len(continued_log["text"])
         logs = client.get(f"/api/v1/experiments/{first['id']}/logs", params={"stream": "console"})
         assert logs.status_code == 200
-        assert logs.json()["data"]["text"] == "line one\n"
+        assert logs.json()["data"]["text"] == continued_log["text"]
         metric_chunk = {
             "claim_token": data["claim_token"],
             "offset": 0,
@@ -218,9 +230,17 @@ def test_atomic_single_claim_and_idempotent_start_event(settings):
             ).status_code
             == 200
         )
+        continued_metrics = metric_chunk["text"] + '{"epoch":2,"test":{"ABC":0.4}}\n'
+        continued = client.put(
+            f"/api/v1/worker/experiments/{first['id']}/metrics",
+            headers=headers,
+            json={"claim_token": data["claim_token"], "offset": 0, "text": continued_metrics},
+        )
+        assert continued.status_code == 200, continued.text
+        assert continued.json()["data"]["offset"] == len(continued_metrics)
         metrics = client.get(f"/api/v1/experiments/{first['id']}/metrics")
         assert metrics.status_code == 200
-        assert metrics.json()["data"]["total"] == 1
+        assert metrics.json()["data"]["total"] == 2
         import hashlib
 
         artifact_content = b"model weights"

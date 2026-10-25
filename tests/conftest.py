@@ -4,15 +4,19 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from batteryland.api.app import create_app
 from batteryland.config import Settings
-from batteryland.interfaces.api.app import create_app
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
-        "--run-training", action="store_true", help="Run real provider and battery CPU training"
+        "--run-training", action="store_true", help="Enable real DeepPlatform acceptance tests"
     )
-    parser.addoption("--run-gpu", action="store_true", help="Also run real cuda:0 acceptance")
+    parser.addoption(
+        "--run-gpu",
+        action="store_true",
+        help="Enable acceptance tests that launch real CUDA training (also requires --run-training)",
+    )
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:

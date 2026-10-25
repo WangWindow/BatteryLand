@@ -4,8 +4,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from batteryland.domain.errors import DomainError
-from batteryland.infrastructure.training.gateway import DeeplatformGateway
+from batteryland.common.errors import DomainError
+from batteryland.training.gateway import DeeplatformGateway
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 import math
 
-from batteryland.domain.dataset_statistics import summarize_dataset
+from batteryland.datasets.statistics import summarize_dataset
 
 
 def test_statistics_separate_numeric_missing_categories_and_unsupported_values() -> None:

@@ -3,11 +3,11 @@ import threading
 import pytest
 from fastapi.testclient import TestClient
 
-from batteryland.bootstrap import Container
+from batteryland.api.app import create_app
+from batteryland.common.errors import DomainError
 from batteryland.config import Settings
-from batteryland.domain.errors import DomainError
-from batteryland.infrastructure.persistence.database import Database
-from batteryland.interfaces.api.app import create_app
+from batteryland.container import Container
+from batteryland.db.database import Database
 from tests.integration.test_scheduler import ControlledTraining, advance, dispatch_next, draft
 
 

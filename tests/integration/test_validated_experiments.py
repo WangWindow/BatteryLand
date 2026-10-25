@@ -2,8 +2,8 @@ from dataclasses import replace
 
 from fastapi.testclient import TestClient
 
-from batteryland.domain.validation_receipt import issue_receipt
-from batteryland.interfaces.api.app import create_app
+from batteryland.api.app import create_app
+from batteryland.experiments.receipt import issue_receipt
 
 CONFIG = "mate:\n  device: auto\n"
 SPLIT = '{"dataset":"demo","train":["a.pkl"],"val":["b.pkl"],"test":["c.pkl"]}'

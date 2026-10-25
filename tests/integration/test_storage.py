@@ -9,12 +9,12 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from batteryland.bootstrap import Container
+from batteryland.common.errors import DomainError
 from batteryland.config import Settings
-from batteryland.domain.documents import DocumentRef
-from batteryland.domain.errors import DomainError
-from batteryland.infrastructure.documents import SQLiteDocumentStore
-from batteryland.infrastructure.persistence.database import Database
+from batteryland.container import Container
+from batteryland.db.database import Database
+from batteryland.documents.store import SQLiteDocumentStore
+from batteryland.documents.types import DocumentRef
 
 
 def make_legacy_document(

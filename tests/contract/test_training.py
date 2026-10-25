@@ -5,9 +5,9 @@ import sys
 
 import pytest
 
+from batteryland.common.errors import DomainError
 from batteryland.config import Settings
-from batteryland.domain.errors import DomainError
-from batteryland.infrastructure.training.gateway import DeeplatformGateway
+from batteryland.training.gateway import DeeplatformGateway
 
 
 def test_static_preview_uses_real_provider_without_training_imports(settings: Settings) -> None:

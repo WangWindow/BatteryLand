@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
+from batteryland.common.errors import DomainError
 from batteryland.config import Settings
-from batteryland.domain.errors import DomainError
-from batteryland.infrastructure.training.gateway import PROVIDER_COMMIT, DeeplatformGateway
+from batteryland.training.gateway import PROVIDER_COMMIT, DeeplatformGateway
 
 
 @pytest.fixture
@@ -177,7 +177,7 @@ def test_relative_interpreter_preserves_its_virtualenv_symlink(settings, monkeyp
 
 
 def test_real_static_bridge_reports_its_api_environment(settings):
-    bridge = Path("src/batteryland/infrastructure/training/bridge.py").resolve()
+    bridge = Path("src/batteryland/training/bridge.py").resolve()
     request = {
         "operation": "inspect",
         "provider_root": str(settings.provider_root),

@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from batteryland.interfaces.api.app import create_app
+from batteryland.api.app import create_app
 
 
 def test_generated_openapi_matches_reviewed_contract(settings):

@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from batteryland.domain.errors import DomainError
+from batteryland.common.errors import DomainError
 
 
 def test_real_component_preview_upload_and_checkpoint_round_trip(client: TestClient) -> None:

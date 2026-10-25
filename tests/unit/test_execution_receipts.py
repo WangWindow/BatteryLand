@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from batteryland.domain.errors import DomainError
-from batteryland.infrastructure.training.materializer import ExecutionMaterializer
+from batteryland.common.errors import DomainError
+from batteryland.training.materializer import ExecutionMaterializer
 
 
 @pytest.mark.parametrize("mismatch", ["intent", "manifest", "config"])

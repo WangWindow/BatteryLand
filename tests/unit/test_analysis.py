@@ -1,8 +1,8 @@
 import pytest
 
-from batteryland.domain.analysis import compare_results
-from batteryland.domain.errors import DomainError
-from batteryland.infrastructure.analysis import BasicChartBuilder, BasicDifferenceAnalyzer
+from batteryland.analytics.basic import BasicChartBuilder, BasicDifferenceAnalyzer
+from batteryland.analytics.comparison import compare_results
+from batteryland.common.errors import DomainError
 
 
 def test_known_unit_and_granularity_facets_preserve_nulls():

@@ -3,8 +3,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from batteryland.domain.errors import DomainError
-from batteryland.domain.validation_receipt import issue_receipt, verify_receipt
+from batteryland.common.errors import DomainError
+from batteryland.experiments.receipt import issue_receipt, verify_receipt
 
 
 def test_receipt_binds_exact_input_and_provider_identity():

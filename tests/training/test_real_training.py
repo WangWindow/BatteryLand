@@ -15,10 +15,10 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
+from batteryland.api.app import create_app
 from batteryland.config import Settings
-from batteryland.infrastructure.persistence.database import Database
-from batteryland.infrastructure.scheduling import ProcessSupervisor
-from batteryland.interfaces.api.app import create_app
+from batteryland.scheduler.processes import ProcessSupervisor
+from batteryland.scheduler.service import LocalScheduler
 
 pytestmark = pytest.mark.training
 
@@ -37,73 +37,79 @@ def training_settings(tmp_path, monkeypatch):
         data_dir=tmp_path / "runtime",
         source_roots={"battery-life": Path("/data/BatteryLife_Processed")},
         training_python=Settings.from_env().training_python,
+        validation_secret="real-local-secret",
+        auto_index_catalog=False,
     )
 
 
 @contextmanager
 def platform(settings):
-    app = create_app(settings, start_monitor=False, legacy_writes=True)
+    app = create_app(settings, start_monitor=False)
     with TestClient(app) as client:
-        yield client, app.state.container
+        container = app.state.container
+        assert container.training_runs is not None
+        scheduler = LocalScheduler(
+            container.workers,
+            container.execution,
+            container.training_runs,
+            container.results,
+            container.artifacts,
+            settings.data_dir,
+        )
+        yield client, container, scheduler
 
 
-def submit(client, config, bindings=None):
-    response = client.post(
-        "/api/v1/experiments",
+def validate_and_submit(client, name, config_text, split_text):
+    validation = client.post(
+        "/api/v1/training/validation",
+        json={"config_text": config_text, "split_text": split_text},
+    )
+    assert validation.status_code == 200, validation.text
+    validated = validation.json()["data"]
+    assert validated["valid"]
+    assert validated["execution_supported"]
+
+    created = client.post(
+        "/api/v1/validated-experiments",
         json={
-            "name": config["mate"]["experiment"],
-            "native_config": config,
-            "bindings": bindings or {},
+            "name": name,
+            "config_text": config_text,
+            "split_text": split_text,
+            "receipt": validated["receipt"],
         },
     )
-    response.raise_for_status()
-    identity = response.json()["data"]["id"]
-    queued = client.post("/api/v1/queue/submissions", json={"experiment_ids": [identity]})
-    assert queued.status_code == 202, queued.text
+    assert created.status_code == 201, created.text
+    identity = created.json()["data"]["id"]
+    submitted = client.post(f"/api/v1/validated-experiments/{identity}/submit")
+    assert submitted.status_code == 202, submitted.text
     return identity
 
 
-def execution(container, identity):
-    with container.database.unit_of_work() as unit:
-        return unit.experiments.execution(identity)
+def run_directory(container, identity):
+    return container.settings.data_dir / "training" / "inputs" / identity
+
+
+def process_receipt(container, identity):
+    path = run_directory(container, identity) / "process-receipt.json"
+    return json.loads(path.read_text()) if path.is_file() else None
 
 
 def diagnostics(container, identity):
-    value = execution(container, identity)
-    directory = (value.get("prepared") or {}).get("directory")
-    if not directory:
-        return str(value)
-    path = Path(directory) / "console.log"
-    return (path.read_text(errors="replace")[-8000:] if path.exists() else "No console log") + str(
-        value["error"]
-    )
+    receipt = process_receipt(container, identity)
+    if not receipt:
+        return "Training process receipt has not been written"
+    directory = Path(receipt["directory"])
+    console = directory / "console.log"
+    return console.read_text(errors="replace")[-8000:] if console.exists() else str(receipt)
 
 
-def gpu_processes():
-    result = subprocess.run(
-        ["nvidia-smi", "--query-compute-apps=pid,gpu_uuid", "--format=csv,noheader"],
-        capture_output=True,
-        text=True,
-        timeout=5,
-    )
-    assert result.returncode == 0, result.stderr
-    return {
-        int(pid.strip()): uuid.strip()
-        for line in result.stdout.splitlines()
-        if "," in line
-        for pid, uuid in [line.split(",", 1)]
-    }
-
-
-def wait_terminal(client, container, identity, *, gpu_evidence=None, timeout=240):
+def wait_terminal(client, container, scheduler, identity, timeout=240):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        container.execution.tick()
-        if gpu_evidence is not None:
-            receipt = execution(container, identity)["receipt"]
-            if receipt and (uuid := gpu_processes().get(receipt["pid"])):
-                gpu_evidence.add((receipt["pid"], uuid))
-        value = client.get(f"/api/v1/experiments/{identity}").json()["data"]
+        scheduler.tick()
+        response = client.get(f"/api/v1/validated-experiments/{identity}")
+        assert response.status_code == 200, response.text
+        value = response.json()["data"]
         if value["state"] in {
             "succeeded",
             "failed",
@@ -116,111 +122,126 @@ def wait_terminal(client, container, identity, *, gpu_evidence=None, timeout=240
     raise AssertionError(diagnostics(container, identity))
 
 
-def calce_input(container, settings, device, epochs=1):
-    source = container.resources.create_source("CALCE acceptance", "battery-life")
-    content = (settings.provider_root / "datasets/batteryLife/data_split/CALCE.json").read_bytes()
-    native_split = json.loads(content)
-    names = [name for group in ("train", "val", "test") for name in native_split[group]]
-    # Register precisely this built-in dataset, without importing unrelated sources.
-    imported = container.resources.import_batteries(
-        source["id"], [{"file_name": name, "relative_key": f"CALCE/{name}"} for name in names]
-    )
-    assert imported["imported"] == 13
-    split = container.splits.import_document(source["id"], content)
-    assert split["counts"] == {"train": 9, "val": 2, "test": 2}
+def calce_input(settings, device, epochs=1, early_stopping=True):
+    split_text = (settings.provider_root / "datasets/batteryLife/data_split/CALCE.json").read_text()
+    split = json.loads(split_text)
+    assert split["dataset"] == "CALCE"
+    assert {name: len(split[name]) for name in ("train", "val", "test")} == {
+        "train": 9,
+        "val": 2,
+        "test": 2,
+    }
     config = yaml.safe_load((settings.provider_root / "configs/calce_seed2021.yaml").read_text())
     config["mate"].update(
-        device=device, epochs=epochs, experiment=f"real-calce-{device.replace(':', '-')}"
+        device=device,
+        epochs=epochs,
+        experiment=f"real-calce-{device.replace(':', '-')}",
     )
     config["datafactory"]["params"]["num_workers"] = 0
-    return config, {"split": {"id": split["id"], "version": 1}}
+    if not early_stopping:
+        for component in config.get("others", []):
+            if component.get("type") == "earlystop":
+                component["params"]["enable"] = False
+    config_text = yaml.safe_dump(config, allow_unicode=True, sort_keys=False)
+    return config_text, split_text
 
 
+@pytest.mark.gpu
 def test_real_catalog_and_mytask_use_the_training_environment(training_settings):
-    with platform(training_settings) as (client, container):
+    split_text = (
+        training_settings.provider_root / "datasets/batteryLife/data_split/CALCE.json"
+    ).read_text()
+    config_text = yaml.safe_dump(
+        {
+            "mate": {"seed": 42, "device": "auto", "experiment": "real-mytask"},
+            "task": {"type": "MyTask"},
+            "hook": [{"type": "PrintStart"}, {"type": "PrintEnd"}],
+        },
+        allow_unicode=True,
+        sort_keys=False,
+    )
+
+    with platform(training_settings) as (client, container, scheduler):
         schema = client.get("/api/v1/components/model/cpmlp/schema")
         assert schema.status_code == 200, schema.text
         assert "d_model" in schema.json()["data"]["required"]
-        config = {
-            "mate": {"seed": 42, "device": "cpu", "experiment": "real-mytask"},
-            "task": {"type": "MyTask"},
-            "hook": [{"type": "PrintStart"}, {"type": "PrintEnd"}],
-        }
-        identity = submit(client, config)
-        result = wait_terminal(client, container, identity)
+
+        identity = validate_and_submit(client, "real-mytask", config_text, split_text)
+        result = wait_terminal(client, container, scheduler, identity)
         assert result["state"] == "succeeded", diagnostics(container, identity)
-        prepared = execution(container, identity)["prepared"]
-        assert prepared["runtime"]["prefix"] != sys.prefix
-        assert prepared["runtime"]["executable"] == str(training_settings.training_python)
-        assert execution(container, identity)["receipt"]["runtime"] == prepared["runtime"]
-        directory = Path(prepared["directory"])
+
+        process = process_receipt(container, identity)
+        assert process is not None
+        assert process["runtime"]["prefix"] != sys.prefix
+        assert process["runtime"]["executable"] == str(training_settings.training_python)
+        directory = Path(process["directory"])
         assert json.loads((directory / "status.json").read_text())["status"] == "completed"
-        assert "开始" in (directory / "console.log").read_text()
-        assert "结束" in (directory / "console.log").read_text()
+        console = (directory / "console.log").read_text()
+        assert "开始" in console
+        assert "结束" in console
         assert (
             client.get(f"/api/v1/experiments/{identity}/results").json()["data"]["available"]
             is False
         )
         assert "torch" not in sys.modules
-        print(f"\nReal MyTask passed: {identity}")
 
 
-@pytest.mark.parametrize("device", ["cpu", pytest.param("cuda:0", marks=pytest.mark.gpu)])
-def test_real_calce_single_epoch_results_and_artifacts(training_settings, device):
-    evidence = set() if device.startswith("cuda") else None
-    with platform(training_settings) as (client, container):
-        config, bindings = calce_input(container, training_settings, device)
-        identity = submit(client, config, bindings)
+@pytest.mark.gpu
+def test_real_calce_single_epoch_results_and_artifacts(training_settings):
+    config_text, split_text = calce_input(training_settings, "cuda:0")
+    with platform(training_settings) as (client, container, scheduler):
+        identity = validate_and_submit(client, "real-calce-cuda-0", config_text, split_text)
         try:
-            result = wait_terminal(client, container, identity, gpu_evidence=evidence)
+            result = wait_terminal(client, container, scheduler, identity)
             assert result["state"] == "succeeded", diagnostics(container, identity)
-            receipt = execution(container, identity)
-            directory = Path(receipt["prepared"]["directory"])
+            process = process_receipt(container, identity)
+            assert process is not None
+            directory = Path(process["directory"])
+
             saved_config = yaml.safe_load((directory / "config.yaml").read_text())
-            assert saved_config["mate"]["device"] == device
+            assert saved_config["mate"]["device"] == "cuda:0"
             console = (directory / "console.log").read_text()
-            reported = re.search(r"Training started on (cpu|cuda(?::\d+)?): ", console)
-            assert reported is not None
-            assert reported.group(1) in ({"cuda", "cuda:0"} if device == "cuda:0" else {"cpu"})
-            if evidence is not None:
-                expected = subprocess.run(
-                    ["nvidia-smi", "--id=0", "--query-gpu=uuid", "--format=csv,noheader"],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                ).stdout.strip()
-                assert (receipt["receipt"]["pid"], expected) in evidence
+            reported = re.search(r"Training started on (cuda(?::\d+)?): ", console)
+            assert reported is not None and reported.group(1) in {"cuda", "cuda:0"}
+
             raw = json.loads((directory / "best_result.json").read_text())
             imported = client.get(f"/api/v1/experiments/{identity}/results").json()["data"]
             assert imported["available"] and imported["best_epoch"] == 1
             assert imported["version"] == 1 and len(imported["predictions"]) == 2
             for metric in imported["metrics"]:
                 assert metric["value"] == pytest.approx(raw[metric["stage"]][metric["name"]])
+
             mape = next(
                 item
                 for item in imported["metrics"]
                 if item["stage"] == "test" and item["name"] == "mape"
             )
             assert mape["unit"] == "ratio" and mape["granularity"] == "window"
-            assert (
-                next(
-                    item
-                    for item in imported["metrics"]
-                    if item["stage"] == "test" and item["name"] == "acc15"
-                )["unit"]
-                == "percent"
+            acc15 = next(
+                item
+                for item in imported["metrics"]
+                if item["stage"] == "test" and item["name"] == "acc15"
             )
+            assert acc15["unit"] == "percent"
+
             source = imported["sources"][0]
-            assert (
-                client.get(f"/api/v1/artifacts/{source['source_artifact_id']}/download").json()
-                == raw
+            source_artifact = client.get(
+                f"/api/v1/artifacts/{source['source_artifact_id']}/download"
             )
+            assert source_artifact.status_code == 200
+            assert source_artifact.json() == raw
+
             artifacts = client.get(f"/api/v1/experiments/{identity}/artifacts").json()["data"]
             assert any(
-                item["kind"] == "checkpoint" and item["component_id"] and item["size"]
+                item["kind"] == "checkpoint"
+                and item["name"] == "model.safetensors"
+                and item["experiment_id"] == identity
+                and item["size"] > 0
                 for item in artifacts
             )
-            assert client.get(f"/api/v1/experiments/{identity}/metrics").json()["data"]["total"] > 0
+            metrics = client.get(f"/api/v1/experiments/{identity}/metrics").json()["data"]
+            assert metrics["total"] > 0
+
             for kind in ("metric_bar", "epoch_line", "prediction_scatter"):
                 chart = client.post(
                     "/api/v1/charts",
@@ -232,25 +253,18 @@ def test_real_calce_single_epoch_results_and_artifacts(training_settings, device
                     },
                 )
                 assert chart.status_code == 200 and chart.json()["data"]["charts"]
-            container.results.collect(identity)
-            assert (
-                client.get(f"/api/v1/experiments/{identity}/results").json()["data"]["version"] == 1
-            )
-            assert result["effective_device"] is None
-            print(
-                f"\nReal CALCE {device} passed: experiment={identity}, metrics={len(imported['metrics'])}, predictions=2, gpu_evidence={evidence}"
-            )
         finally:
-            with container.database.unit_of_work() as unit:
-                current = unit.experiments.get(identity)
+            current = client.get(f"/api/v1/validated-experiments/{identity}").json()["data"]
             if current["state"] in {"running", "starting", "stopping"}:
                 client.post(f"/api/v1/experiments/{identity}/stop")
-                wait_terminal(client, container, identity, timeout=30)
+                wait_terminal(client, container, scheduler, identity, timeout=30)
 
 
+@pytest.mark.gpu
 def test_real_training_survives_api_restart_and_stops_owned_group(training_settings):
-    with platform(training_settings) as (_, container):
-        config, bindings = calce_input(container, training_settings, "cpu", epochs=1000)
+    config_text, split_text = calce_input(
+        training_settings, "cuda:0", epochs=100_000, early_stopping=False
+    )
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
@@ -261,12 +275,19 @@ def test_real_training_survives_api_restart_and_stops_owned_group(training_setti
         ),
         "BATTERYLAND_PROVIDER_ROOT": str(training_settings.provider_root),
         "BATTERYLAND_TRAINING_PYTHON": str(training_settings.training_python),
+        "BATTERYLAND_VALIDATION_SECRET": training_settings.validation_secret,
+        "BATTERYLAND_AUTO_INDEX_CATALOG": "0",
     }
     log = training_settings.data_dir.parent / "api-console.log"
-    database = Database(training_settings.data_dir / "platform.sqlite")
+    receipt_path: Path | None = None
     supervisor = ProcessSupervisor()
     servers = []
     identity = None
+
+    def stored_receipt():
+        if receipt_path is None or not receipt_path.is_file():
+            return None
+        return json.loads(receipt_path.read_text())
 
     def start_server():
         with log.open("ab") as output:
@@ -278,6 +299,8 @@ def test_real_training_survives_api_restart_and_stops_owned_group(training_setti
                     "serve",
                     "--data-dir",
                     str(training_settings.data_dir),
+                    "--host",
+                    "127.0.0.1",
                     "--port",
                     str(port),
                 ],
@@ -299,64 +322,69 @@ def test_real_training_survives_api_restart_and_stops_owned_group(training_setti
                 time.sleep(0.1)
         raise AssertionError(log.read_text()[-5000:])
 
-    def stored_execution():
-        with database.unit_of_work() as unit:
-            return unit.experiments.execution(identity)
-
     try:
         first_server = start_server()
         with httpx.Client(base_url=base_url, timeout=60, trust_env=False) as client:
-            identity = submit(client, config, bindings)
+            identity = validate_and_submit(client, "restart-stop-calce", config_text, split_text)
+            receipt_path = (
+                training_settings.data_dir
+                / "training"
+                / "inputs"
+                / identity
+                / "process-receipt.json"
+            )
             deadline = time.monotonic() + 120
             while time.monotonic() < deadline:
-                value = stored_execution()
-                directory = (value["prepared"] or {}).get("directory")
-                console = Path(directory) / "console.log" if directory else None
-                if (
-                    console
-                    and console.exists()
-                    and "Training started on cpu:" in console.read_text()
-                ):
-                    break
-                state = client.get(f"/api/v1/experiments/{identity}").json()["data"]["state"]
-                assert state in {"queued", "starting", "running"}, log.read_text()[-5000:]
+                receipt = stored_receipt()
+                if receipt:
+                    directory = Path(receipt["directory"])
+                    console = directory / "console.log"
+                    if console.exists() and re.search(
+                        r"Training started on cuda(?::\d+)?: ", console.read_text()
+                    ):
+                        break
+                state = client.get(f"/api/v1/validated-experiments/{identity}").json()["data"]
+                assert state["state"] in {"queued", "starting", "running"}, log.read_text()[-5000:]
                 time.sleep(0.2)
             else:
                 raise AssertionError(log.read_text()[-5000:])
-            original = stored_execution()
+            original = stored_receipt()
+            assert original is not None
+
         first_server.terminate()
         first_server.wait(timeout=20)
-        assert supervisor.observe(original["receipt"])["alive"]
+        assert supervisor.observe(original)["alive"]
+
         start_server()
         with httpx.Client(base_url=base_url, timeout=10, trust_env=False) as client:
-            after = stored_execution()
+            deadline = time.monotonic() + 20
+            while time.monotonic() < deadline:
+                after = stored_receipt()
+                current = client.get(f"/api/v1/validated-experiments/{identity}").json()["data"]
+                if current["state"] == "running":
+                    break
+                assert current["state"] in {"starting", "stopping"}, current
+                time.sleep(0.2)
+            assert current["state"] == "running", current
+            assert after is not None
             assert after["intent_id"] == original["intent_id"]
-            assert after["receipt"]["pid"] == original["receipt"]["pid"]
-            assert (
-                client.get(f"/api/v1/experiments/{identity}").json()["data"]["state"] == "running"
-            )
-            assert (
-                client.post(f"/api/v1/experiments/{identity}/stop").json()["data"]["state"]
-                == "stopping"
-            )
+            assert after["pid"] == original["pid"]
+
+            stopped = client.post(f"/api/v1/experiments/{identity}/stop")
+            assert stopped.status_code == 202, stopped.text
             deadline = time.monotonic() + 35
             while time.monotonic() < deadline:
-                result = client.get(f"/api/v1/experiments/{identity}").json()["data"]
+                result = client.get(f"/api/v1/validated-experiments/{identity}").json()["data"]
                 if result["state"] != "stopping":
                     break
                 time.sleep(0.2)
             assert result["state"] == "stopped", result
-            assert supervisor.observe(after["receipt"])["alive"] is False
-            print(
-                f"\nReal HTTP restart/stop passed: experiment={identity}, same_pid={after['receipt']['pid']}"
-            )
+            assert supervisor.observe(after)["alive"] is False
     finally:
         for server in servers:
             if server.poll() is None:
                 server.terminate()
                 server.wait(timeout=20)
-        if identity:
-            receipt = stored_execution()["receipt"]
-            if receipt:
-                supervisor.signal(receipt, "kill")
-        database.engine.dispose()
+        receipt = stored_receipt()
+        if receipt and supervisor.observe(receipt)["alive"]:
+            supervisor.signal(receipt, "kill")

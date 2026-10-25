@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from batteryland.domain.validation_receipt import issue_receipt
-from batteryland.interfaces.api.app import create_app
-from batteryland.scheduler.local import LocalScheduler
+from batteryland.api.app import create_app
+from batteryland.experiments.receipt import issue_receipt
+from batteryland.scheduler.service import LocalScheduler
 
 COMMIT = "6b4c76d6e639ddaf9db9c15bf04771179a68d988"
 CONFIG = "mate:\n  device: auto\n"

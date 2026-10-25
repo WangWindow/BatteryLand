@@ -3,9 +3,9 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, ConfigDict
 
+from batteryland.api.app import create_app
+from batteryland.common.errors import DomainError
 from batteryland.config import Settings
-from batteryland.domain.errors import DomainError
-from batteryland.interfaces.api.app import create_app
 
 
 def test_business_failures_have_http_semantics_and_no_internal_details(tmp_path: Path) -> None:

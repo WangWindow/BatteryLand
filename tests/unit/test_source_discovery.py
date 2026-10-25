@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from batteryland.application.resources import ResourceService
-from batteryland.domain.errors import DomainError
-from batteryland.infrastructure.files import LocalSourceFiles
-from batteryland.infrastructure.persistence.database import Database
+from batteryland.common.errors import DomainError
+from batteryland.common.storage import LocalSourceFiles
+from batteryland.datasets.service import ResourceService
+from batteryland.db.database import Database
 
 
 def test_source_file_discovery_is_scoped_searchable_and_paged(tmp_path: Path) -> None:

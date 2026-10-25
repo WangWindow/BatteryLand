@@ -2,13 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from batteryland.application.resources import ResourceService
-from batteryland.application.splits import SplitService
-from batteryland.domain.errors import DomainError
-from batteryland.domain.splits import make_split
-from batteryland.infrastructure.documents import SQLiteDocumentStore
-from batteryland.infrastructure.files import LocalSourceFiles
-from batteryland.infrastructure.persistence.database import Database
+from batteryland.common.errors import DomainError
+from batteryland.common.storage import LocalSourceFiles
+from batteryland.datasets.service import ResourceService
+from batteryland.datasets.split_rules import make_split
+from batteryland.datasets.splits import SplitService
+from batteryland.db.database import Database
+from batteryland.documents.store import SQLiteDocumentStore
 
 
 def test_seeded_split_is_repeatable_and_preserves_all_members() -> None:

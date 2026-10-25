@@ -4,8 +4,8 @@ import json
 
 from fastapi.testclient import TestClient
 
+from batteryland.api.app import create_app
 from batteryland.config import Settings
-from batteryland.interfaces.api.app import create_app
 from tests.integration.test_scheduler import ControlledTraining, advance, draft
 from tests.integration.test_splits_api import setup_batteries
 

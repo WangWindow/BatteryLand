@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from batteryland.domain.errors import DomainError
-from batteryland.infrastructure.scheduling import ProcessSupervisor
+from batteryland.common.errors import DomainError
+from batteryland.scheduler.processes import ProcessSupervisor
 
 
 def test_signals_require_identity_and_stop_the_whole_process_group(tmp_path: Path):

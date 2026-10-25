@@ -4,7 +4,7 @@ from threading import Event
 import pytest
 from fastapi.testclient import TestClient
 
-from batteryland.interfaces.api.app import create_app
+from batteryland.api.app import create_app
 from tests.integration.test_scheduler import ControlledTraining, draft
 
 

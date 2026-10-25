@@ -1,4 +1,4 @@
-from batteryland.domain.results import normalize_metrics
+from batteryland.results.metrics import normalize_metrics
 
 
 def test_provider_units_use_component_identity_and_preserve_custom_null():

@@ -6,12 +6,12 @@ import sys
 from pathlib import Path
 from uuid import UUID
 
-from batteryland.application.bundled import BundledImportService
-from batteryland.bootstrap import Container
+from batteryland.common.errors import DomainError
 from batteryland.config import Settings
-from batteryland.domain.errors import DomainError
-from batteryland.infrastructure.bundled import load_bundled
-from batteryland.infrastructure.training.gateway import DeeplatformGateway
+from batteryland.container import Container
+from batteryland.datasets.bundled import BundledImportService
+from batteryland.datasets.bundled_loader import load_bundled
+from batteryland.training.gateway import DeeplatformGateway
 
 
 def main() -> None:
@@ -33,7 +33,7 @@ def main() -> None:
         if args.command == "serve":
             import uvicorn
 
-            from batteryland.interfaces.api.app import create_app
+            from batteryland.api.app import create_app
 
             uvicorn.run(
                 create_app(settings, start_monitor=True), host=args.host, port=args.port, workers=1

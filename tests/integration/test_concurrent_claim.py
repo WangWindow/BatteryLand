@@ -4,8 +4,8 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
-from batteryland.domain.validation_receipt import issue_receipt
-from batteryland.interfaces.api.app import create_app
+from batteryland.api.app import create_app
+from batteryland.experiments.receipt import issue_receipt
 
 CONFIG = "mate:\n  device: cuda:0\n"
 SPLIT = '{"dataset":"demo","train":["a"],"val":["b"],"test":["c"]}'

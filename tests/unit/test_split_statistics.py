@@ -3,13 +3,13 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 
-from batteryland.application.resources import ResourceService
-from batteryland.application.splits import SplitService
-from batteryland.infrastructure.documents import SQLiteDocumentStore
-from batteryland.infrastructure.files import LocalSourceFiles
-from batteryland.infrastructure.persistence.database import Database
-from batteryland.infrastructure.persistence.splits import SqlSplitRepository
-from batteryland.interfaces.api.splits import Split
+from batteryland.common.storage import LocalSourceFiles
+from batteryland.datasets.service import ResourceService
+from batteryland.datasets.split_repository import SqlSplitRepository
+from batteryland.datasets.split_routes import Split
+from batteryland.datasets.splits import SplitService
+from batteryland.db.database import Database
+from batteryland.documents.store import SQLiteDocumentStore
 
 
 def setup_split(tmp_path: Path):

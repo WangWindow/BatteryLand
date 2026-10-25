@@ -3,7 +3,7 @@ from dataclasses import replace
 
 from fastapi.testclient import TestClient
 
-from batteryland.interfaces.api.app import create_app
+from batteryland.api.app import create_app
 
 
 def test_api_and_static_components_work_when_training_environment_is_missing(settings, tmp_path):

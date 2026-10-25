@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from batteryland.api.app import create_app
 from batteryland.config import Settings
-from batteryland.infrastructure.training.runs import StartCommand
-from batteryland.interfaces.api.app import create_app
-from batteryland.scheduler.local import LocalScheduler
+from batteryland.scheduler.service import LocalScheduler
+from batteryland.training.runs import StartCommand
 
 ROOT = Path(__file__).resolve().parents[2]
 PROVIDER = ROOT / "src/deeplatform"

@@ -14,9 +14,9 @@ from typing import Any
 
 import uvicorn
 
+from batteryland.api.app import create_app
 from batteryland.config import Settings
-from batteryland.infrastructure.scheduling import ProcessSupervisor
-from batteryland.interfaces.api.app import create_app
+from batteryland.scheduler.processes import ProcessSupervisor
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = Path(os.environ.get("E2E_DATA_DIR", ROOT / "var" / "e2e-workbench")).resolve()

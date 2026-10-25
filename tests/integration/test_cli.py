@@ -3,8 +3,8 @@ import os
 import subprocess
 import sys
 
-from batteryland.bootstrap import Container
 from batteryland.config import Settings
+from batteryland.container import Container
 
 
 def command(settings, *arguments):

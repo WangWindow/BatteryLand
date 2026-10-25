@@ -3,7 +3,7 @@ from dataclasses import replace
 
 from fastapi.testclient import TestClient
 
-from batteryland.interfaces.api.app import create_app
+from batteryland.api.app import create_app
 
 
 def test_configured_fixed_files_are_indexed_without_manual_import(settings):

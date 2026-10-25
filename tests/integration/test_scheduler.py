@@ -5,8 +5,8 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from batteryland.api.app import create_app
 from batteryland.config import Settings
-from batteryland.interfaces.api.app import create_app
 
 
 class ControlledTraining:
@@ -39,7 +39,7 @@ class ControlledTraining:
         }
 
     def spawn(self, prepared):
-        from batteryland.infrastructure.scheduling import ProcessSupervisor
+        from batteryland.scheduler.processes import ProcessSupervisor
 
         runner = getattr(self, "runner", None) or ProcessSupervisor()
         self.runner = runner

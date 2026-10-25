@@ -76,8 +76,8 @@ def test_safe_import_rejects_duplicate_fields_and_external_tags(client: TestClie
 
 
 def test_failed_sql_publication_preserves_previous_template(client: TestClient, monkeypatch):
-    from batteryland.domain.errors import DomainError
-    from batteryland.infrastructure.persistence.configurations import SqlTemplateRepository
+    from batteryland.common.errors import DomainError
+    from batteryland.experiments.template_repository import SqlTemplateRepository
 
     template = client.post(
         "/api/v1/templates", json={"name": "atomic", "native_config": native()}
