@@ -5,7 +5,9 @@ from batteryland.interfaces.api.app import create_app
 
 
 def test_generated_openapi_matches_reviewed_contract(settings):
-    expected = json.loads(Path("specs/004-integrated-workbench/contracts/openapi.json").read_text())
+    expected = json.loads(
+        Path("specs/012-backend-service-protocol/contracts/core-openapi.json").read_text()
+    )
     actual = create_app(settings).openapi()
     assert actual == expected, "Export the reviewed runtime OpenAPI after reconciling DTO changes"
 
@@ -18,7 +20,17 @@ def test_all_operations_declare_typed_success_and_uniform_errors(settings):
         for method, operation in path.items()
         if method in {"get", "post", "put", "patch", "delete"}
     ]
-    assert len(operations) == 52
+    assert len(operations) >= 60
+    for path in (
+        "/api/v1/training/validation",
+        "/api/v1/validated-experiments",
+        "/api/v1/validated-experiments/{experiment_id}/members",
+        "/api/v1/catalog/named-groups",
+        "/api/v1/scheduler/resources",
+        "/api/v1/worker/claims",
+        "/api/v1/worker/experiments/{experiment_id}/result",
+    ):
+        assert path in schema["paths"]
     for operation in operations:
         assert operation["responses"]["422"]["content"]["application/json"]["schema"][
             "$ref"
