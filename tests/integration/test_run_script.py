@@ -12,7 +12,10 @@ SCRIPT = Path(__file__).resolve().parents[2] / "scripts/run.sh"
 SERVICE = """#!/usr/bin/env python3
 import json, os, subprocess, sys, time
 from pathlib import Path
-role = Path(sys.argv[0]).name
+module = sys.argv[sys.argv.index('-m') + 1] if '-m' in sys.argv else ''
+role = {
+    'batteryland.main': 'backend',
+}.get(module, Path(sys.argv[0]).name)
 child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
 Path(os.environ['LAUNCHER_RECORDS'], role + '.json').write_text(json.dumps({
     'pid': os.getpid(), 'child': child.pid, 'cwd': os.getcwd(), 'args': sys.argv[1:],
@@ -108,8 +111,8 @@ def test_launcher_uses_project_paths_and_cleans_service_groups_on_interrupt(
         deadline = time.monotonic() + 3
         while len(records(project)) < 2 and time.monotonic() < deadline:
             time.sleep(0.02)
-        assert len(records(project)) == 2, "Both backend and frontend must start"
-        backend = json.loads((project / "records/python.json").read_text())
+        assert len(records(project)) == 2, "The backend and UI must start"
+        backend = json.loads((project / "records/backend.json").read_text())
         frontend = json.loads((project / "records/bun.json").read_text())
         assert backend["cwd"] == str(project)
         assert frontend["cwd"] == str(project / "src/batteryland_ui")
@@ -130,7 +133,7 @@ def test_launcher_uses_project_paths_and_cleans_service_groups_on_interrupt(
         )
 
 
-@pytest.mark.parametrize("role", ["python", "bun"])
+@pytest.mark.parametrize("role", ["backend", "bun"])
 def test_a_service_failure_is_propagated_and_stops_the_other(project, tmp_path, role):
     with launch(project, tmp_path, {"FAIL_ROLE": role}) as process:
         output, _ = process.communicate(timeout=4)
