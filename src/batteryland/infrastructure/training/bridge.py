@@ -85,11 +85,6 @@ def dispatch(request: dict[str, Any]) -> Any:
                     "bridge_error": "integration_precondition_failed",
                     "message": "Requested CUDA device is unavailable",
                 }
-            if torch.cuda.current_device() != index:
-                return {
-                    "bridge_error": "integration_precondition_failed",
-                    "message": "Provider does not yet guarantee this explicit CUDA index",
-                }
         return {
             "valid": True,
             "errors": [],

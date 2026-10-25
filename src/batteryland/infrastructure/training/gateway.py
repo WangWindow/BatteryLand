@@ -183,6 +183,10 @@ class DeeplatformGateway:
             self._component_snapshot = None
             return result
 
+    def validate_structure(self, config: Record) -> Record:
+        """Ask the provider to check a complete user configuration."""
+        return cast(Record, self._control("validate", {"config": config}))
+
     def _preflight(self, config: Record, resources: Record) -> None:
         mate = config.get("mate")
         device = mate.get("device") if isinstance(mate, dict) else None

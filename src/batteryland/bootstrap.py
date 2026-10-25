@@ -1,5 +1,7 @@
 """Compose concrete infrastructure at the outside edge of the application."""
 
+from dataclasses import replace
+
 from batteryland.application.analysis import AnalysisService
 from batteryland.application.artifacts import ArtifactService
 from batteryland.application.configurations import ConfigurationService
@@ -21,6 +23,7 @@ from batteryland.infrastructure.results import LocalResultFiles
 from batteryland.infrastructure.scheduling import RuntimeLease
 from batteryland.infrastructure.training.gateway import DeeplatformGateway
 from batteryland.infrastructure.training.materializer import ExecutionMaterializer
+from batteryland.infrastructure.training.runs import TrainingRunService
 
 
 class Container:
@@ -48,6 +51,10 @@ class Container:
         self.splits = SplitService(self.database.unit_of_work, self.documents)
         self.named_groups = NamedGroupService(self.database.unit_of_work)
         self.provider = DeeplatformGateway(settings)
+        training_settings = replace(settings, data_dir=settings.data_dir / "training")
+        self.training_runs = TrainingRunService(
+            training_settings, DeeplatformGateway(training_settings)
+        )
         self.training = training if training is not None else self.provider
         self.configurations = ConfigurationService(self.database.unit_of_work, self.documents)
         self.experiments = ExperimentService(
