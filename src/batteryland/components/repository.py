@@ -96,13 +96,16 @@ class SqlArtifactRepository:
                     descriptor=value.get("schema") or {},
                 )
                 self.session.add(row)
-            elif row.source_hash != value.get("source_hash"):
-                raise DomainError(
-                    "integration_precondition_failed",
-                    "Previously registered component content changed",
-                )
-            elif value.get("schema"):
-                row.descriptor = value["schema"]
+            else:
+                # The catalog tracks current source; saved experiment snapshots retain their hashes.
+                content_changed = row.source_hash != value.get("source_hash")
+                row.source_hash = value.get("source_hash")
+                row.origin = value["origin"]
+                row.resource_ref = f"{value['origin']}:{value['path']}"
+                if content_changed:
+                    row.descriptor = value.get("schema") or {}
+                elif value.get("schema"):
+                    row.descriptor = value["schema"]
             self.session.flush()
             result.append(self._component(row))
         return result
