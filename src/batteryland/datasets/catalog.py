@@ -60,16 +60,28 @@ class FixedCatalogIndexer:
             self._named_groups(indexed_sources)
 
     def _named_groups(self, source_ids: list[str]) -> None:
-        by_name: dict[str, list[str]] = defaultdict(list)
+        candidates_by_name: dict[str, list[Record]] = defaultdict(list)
         for source_id in source_ids:
             page = 1
             while True:
                 batch = self.resources.list_batteries({"source_id": source_id}, page, 200)
                 for battery in batch["items"]:
-                    by_name[battery["file_name"]].append(battery["id"])
+                    candidates_by_name[battery["file_name"]].append(battery)
                 if page * 200 >= batch["total"]:
                     break
                 page += 1
+        by_name = {
+            name: min(
+                candidates,
+                key=lambda item: (
+                    item["relative_key"].casefold(),
+                    item["relative_key"],
+                    item["source_id"],
+                    item["id"],
+                ),
+            )
+            for name, candidates in candidates_by_name.items()
+        }
 
         folder = self.settings.provider_root / "datasets/batteryLife/data_split"
         for path in sorted(folder.glob("*.json")):
@@ -86,23 +98,17 @@ class FixedCatalogIndexer:
                     raise DomainError("invalid_input", "Provider split members must be file names")
                 counts[partition] = len(names)
                 for ordinal, file_name in enumerate(names):
-                    candidates = by_name.get(file_name, [])
-                    status = (
-                        "matched"
-                        if len(candidates) == 1
-                        else "missing"
-                        if not candidates
-                        else "ambiguous"
-                    )
+                    candidate = by_name.get(file_name)
+                    status = "matched" if candidate is not None else "missing"
                     counts[status] += 1
                     members.append(
                         {
                             "partition": partition,
                             "ordinal": ordinal,
                             "file_name": file_name,
-                            "battery_id": candidates[0] if len(candidates) == 1 else None,
+                            "battery_id": candidate["id"] if candidate is not None else None,
                             "match_status": status,
-                            "candidate_count": len(candidates),
+                            "candidate_count": 1 if candidate is not None else 0,
                         }
                     )
             with self.units() as unit:

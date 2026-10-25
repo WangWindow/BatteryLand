@@ -20,7 +20,7 @@ def test_static_preview_uses_real_provider_without_training_imports(settings: Se
     assert "torch" not in sys.modules
 
 
-def test_upload_checks_both_roots_and_does_not_execute_source(settings: Settings) -> None:
+def test_upload_checks_seeded_defaults_and_does_not_execute_source(settings: Settings) -> None:
     gateway = DeeplatformGateway(settings)
     conflict = b"from core.register.registryhub import R\n@R.model.register('CPMLP')\nclass Duplicate: pass\n"
     with pytest.raises(DomainError) as duplicate:
@@ -33,31 +33,40 @@ def test_upload_checks_both_roots_and_does_not_execute_source(settings: Settings
     assert not (settings.provider_root / "components/uploaded/model/custom.py").exists()
 
 
-def test_custom_split_is_rejected_before_provider_execution(settings: Settings) -> None:
+def test_custom_split_is_accepted_when_files_resolve(settings: Settings) -> None:
     gateway = DeeplatformGateway(settings)
+    for name in ("a.pkl", "b.pkl", "c.pkl"):
+        (settings.source_roots["demo"] / name).write_bytes(name.encode())
     config = {
         "mate": {"seed": 42, "device": "cpu", "experiment": "demo"},
         "task": {"type": "BatteryLifeRun"},
-        "datafactory": {"type": "BatteryLifeDatasetFactory", "params": {"dataset": "custom"}},
+        "datafactory": {
+            "type": "BatteryLandBatteryLifeDatasetFactory",
+            "params": {"dataset": "custom"},
+        },
     }
-    with pytest.raises(DomainError) as error:
-        gateway.validate(
-            config,
-            {
-                "kind": "train",
-                "splits": {
-                    "split": {
-                        "provider_split": {
-                            "dataset": "custom",
-                            "train": ["a.pkl"],
-                            "val": [],
-                            "test": [],
-                        }
-                    }
-                },
+    split = {"dataset": "custom", "train": ["a.pkl"], "val": ["b.pkl"], "test": ["c.pkl"]}
+    resolved = gateway.file_resolver.resolve(["a.pkl", "b.pkl", "c.pkl"])
+    gateway._control = lambda operation, arguments: {
+        "valid": True,
+        "components": [],
+    }
+
+    result = gateway.validate(
+        config,
+        {
+            "kind": "train",
+            "splits": {
+                "split": {
+                    "provider_split": split,
+                    **resolved,
+                }
             },
-        )
-    assert error.value.symbol == "integration_precondition_failed"
+        },
+    )
+
+    assert result["valid"] is True
+    assert result["provider_commit"]
 
 
 def test_real_provider_parameter_description_does_not_construct_components(settings: Settings):

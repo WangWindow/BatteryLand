@@ -40,11 +40,13 @@ def test_same_filename_in_two_original_groups_keeps_two_battery_identities(setti
         assert len({item["id"] for item in rows}) == 2
 
 
-def test_named_split_shortcut_reports_ambiguous_members_without_dropping_files(settings, tmp_path):
+def test_named_split_shortcut_deduplicates_same_name_members(settings, tmp_path):
     root = tmp_path / "BatteryLife_Processed"
     for group, filename in (("CALCE", "unique.pkl"), ("one", "same.pkl"), ("two", "same.pkl")):
         (root / group).mkdir(parents=True)
-        (root / group / filename).write_bytes(group.encode())
+        (root / group / filename).write_bytes(
+            b"same bytes" if filename == "same.pkl" else b"unique"
+        )
     provider = tmp_path / "provider"
     folder = provider / "datasets/batteryLife/data_split"
     folder.mkdir(parents=True)
@@ -63,16 +65,20 @@ def test_named_split_shortcut_reports_ambiguous_members_without_dropping_files(s
             "train": 1,
             "val": 1,
             "test": 0,
-            "matched": 1,
+            "matched": 2,
             "missing": 0,
-            "ambiguous": 1,
+            "ambiguous": 0,
         }
         ambiguous = client.get(
             "/api/v1/catalog/named-groups/demo/members", params={"partition": "train"}
         ).json()["data"]["items"][0]
-        assert ambiguous["match_status"] == "ambiguous"
-        assert ambiguous["candidate_count"] == 2
-        assert ambiguous["battery_id"] is None
+        assert ambiguous["match_status"] == "matched"
+        assert ambiguous["candidate_count"] == 1
+        batteries = client.get("/api/v1/batteries", params={"q": "same.pkl"}).json()["data"][
+            "items"
+        ]
+        canonical = next(item for item in batteries if item["relative_key"] == "one/same.pkl")
+        assert ambiguous["battery_id"] == canonical["id"]
         assert (
             client.get("/api/v1/catalog/named-groups/demo").json()["data"]["document"] == document
         )

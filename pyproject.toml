@@ -75,6 +75,7 @@ ignore = ["E501"]
 
 [tool.ty.environment]
 python-version = "3.14"
+extra-paths = ["./src/deeplatform"]
 
 [tool.ty.src]
 include = ["src/batteryland"]

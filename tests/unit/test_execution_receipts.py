@@ -41,3 +41,22 @@ def test_recovery_binds_receipts_to_intent_and_manifest(tmp_path: Path, mismatch
         json.loads(Path(materialized["manifest_path"]).read_text())["intent_id"]
         == "original-intent"
     )
+
+
+def test_materialized_split_is_per_experiment_and_read_only(tmp_path: Path):
+    files = ExecutionMaterializer(tmp_path)
+    split = {"dataset": "custom", "train": ["a.pkl"], "val": ["b.pkl"], "test": ["c.pkl"]}
+    snapshot = {
+        "native_config": {"mate": {"device": "cuda:0"}},
+        "resources": {
+            "splits": {"split": {"provider_split": split, "ref": {"id": "split", "version": 1}}}
+        },
+        "provider_commit": "test",
+    }
+
+    materialized = files.materialize("experiment", "intent", snapshot)
+    path = Path(materialized["splits"]["split"]["path"])
+
+    assert json.loads(path.read_text()) == split
+    assert path.stat().st_mode & 0o222 == 0
+    assert path.parent.name == "experiment"

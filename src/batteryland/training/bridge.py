@@ -25,19 +25,13 @@ def runtime_identity() -> dict[str, str]:
 
 def definitions(provider: Path, runtime: Path) -> list[dict[str, Any]]:
     module = importlib.import_module("tools.component_upload")
-    found: dict[tuple[str, str], dict[str, Any]] = {}
-    for root, origin in [(provider, "builtin"), (runtime, "uploaded")]:
-        for value in module.ComponentStore(project_root=root).list_components():
-            key = (value["scope"], value["type"])
-            if key in found:
-                raise ValueError(
-                    "Component registration conflicts across provider and upload roots"
-                )
-            value = dict(value)
-            value["origin"] = origin
-            value["source_hash"] = hashlib.sha256((root / value["path"]).read_bytes()).hexdigest()
-            found[key] = value
-    return sorted(found.values(), key=lambda value: (value["scope"], value["type"]))
+    found = []
+    for value in module.ComponentStore(project_root=runtime).list_components():
+        value = dict(value)
+        value["origin"] = "uploaded" if "uploaded" in Path(value["path"]).parts else "builtin"
+        value["source_hash"] = hashlib.sha256((runtime / value["path"]).read_bytes()).hexdigest()
+        found.append(value)
+    return sorted(found, key=lambda value: (value["scope"], value["type"]))
 
 
 def dispatch(request: dict[str, Any]) -> Any:

@@ -48,6 +48,7 @@ class ExecutionMaterializer:
                 path,
                 json.dumps(binding["provider_split"], ensure_ascii=False, allow_nan=False).encode(),
             )
+            path.chmod(0o444)
             splits[name] = {"path": str(path), "sha256": digest, "ref": binding["ref"]}
         config_path = directory / "config.yaml"
         checksum = publish_file(

@@ -1,6 +1,7 @@
 """Validated input workflow owned by the data service."""
 
 import re
+from pathlib import PurePosixPath
 from uuid import uuid4
 
 from batteryland.common.errors import DomainError
@@ -21,13 +22,22 @@ def parse_inputs(config_text: str, split_text: str) -> tuple[Record, Record]:
     device = mate.get("device") if isinstance(mate, dict) else None
     if not isinstance(device, str) or re.fullmatch(r"auto|cuda:\d+", device) is None:
         raise DomainError("unsupported_device", "Only auto or explicit cuda:N is supported")
-    if not isinstance(split.get("dataset"), str) or not split["dataset"]:
+    if set(split) != {"dataset", "train", "val", "test"}:
+        raise DomainError("invalid_input", "Split must contain only dataset, train, val and test")
+    if not isinstance(split.get("dataset"), str) or not split["dataset"].strip():
         raise DomainError("invalid_input", "Split requires dataset, train, val and test")
     groups: list[list[str]] = []
     for name in ("train", "val", "test"):
         value = split.get(name)
         if not isinstance(value, list) or any(
-            not isinstance(item, str) or not item for item in value
+            not isinstance(item, str)
+            or not item.strip()
+            or item != item.strip()
+            or "\x00" in item
+            or "\\" in item
+            or PurePosixPath(item).name != item
+            or item in {".", ".."}
+            for item in value
         ):
             raise DomainError("invalid_input", "Split requires dataset, train, val and test")
         groups.append(value)

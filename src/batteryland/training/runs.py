@@ -16,6 +16,12 @@ from batteryland.experiments.validated import parse_inputs
 from batteryland.results.storage import LocalResultFiles
 from batteryland.training.gateway import DeeplatformGateway
 from batteryland.training.materializer import ExecutionMaterializer, publish_file
+from batteryland.training.resources import BatteryFileResolver
+from batteryland.training.split_support import (
+    CUSTOM_BATTERY_FACTORY,
+    battery_factory,
+    execution_support,
+)
 
 
 @dataclass(frozen=True)
@@ -28,20 +34,13 @@ class StartCommand:
     receipt: dict[str, Any]
 
 
-def _builtin_split(provider_root: Path, split: dict[str, Any]) -> bool:
-    folder = provider_root / "datasets/batteryLife/data_split"
-    try:
-        return any(json.loads(path.read_text()) == split for path in folder.glob("*.json"))
-    except (OSError, ValueError) as exc:
-        raise DomainError("provider_unavailable", "Provider split catalog cannot be read") from exc
-
-
 class TrainingRunService:
     def __init__(self, settings: Settings, gateway: DeeplatformGateway) -> None:
         self.settings = settings
         self.gateway = gateway
         self.materializer = ExecutionMaterializer(settings.data_dir)
         self.files = LocalResultFiles(settings.data_dir)
+        self.file_resolver = BatteryFileResolver(settings.source_roots)
 
     def validate(self, config_text: str, split_text: str) -> dict[str, Any]:
         config, split = parse_inputs(config_text, split_text)
@@ -55,17 +54,12 @@ class TrainingRunService:
             for item in components
             if isinstance(item, dict) and item.get("source_hash")
         ]
-        builtin = _builtin_split(self.settings.provider_root, split)
-        limitations: list[str] = []
-        supported = builtin
-        if builtin:
-            try:
-                self._resources(split)
-            except DomainError:
-                supported = False
-                limitations.append("source_files_missing_or_ambiguous")
-        else:
-            limitations.append("custom_split_unavailable")
+        supported, limitations = execution_support(config, split, self.gateway.runtime)
+        try:
+            self._resources(split)
+        except DomainError:
+            supported = False
+            limitations = [*limitations, "source_files_missing_or_ambiguous"]
         if not self.settings.validation_secret:
             raise DomainError("provider_unavailable", "Validation signing is not configured")
         receipt = issue_receipt(
@@ -86,36 +80,16 @@ class TrainingRunService:
         }
 
     def _resources(self, split: dict[str, Any]) -> dict[str, Any]:
-        root = Path("/data/BatteryLife_Processed")
-        wanted = {name for group in ("train", "val", "test") for name in split[group]}
-        paths = {name: [] for name in wanted}
-        for path in root.rglob("*.pkl"):
-            if path.name in paths:
-                paths[path.name].append(path)
-        if any(len(candidates) != 1 for candidates in paths.values()):
-            raise DomainError(
-                "integration_precondition_failed", "Selected battery files are missing or ambiguous"
-            )
-        alias = next(
-            (key for key, value in self.settings.source_roots.items() if value.resolve() == root),
-            None,
+        resolved = self.file_resolver.resolve(
+            [name for group in ("train", "val", "test") for name in split[group]]
         )
-        if alias is None:
-            raise DomainError(
-                "integration_precondition_failed", "Provider data root is not configured"
-            )
-        batteries = [
-            {"file_name": name, "relative_key": str(candidates[0].relative_to(root))}
-            for name, candidates in paths.items()
-        ]
         return {
             "kind": "train",
             "splits": {
                 "split": {
                     "ref": {"id": "provider", "version": 1},
                     "provider_split": split,
-                    "source": {"root_alias": alias},
-                    "batteries": batteries,
+                    **resolved,
                 }
             },
         }
@@ -131,6 +105,12 @@ class TrainingRunService:
         if not claims["execution_supported"]:
             raise DomainError("unsupported_capability", "Provider cannot execute this split")
         config, split = parse_inputs(body.config_text, body.split_text)
+        current_components = self.gateway.components()
+        supported, _ = execution_support(config, split, self.gateway.runtime)
+        if not supported:
+            raise DomainError(
+                "unsupported_capability", "Training components cannot execute this split"
+            )
         requested = config["mate"]["device"]
         device = body.resolved_device
         if not device.startswith("cuda:") or not device[5:].isdigit():
@@ -164,9 +144,6 @@ class TrainingRunService:
                 raise DomainError(
                     "integration_precondition_failed", "Provider revision has changed"
                 )
-            if not _builtin_split(self.settings.provider_root, split):
-                raise DomainError("unsupported_capability", "Provider split has changed")
-            current_components = self.gateway.components()
             versions = sorted(
                 f"{item['scope']}:{item['type']}:{item['source_hash']}"
                 for item in current_components
@@ -178,6 +155,14 @@ class TrainingRunService:
                 )
             derived = deepcopy(config)
             derived["mate"]["device"] = device
+            factory = battery_factory(derived)
+            if (
+                factory is not None
+                and str(factory.get("type", "")).casefold() == CUSTOM_BATTERY_FACTORY
+            ):
+                factory.setdefault("params", {})["split_file"] = str(
+                    (directory / "split.json").resolve()
+                )
             execution_check = self.gateway.validate_structure(derived)
             if not execution_check.get("valid"):
                 raise DomainError(

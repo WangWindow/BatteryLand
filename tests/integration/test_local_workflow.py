@@ -12,7 +12,15 @@ from batteryland.experiments.receipt import issue_receipt
 from batteryland.scheduler.service import LocalScheduler
 
 COMMIT = "6b4c76d6e639ddaf9db9c15bf04771179a68d988"
-CONFIG = "mate:\n  device: auto\n"
+CONFIG = """mate:
+  seed: 7
+  device: auto
+  experiment: demo
+datafactory:
+  type: BatteryLandBatteryLifeDatasetFactory
+  params:
+    dataset: demo
+"""
 SPLIT = '{"dataset":"demo","train":["a.pkl"],"val":["b.pkl"],"test":["c.pkl"]}'
 
 
@@ -116,6 +124,8 @@ class TrainingStub:
 @pytest.mark.parametrize("case", range(3))
 def test_one_backend_port_validates_and_runs_once_with_local_coordinator(settings, tmp_path, case):
     configured = replace(settings, validation_secret="local-secret", auto_index_catalog=False)
+    for name in ("a.pkl", "b.pkl", "c.pkl"):
+        (configured.source_roots["demo"] / name).write_bytes(name.encode())
     with TestClient(create_app(configured)) as client:
         container = client.app.state.container
         container.training_runs.gateway.identity = lambda: COMMIT

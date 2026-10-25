@@ -16,12 +16,20 @@ from typing import cast
 import yaml
 
 from batteryland.common.errors import DomainError
-from batteryland.common.storage import contained_path
 from batteryland.config import Settings
 from batteryland.db.contracts import Record
 from batteryland.scheduler.processes import ProcessSupervisor
 from batteryland.training.materializer import publish_file
+from batteryland.training.plugin_runtime import initialize_runtime
+from batteryland.training.resources import BatteryFileResolver
 from batteryland.training.runtime import TrainingRuntime
+from batteryland.training.split_support import (
+    BUILTIN_BATTERY_FACTORY,
+    CUSTOM_BATTERY_FACTORY,
+    battery_factory,
+    configured_dataset,
+    is_builtin_split,
+)
 
 PROVIDER_COMMIT = "6b4c76d6e639ddaf9db9c15bf04771179a68d988"
 
@@ -34,6 +42,9 @@ class DeeplatformGateway:
         self.worker = TrainingRuntime(settings.training_python)
         self._component_lock = threading.Lock()
         self._component_snapshot: tuple[str, list[Record]] | None = None
+        self._runtime_lock = threading.Lock()
+        self._runtime_initialized = False
+        self.file_resolver = BatteryFileResolver(settings.source_roots)
 
     def identity(self) -> str:
         try:
@@ -70,9 +81,19 @@ class DeeplatformGateway:
             "WANDB_DIR": str(self.settings.data_dir / "cache/wandb"),
         }
 
+    def _ensure_runtime(self) -> None:
+        if self._runtime_initialized:
+            return
+        with self._runtime_lock:
+            if self._runtime_initialized:
+                return
+            self.identity()
+            initialize_runtime(self.settings.provider_root, self.runtime, PROVIDER_COMMIT)
+            self._runtime_initialized = True
+
     def _control(self, operation: str, arguments: Record) -> object:
+        self._ensure_runtime()
         self.identity()
-        self.runtime.mkdir(parents=True, exist_ok=True)
         static = operation in {"inspect", "upload"}
         expected_runtime = (
             {
@@ -139,15 +160,15 @@ class DeeplatformGateway:
 
     def components(self, scope: str | None = None) -> list[Record]:
         with self._component_lock:
+            self._ensure_runtime()
             self.identity()
             digest = hashlib.sha256()
             try:
-                for root in (self.settings.provider_root, self.runtime):
-                    digest.update(os.fsencode(root) + b"\0")
-                    for folder in ("components", "task"):
-                        for path in sorted((root / folder).rglob("*.py")):
-                            digest.update(os.fsencode(path.relative_to(root)) + b"\0")
-                            digest.update(hashlib.sha256(path.read_bytes()).digest())
+                digest.update(os.fsencode(self.runtime) + b"\0")
+                for folder in ("components", "task"):
+                    for path in sorted((self.runtime / folder).rglob("*.py")):
+                        digest.update(os.fsencode(path.relative_to(self.runtime)) + b"\0")
+                        digest.update(hashlib.sha256(path.read_bytes()).digest())
             except OSError as exc:
                 raise DomainError(
                     "provider_unavailable", "Component sources cannot be read"
@@ -187,7 +208,14 @@ class DeeplatformGateway:
         """Ask the provider to check a complete user configuration."""
         return cast(Record, self._control("validate", {"config": config}))
 
-    def _preflight(self, config: Record, resources: Record) -> None:
+    def _preflight(
+        self,
+        config: Record,
+        resources: Record,
+        *,
+        expected_split_path: Path | None = None,
+        expected_experiment_id: str | None = None,
+    ) -> None:
         mate = config.get("mate")
         device = mate.get("device") if isinstance(mate, dict) else None
         if not isinstance(device, str) or not re.fullmatch(r"cpu|cuda:\d+", device):
@@ -197,100 +225,122 @@ class DeeplatformGateway:
                 "unsupported_capability",
                 "Dedicated evaluation and transfer tasks are not yet declared by this provider",
             )
-        factories = config.get("datafactory", [])
-        if isinstance(factories, dict):
-            factories = [factories]
-        if not isinstance(factories, list):
-            raise DomainError("invalid_input", "Data factories must be an object or list")
-        for factory in factories:
-            if (
-                not isinstance(factory, dict)
-                or str(factory.get("type", "")).lower() != "batterylifedatasetfactory"
-            ):
-                continue
-            selected = resources.get("splits", {}).get("split")
+        factory = battery_factory(config)
+        selected = resources.get("splits", {}).get("split")
+        if factory is None:
             if not selected:
+                return
+            reference = selected.get("provider_split")
+            if not isinstance(reference, dict) or not is_builtin_split(self.runtime, reference):
                 raise DomainError(
-                    "integration_precondition_failed",
-                    "Register and bind a dataset split before execution",
+                    "unsupported_capability",
+                    "Custom BatteryLife splits require BatteryLandBatteryLifeDatasetFactory",
                 )
-            parameters = factory.get("params", {})
-            if not isinstance(parameters, dict):
-                raise DomainError("invalid_input", "Factory params must be an object")
-            name = parameters.get("dataset")
-            if isinstance(name, str) and name.startswith("@"):
-                name = config.get("mate", {}).get(name[1:])
-            reference = selected["provider_split"]
-            existing = None
-            for path in (self.settings.provider_root / "datasets/batteryLife/data_split").glob(
-                "*.json"
-            ):
-                value = json.loads(path.read_text())
-                if value["dataset"] == name:
-                    existing = value
-            if existing != reference:
-                raise DomainError(
-                    "integration_precondition_failed",
-                    "Provider does not yet support this custom split directory or content",
+            return
+        if not selected:
+            raise DomainError(
+                "integration_precondition_failed",
+                "Register and bind a dataset split before execution",
+            )
+        reference = selected.get("provider_split")
+        if not isinstance(reference, dict):
+            raise DomainError("invalid_input", "Split resource has no provider split")
+
+        builtin = is_builtin_split(self.runtime, reference)
+        parameters = factory.get("params", {})
+        if not isinstance(parameters, dict):
+            raise DomainError("invalid_input", "Factory params must be an object")
+        if configured_dataset(config, factory) != reference.get("dataset"):
+            raise DomainError("invalid_input", "Config dataset must match the split dataset")
+        factory_type = str(factory.get("type", "")).casefold()
+        if factory_type == BUILTIN_BATTERY_FACTORY and not builtin:
+            raise DomainError(
+                "unsupported_capability",
+                "Custom splits require BatteryLandBatteryLifeDatasetFactory",
+            )
+        if factory_type == CUSTOM_BATTERY_FACTORY:
+            split_file = parameters.get("split_file")
+            if expected_split_path is None:
+                if split_file is not None:
+                    raise DomainError(
+                        "invalid_input", "split_file is managed by the training service"
+                    )
+            else:
+                expected = expected_split_path
+                managed_root = self.settings.data_dir.resolve() / "inputs"
+                managed_experiment = (
+                    managed_root / expected_experiment_id if expected_experiment_id else None
                 )
-            if any(not reference[group] for group in ("train", "val", "test")):
-                raise DomainError(
-                    "invalid_input",
-                    "BatteryLifeRun requires nonempty training, validation and test groups",
-                )
-            source = Path("/data/BatteryLife_Processed")
-            if not source.is_dir():
-                raise DomainError(
-                    "integration_precondition_failed",
-                    "Provider's fixed raw-data source is not available",
-                )
-            wanted = {member for group in ("train", "val", "test") for member in reference[group]}
-            candidates: dict[str, list[Path]] = {}
-            for folder in source.iterdir():
-                if folder.is_dir() and folder.name not in {
-                    "Life labels",
-                    "__pycache__",
-                    "life_bank_cache",
-                    "seen_unseen_labels",
-                    "READMEs",
-                }:
-                    for item in folder.iterdir():
-                        if item.name in wanted and item.is_file():
-                            candidates.setdefault(item.name, []).append(item)
-            if any(
-                len(candidates.get(name, [])) != 1 or not os.access(candidates[name][0], os.R_OK)
-                for name in wanted
-            ):
-                raise DomainError(
-                    "integration_precondition_failed",
-                    "Requested raw files are missing, unreadable or ambiguous",
-                )
-            alias = selected.get("source", {}).get("root_alias")
-            root = self.settings.source_roots.get(alias)
-            batteries = {row["file_name"]: row for row in selected.get("batteries", [])}
-            if root is None or any(
-                name not in batteries
-                or contained_path(root, batteries[name]["relative_key"])
-                != candidates[name][0].resolve()
-                for name in wanted
-            ):
-                raise DomainError(
-                    "integration_precondition_failed",
-                    "Registered resource references do not match the provider's fixed raw-data source",
-                )
+                if (
+                    split_file != str(expected)
+                    or expected.is_symlink()
+                    or managed_experiment is None
+                    or expected != managed_experiment / "split.json"
+                    or not expected.resolve().is_relative_to(managed_experiment)
+                ):
+                    raise DomainError(
+                        "integration_precondition_failed",
+                        "Execution config does not reference its managed split file",
+                    )
+                try:
+                    readable = (
+                        expected.is_file()
+                        and not (expected.stat().st_mode & 0o222)
+                        and json.loads(expected.read_text(encoding="utf-8")) == reference
+                    )
+                except OSError, ValueError:
+                    readable = False
+                if not readable:
+                    raise DomainError(
+                        "integration_precondition_failed",
+                        "Managed split file is missing, writable or differs from the validated split",
+                    )
+        if any(not reference.get(group) for group in ("train", "val", "test")):
+            raise DomainError(
+                "invalid_input",
+                "BatteryLife training requires nonempty train, val and test groups",
+            )
+
+        wanted = [member for group in ("train", "val", "test") for member in reference[group]]
+        expected_resources = self.file_resolver.resolve(wanted)
+        if (
+            selected.get("source") != expected_resources["source"]
+            or selected.get("batteries") != expected_resources["batteries"]
+        ):
+            raise DomainError(
+                "integration_precondition_failed",
+                "Registered resource references do not match the configured data source",
+            )
 
     def validate(self, config: Record, resources: Record) -> Record:
+        self._ensure_runtime()
         self._preflight(config, resources)
         result = cast(Record, self._control("validate", {"config": config}))
         return result | {"provider_commit": PROVIDER_COMMIT}
 
     def prepare(self, materialized: Record) -> Record:
+        self._ensure_runtime()
         snapshot = materialized["snapshot"]
         if self.identity() != snapshot["provider_commit"]:
             raise DomainError(
                 "integration_precondition_failed", "Provider changed after submission"
             )
-        self._preflight(snapshot["native_config"], snapshot["resources"])
+        split_info = materialized.get("splits", {}).get("split")
+        selected_factory = battery_factory(snapshot["native_config"])
+        local_adapter = (
+            selected_factory is not None
+            and str(selected_factory.get("type", "")).casefold() == CUSTOM_BATTERY_FACTORY
+        )
+        if local_adapter and not split_info:
+            raise DomainError(
+                "integration_precondition_failed", "BatteryLand training split was not materialized"
+            )
+        self._preflight(
+            snapshot["native_config"],
+            snapshot["resources"],
+            expected_split_path=Path(split_info["path"]) if local_adapter else None,
+            expected_experiment_id=materialized["experiment_id"] if local_adapter else None,
+        )
         current = {(item["scope"], item["type"]): item["source_hash"] for item in self.components()}
         for item in snapshot["components"]:
             if current.get((item["scope"], item["type"])) != item["source_hash"]:
@@ -302,19 +352,17 @@ class DeeplatformGateway:
         config["mate"]["experiment_root"] = str(self.settings.data_dir.resolve() / "runs")
         factories = config.get("datafactory", [])
         for factory in factories if isinstance(factories, list) else [factories]:
-            if (
-                not isinstance(factory, dict)
-                or str(factory.get("type", "")).lower() != "batterylifedatasetfactory"
-            ):
+            if not isinstance(factory, dict) or str(factory.get("type", "")).casefold() not in {
+                BUILTIN_BATTERY_FACTORY,
+                CUSTOM_BATTERY_FACTORY,
+            }:
                 continue
             workspace = (
                 self.settings.data_dir.resolve() / "data-workspaces" / materialized["experiment_id"]
             )
             for folder in ["Life labels", "seen_unseen_labels"]:
                 (workspace / folder).mkdir(parents=True, exist_ok=True)
-                for path in (self.settings.provider_root / "datasets/batteryLife" / folder).glob(
-                    "*.json"
-                ):
+                for path in (self.runtime / "datasets/batteryLife" / folder).glob("*.json"):
                     target = workspace / folder / path.name
                     if not target.exists():
                         shutil.copyfile(path, target)
@@ -333,6 +381,13 @@ class DeeplatformGateway:
             raise DomainError(
                 "needs_reconciliation", "Provider output directory is outside the managed root"
             )
+        selected = snapshot["resources"]["splits"]["split"]
+        alias = selected["source"]["root_alias"]
+        root = self.settings.source_roots.get(alias)
+        if root is None:
+            raise DomainError(
+                "integration_precondition_failed", "Configured battery data source disappeared"
+            )
         return prepared | {
             "intent_id": materialized["intent_id"],
             "input_manifest_sha256": materialized["input_manifest_sha256"],
@@ -340,6 +395,7 @@ class DeeplatformGateway:
             "directory_ref": str(directory.relative_to(self.settings.data_dir.resolve())),
             "requested_device": config["mate"]["device"],
             "provider_commit": PROVIDER_COMMIT,
+            "data_source_root": str(root.resolve()),
         }
 
     def spawn(self, prepared: Record) -> Record:
@@ -353,6 +409,9 @@ class DeeplatformGateway:
                 "Training environment changed after preparation",
             )
         directory = Path(prepared["directory"])
+        environment = self.worker.environment(self.environment())
+        if prepared.get("data_source_root"):
+            environment["BATTERYLAND_DATA_ROOT"] = prepared["data_source_root"]
         receipt = self.supervisor.start(
             [
                 str(self.worker.python),
@@ -364,7 +423,7 @@ class DeeplatformGateway:
             directory,
             prepared["experiment_id"],
             cwd=self.runtime,
-            environment=self.worker.environment(self.environment()),
+            environment=environment,
         )
         return receipt | {
             "intent_id": prepared["intent_id"],
