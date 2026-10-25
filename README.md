@@ -74,6 +74,8 @@ API 文档位于 <http://127.0.0.1:8000/docs>；资源快照见
 
 真实 GPU 接入测试显式执行
 `.venv/bin/pytest tests/training/test_real_service_flow.py --run-training --run-gpu`。
+自定义划分的 DeepPlatform CPU 接受测试执行
+`.venv/bin/pytest tests/training/test_custom_split_runtime.py --run-training`。
 
 [当前规格](specs/012-backend-service-protocol/spec.md) ·
 [API 调用示例](specs/012-backend-service-protocol/quickstart.md) ·
