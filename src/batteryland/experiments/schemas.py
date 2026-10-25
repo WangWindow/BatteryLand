@@ -8,6 +8,7 @@ from batteryland.api.schemas import RequestModel
 class ExperimentSummary(RequestModel):
     id: str
     name: str
+    kind: str
     state: str
     revision: int
     created_at: str

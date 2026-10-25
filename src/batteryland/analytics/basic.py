@@ -41,7 +41,7 @@ class BasicDifferenceAnalyzer:
                     }
                 )
             stats["pairs"] = pairs
-        warnings = []
+        warnings = [warning for item in sets for warning in item.get("warnings", [])]
         if kind == "category_distribution":
             distributions = []
             for item in sets:

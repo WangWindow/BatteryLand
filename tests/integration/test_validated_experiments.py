@@ -23,6 +23,9 @@ def test_only_provider_validated_original_documents_are_saved(settings):
         created = client.post("/api/v1/validated-experiments", json=body)
         assert created.status_code == 201, created.text
         identity = created.json()["data"]["id"]
+        listed = client.get("/api/v1/validated-experiments")
+        assert listed.status_code == 200, listed.text
+        assert listed.json()["data"]["items"][0]["kind"] == "train"
         stored = client.get(f"/api/v1/validated-experiments/{identity}")
         assert stored.status_code == 200
         assert stored.json()["data"]["config_text"] == CONFIG

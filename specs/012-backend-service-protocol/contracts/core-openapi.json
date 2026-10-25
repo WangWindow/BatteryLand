@@ -7204,6 +7204,10 @@
             "type": "string",
             "title": "Name"
           },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
           "state": {
             "type": "string",
             "title": "State"
@@ -7283,6 +7287,7 @@
         "required": [
           "id",
           "name",
+          "kind",
           "state",
           "revision",
           "created_at",
@@ -8316,7 +8321,38 @@
             "title": "Label"
           },
           "split": {
-            "$ref": "#/components/schemas/VersionRef"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VersionRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "named_group": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Named Group"
           },
           "partitions": {
             "items": {
@@ -8340,8 +8376,7 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "label",
-          "split"
+          "label"
         ],
         "title": "SetRef"
       },

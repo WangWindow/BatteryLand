@@ -2,7 +2,7 @@ from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from batteryland.analytics.service import AnalysisService
 from batteryland.api.schemas import Envelope, RequestModel
@@ -50,10 +50,18 @@ class ComparisonData(RequestModel):
 
 class SetRef(RequestModel):
     label: str = Field(min_length=1)
-    split: VersionRef
+    split: VersionRef | None = None
+    source_id: UUID | None = None
+    named_group: str | None = Field(default=None, min_length=1)
     partitions: list[Literal["train", "val", "test"]] = Field(
         default=["train", "val", "test"], min_length=1
     )
+
+    @model_validator(mode="after")
+    def exactly_one_reference(self) -> SetRef:
+        if sum(value is not None for value in (self.split, self.source_id, self.named_group)) != 1:
+            raise ValueError("Specify exactly one of split, source_id, or named_group")
+        return self
 
 
 class DifferenceRequest(RequestModel):

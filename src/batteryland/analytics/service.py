@@ -72,18 +72,67 @@ class AnalysisService:
             partitions = item.get("partitions", ["train", "val", "test"])
             if len(set(partitions)) != len(partitions) or not partitions:
                 raise DomainError("invalid_input", "Select unique nonempty partitions")
-            ref = item["split"]
-            split = self.splits.get(ref["id"], ref["version"])
-            ids = [identity for group in partitions for identity in split["payload"][group]]
             with self.units() as unit:
-                batteries = unit.resources.get_batteries(ids)
+                if item.get("split") is not None:
+                    ref = item["split"]
+                    split = self.splits.get(ref["id"], ref["version"])
+                    ids = [identity for group in partitions for identity in split["payload"][group]]
+                    batteries = unit.resources.get_batteries(ids)
+                    identity = f"split:{ref['id']}:{ref['version']}:{','.join(sorted(partitions))}"
+                    reference = {"split": ref, "partitions": partitions}
+                    warnings: list[str] = []
+                elif item.get("source_id") is not None:
+                    source_id = str(item["source_id"])
+                    unit.resources.get_source(source_id)
+                    ids = [
+                        row["id"] for row in unit.resources.list_source_batteries(source_id)
+                    ]
+                    batteries = unit.resources.get_batteries(ids)
+                    identity = f"source:{source_id}"
+                    reference = {"source_id": source_id}
+                    warnings = []
+                else:
+                    group_name = item["named_group"]
+                    unit.named_groups.get(group_name)
+                    page = 1
+                    members: list[Record] = []
+                    while True:
+                        result = unit.named_groups.members(group_name, None, page, 500)
+                        members.extend(
+                            row for row in result["items"] if row["partition"] in partitions
+                        )
+                        if page * 500 >= result["total"]:
+                            break
+                        page += 1
+                    member_ids = list(
+                        dict.fromkeys(
+                            row["battery_id"]
+                            for row in members
+                            if row["match_status"] == "matched" and row["battery_id"]
+                        )
+                    )
+                    batteries = unit.resources.get_batteries(member_ids)
+                    resolved_ids = {battery["id"] for battery in batteries}
+                    unresolved = sum(
+                        row["match_status"] != "matched"
+                        or not row["battery_id"]
+                        or row["battery_id"] not in resolved_ids
+                        for row in members
+                    )
+                    identity = f"group:{group_name}:{','.join(sorted(partitions))}"
+                    reference = {"named_group": group_name, "partitions": partitions}
+                    warnings = (
+                        [f"{item['label']}: {unresolved} named-group members could not be resolved"]
+                        if unresolved
+                        else []
+                    )
             resolved.append(
                 {
-                    "id": f"{ref['id']}:{ref['version']}:{','.join(sorted(partitions))}",
+                    "id": identity,
                     "label": item["label"],
-                    "split": ref,
-                    "partitions": partitions,
+                    **reference,
                     "batteries": batteries,
+                    "warnings": warnings,
                 }
             )
         return self.difference_provider.compare(
