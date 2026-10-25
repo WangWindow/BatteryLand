@@ -5,6 +5,7 @@ from batteryland.application.artifacts import ArtifactService
 from batteryland.application.configurations import ConfigurationService
 from batteryland.application.execution import ExecutionService
 from batteryland.application.experiments import ExperimentService
+from batteryland.application.fixed_catalog import FixedCatalogIndexer, NamedGroupService
 from batteryland.application.ports.training import TrainingGateway
 from batteryland.application.resources import ResourceService
 from batteryland.application.results import ResultService
@@ -44,6 +45,7 @@ class Container:
             self.database.unit_of_work, LocalSourceFiles(settings.source_roots)
         )
         self.splits = SplitService(self.database.unit_of_work, self.documents)
+        self.named_groups = NamedGroupService(self.database.unit_of_work)
         self.provider = DeeplatformGateway(settings)
         self.training = training if training is not None else self.provider
         self.configurations = ConfigurationService(self.database.unit_of_work, self.documents)
@@ -80,6 +82,8 @@ class Container:
             BasicDifferenceAnalyzer(),
             BasicChartBuilder(),
         )
+        if settings.auto_index_catalog:
+            FixedCatalogIndexer(settings, self.resources, self.database.unit_of_work).index()
 
     def close(self) -> None:
         self.database.engine.dispose()

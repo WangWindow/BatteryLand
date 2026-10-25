@@ -17,6 +17,7 @@ from batteryland.interfaces.api.analysis import router as analysis_router
 from batteryland.interfaces.api.components import router as components_router
 from batteryland.interfaces.api.execution import router as execution_router
 from batteryland.interfaces.api.experiments import router as experiments_router
+from batteryland.interfaces.api.named_groups import router as named_groups_router
 from batteryland.interfaces.api.resources import router as resources_router
 from batteryland.interfaces.api.results import router as results_router
 from batteryland.interfaces.api.schemas import ErrorData, ErrorEnvelope, ErrorField
@@ -84,6 +85,7 @@ def create_app(
     )
     app.state.settings = configuration
     app.include_router(resources_router)
+    app.include_router(named_groups_router)
     app.include_router(splits_router)
     app.include_router(experiments_router)
     app.include_router(execution_router)

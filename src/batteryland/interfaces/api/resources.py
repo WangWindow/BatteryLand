@@ -27,6 +27,7 @@ class DataSource(RequestModel):
     id: str
     name: str
     root_alias: str
+    group_prefix: str
     revision: int
     battery_count: int
     availability: str
