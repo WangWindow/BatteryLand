@@ -82,7 +82,9 @@ def test_database_migrations_foreign_keys_and_existing_rows(tmp_path: Path) -> N
         assert "payload" in {
             row[1] for row in connection.exec_driver_sql("PRAGMA table_info(document_versions)")
         }
-        assert "template_document_id" not in {
+        # Keep the unused nullable column: SQLite's table rebuild would cascade
+        # delete existing experiments and their related result data.
+        assert "template_document_id" in {
             row[1] for row in connection.exec_driver_sql("PRAGMA table_info(experiments)")
         }
         assert "templates" not in {

@@ -1,6 +1,5 @@
-"""Remove the template workflow; saved configurations are validated experiments."""
+"""Remove template storage without rebuilding the referenced experiments table."""
 
-import sqlalchemy as sa
 from alembic import op
 
 revision = "0008_remove_configuration_templates"
@@ -11,23 +10,9 @@ depends_on = None
 
 def upgrade() -> None:
     op.drop_table("templates")
-    with op.batch_alter_table(
-        "experiments",
-        naming_convention={
-            "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s"
-        },
-        table_args=(
-            sa.CheckConstraint("kind IN ('train','evaluate','transfer')"),
-            sa.CheckConstraint(
-                "state IN ('draft','queued','starting','running','stopping','succeeded','failed',"
-                "'cancelled','stopped','needs_reconciliation')"
-            ),
-        ),
-    ) as batch_op:
-        batch_op.drop_constraint(
-            "fk_experiments_template_document_id_document_versions", type_="foreignkey"
-        )
-        batch_op.drop_column("template_document_id")
+    # SQLite rebuilds experiments to drop this unused nullable column. Dropping
+    # the original table fires ON DELETE CASCADE on validated inputs and runs.
+    # Keep the orphaned column until a migration can remove it without data loss.
 
 
 def downgrade() -> None:
