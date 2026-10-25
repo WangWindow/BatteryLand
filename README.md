@@ -1,66 +1,64 @@
 # BatteryLand
 
-电池实验与结果分析平台。后端使用FastAPI、SQLAlchemy和SQLite，配置与结果保存为JSON文档；训练由deeplatform执行。前端使用React、shadcn/ui和Tailwind CSS，支持中文与英文。
+电池数据与实验平台。前端使用 React、shadcn/ui 和 Tailwind CSS；后端使用 FastAPI、
+SQLAlchemy 和 SQLite。后端内部调度任务，DeepPlatform 在独立 Python 环境中执行训练。
 
 ## 安装
 
-需要Python3.14、uv、Bun1.4+及Linux。
+需要 Python 3.14、uv、Bun 1.4+ 和 Linux。GPU 训练还需要可用的 NVIDIA 驱动。
 
 ```bash
 uv sync --locked
 UV_PROJECT_ENVIRONMENT=.venv-training uv sync --locked --only-group training --compile-bytecode
-uv run batteryland init --data-dir ./var
-cd src/batteryland_ui
-bun install --frozen-lockfile
+cd src/batteryland_ui && bun install --frozen-lockfile
 ```
 
-后端默认安装不含训练库；训练环境只安装training依赖组，不安装后端。两者由根项目统一管理。
-可通过`BATTERYLAND_TRAINING_PYTHON=/absolute/path/bin/python`指定训练环境，保留虚拟环境入口路径。
-训练调试直接使用`.venv-training/bin/python`；对训练环境执行普通`uv run`可能自动改变其依赖集合。
+API 环境不安装 PyTorch；训练依赖由根项目的 `training` 组统一管理。可通过
+`BATTERYLAND_TRAINING_PYTHON` 指定训练解释器。
 
 ## 启动
 
-一条命令启动后端、内置调度器和前端：
-
 ```bash
-# 使用真实数据时，先配置数据来源别名
-export BATTERYLAND_SOURCE_ROOTS='{"battery-life":"/data/BatteryLife_Processed"}'
 ./scripts/run.sh
 ```
 
-打开<http://127.0.0.1:5173>，API文档位于<http://127.0.0.1:8000/docs>。Ctrl+C停止前后端。
-前端监听`0.0.0.0`，也可通过`http://服务器IP:5173`访问；直接运行`bun run dev`沿用相同监听地址。
-脚本以自身位置确定项目根目录，从其他目录调用也可运行；相对数据目录和训练解释器路径以项目根目录为基准。
-启动复用已安装依赖，不自动安装或升级。前端代理随本次后端端口自动配置。
+开发时前端监听 `0.0.0.0:5173`，FastAPI 监听 `127.0.0.1:8000`；前端的 API 请求
+代理到 FastAPI。调度器和训练适配器不额外占用 HTTP 端口。只启动后端可使用
+`./scripts/run.sh --services-only`。脚本按自身位置解析项目路径，`Ctrl+C` 停止进程。
 
-```bash
-BATTERYLAND_BACKEND_PORT=8001 BATTERYLAND_UI_PORT=5174 ./scripts/run.sh
-```
+如果 `/data/BatteryLife_Processed` 存在，后端自动建立固定文件目录索引；
+`BATTERYLAND_SOURCE_ROOTS` 可覆盖数据根目录映射。真实数据文件不复制进数据库。
+使用 `BATTERYLAND_DATA_DIR` 设置运行目录。更多选项见 `./scripts/run.sh --help`。
 
-通过`BATTERYLAND_DATA_DIR`指定数据目录；其他选项见`./scripts/run.sh --help`。
+## 实验数据流
 
-## 使用
+1. 客户端准备完整配置 YAML 与划分 JSON，调用 `POST /api/v1/training/validation`。
+2. 使用校验收据调用 `POST /api/v1/validated-experiments` 保存草稿，可在提交前更新。
+3. 调用 `POST /api/v1/validated-experiments/{id}/submit` 冻结输入并排队。
+4. 内部调度器在 GPU 可用时解析 `auto`，或保留明确指定的 `cuda:N`，并只启动一次训练。
+5. 通过实验 ID 查询状态、日志、指标、结果和产物；运行中可调用实验停止接口。
 
-1. 登记数据来源并导入电池清单，选择电池创建划分。
-2. 导入或创建模板，选择模板、划分与运行参数创建实验。
-3. 校验后提交到队列，后端自动串行执行。实验详情可查看日志、结果和下载产物。
-4. 在结果比较页选择实验或电池集合，查看浏览器交互图表并导出数据。
+每个实验 ID 只能执行一次。相同配置的再次训练应创建新实验。自定义划分可校验和保存，
+但当前 DeepPlatform 只能执行其内置划分；不能执行的收据会声明这一限制并阻止提交。
+内置划分中的重名文件也会标记为歧义，不作为可执行输入。独立评估与迁移训练尚待提供者支持。
 
-配置与划分都有版本，已入队的输入保持冻结；重跑通过复制实验创建新草稿。设备使用明确的`cpu`或`cuda:N`。
-真实电池训练目前使用provider可读取的原生划分；自定义划分执行、独立评估和迁移仍受接入能力限制。
-同一数据目录只运行一个后端实例。执行身份需要核实时，停服后使用`batteryland reconcile --experiment-id UUID --data-dir ./var`。
+API 文档位于 <http://127.0.0.1:8000/docs>；资源快照见
+`GET /api/v1/scheduler/resources`。前端当前仍在按已稳定的 API 契约调整，
+本阶段以 API 与训练流程验证为准。
 
 ## 检查
 
 ```bash
-uv run pytest tests
-uv run ruff check src/batteryland tests
-uv run ty check
-cd src/batteryland_ui
-bun run verify
-bun run test:e2e
+.venv/bin/pytest tests/unit tests/contract tests/integration
+.venv/bin/ruff check src/batteryland tests
+.venv/bin/ruff format --check src/batteryland tests
+.venv/bin/ty check src/batteryland
 ```
 
-真实训练显式运行`uv run pytest tests/training --run-training --run-gpu`；真实浏览器MyTask运行`bash tests/run_e2e_real.sh`。
+真实 GPU 接入测试显式执行
+`.venv/bin/pytest tests/training/test_real_service_flow.py --run-training --run-gpu`。
 
-[当前运行时规格](specs/005-isolated-training-runtime/spec.md) · [工作台规格](specs/004-integrated-workbench/spec.md) · [环境安装与验收](specs/005-isolated-training-runtime/quickstart.md) · [工作台使用](specs/004-integrated-workbench/quickstart.md) · [开发规范](.specify/memory/constitution.md)
+[当前规格](specs/012-backend-service-protocol/spec.md) ·
+[API 调用示例](specs/012-backend-service-protocol/quickstart.md) ·
+[DeepPlatform 接口请求](docs/integrations/deeplatform-custom-split.md) ·
+[开发规范](.specify/memory/constitution.md)
