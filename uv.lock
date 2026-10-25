@@ -222,6 +222,7 @@ dependencies = [
     { name = "python-multipart" },
     { name = "pyyaml" },
     { name = "sqlalchemy" },
+    { name = "typer" },
     { name = "uvicorn" },
 ]
 
@@ -260,6 +261,7 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.20,<1" },
     { name = "pyyaml", specifier = ">=6,<7" },
     { name = "sqlalchemy", specifier = ">=2.0,<3" },
+    { name = "typer", specifier = ">=0.15,<1" },
     { name = "uvicorn", specifier = ">=0.34,<1" },
 ]
 
