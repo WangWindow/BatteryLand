@@ -46,6 +46,23 @@ API 文档位于 <http://127.0.0.1:8000/docs>；资源快照见
 `GET /api/v1/scheduler/resources`。前端当前仍在按已稳定的 API 契约调整，
 本阶段以 API 与训练流程验证为准。
 
+## 后端目录
+
+`src/batteryland/` 以功能为一级目录，进入目录即可找到该功能的路由、用例和存储实现：
+
+| 目录 | 职责 |
+| --- | --- |
+| `datasets/` | 固定电池目录、命名集合、划分与统计 |
+| `experiments/` | 实验草稿、校验输入、模板和状态 |
+| `training/` | DeepPlatform 校验、适配和训练子进程 |
+| `scheduler/` | FIFO、资源采样、停止和执行记录 |
+| `results/`、`analytics/` | 指标、产物、比较与图表数据 |
+| `components/` | 组件目录、上传和权重 |
+| `api/`、`db/`、`documents/`、`common/` | 共享 HTTP 入口、SQLite、文档和通用工具 |
+
+功能包按需使用 `routes.py`、`service.py`、`repository.py`、`rules.py` 等文件名。
+详细边界见[后端目录说明](docs/architecture/backend-layout.md)。
+
 ## 检查
 
 ```bash
