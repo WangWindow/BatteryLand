@@ -47,10 +47,9 @@ def platform(settings):
     app = create_app(settings, start_monitor=False)
     with TestClient(app) as client:
         container = app.state.container
-        assert container.training_runs is not None
         scheduler = LocalScheduler(
-            container.workers,
-            container.execution,
+            container.scheduler_state,
+            container.validated_experiments,
             container.training_runs,
             container.results,
             container.artifacts,

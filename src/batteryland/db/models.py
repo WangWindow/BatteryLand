@@ -131,13 +131,6 @@ class DatasetStatisticsRow(Base):
     summary: Mapped[dict[str, Any]] = mapped_column(JSON)
 
 
-class TemplateRow(Identity, Base):
-    __tablename__ = "templates"
-    name: Mapped[str] = mapped_column(unique=True)
-    head_document_id: Mapped[str] = mapped_column(ForeignKey("document_versions.id"))
-    revision: Mapped[int] = mapped_column(default=1, server_default="1")
-
-
 class ExperimentRow(Identity, Base):
     __tablename__ = "experiments"
     __table_args__ = (
@@ -157,7 +150,6 @@ class ExperimentRow(Identity, Base):
     split_document_id: Mapped[str | None] = mapped_column(ForeignKey("document_versions.id"))
     source_split_document_id: Mapped[str | None] = mapped_column(ForeignKey("document_versions.id"))
     target_split_document_id: Mapped[str | None] = mapped_column(ForeignKey("document_versions.id"))
-    template_document_id: Mapped[str | None] = mapped_column(ForeignKey("document_versions.id"))
     checkpoint_id: Mapped[str | None] = mapped_column(
         ForeignKey("artifacts.id", use_alter=True, name="fk_experiment_checkpoint")
     )

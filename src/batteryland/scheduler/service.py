@@ -8,10 +8,10 @@ from uuid import uuid4
 
 from batteryland.common.errors import DomainError
 from batteryland.components.service import ArtifactService
-from batteryland.experiments.legacy_execution import ExecutionService
+from batteryland.experiments.validated import ValidatedExperimentService
 from batteryland.results.service import ResultService
-from batteryland.scheduler.operations import WorkerProtocolService
 from batteryland.scheduler.resources import ResourceSampler, choose_device
+from batteryland.scheduler.state import SchedulerStateService
 from batteryland.training.runs import StartCommand, TrainingRunService
 
 logger = logging.getLogger(__name__)
@@ -20,16 +20,16 @@ logger = logging.getLogger(__name__)
 class LocalScheduler:
     def __init__(
         self,
-        workers: WorkerProtocolService,
-        execution: ExecutionService,
+        scheduler_state: SchedulerStateService,
+        experiments: ValidatedExperimentService,
         training: TrainingRunService,
         results: ResultService,
         artifacts: ArtifactService,
         data_dir: Path,
         sampler: ResourceSampler | None = None,
     ) -> None:
-        self.workers = workers
-        self.execution = execution
+        self.scheduler_state = scheduler_state
+        self.experiments = experiments
         self.training = training
         self.results = results
         self.artifacts = artifacts
@@ -47,7 +47,7 @@ class LocalScheduler:
         self.uploaded_artifacts: set[tuple[str, str, str]] = set()
 
     def _event(self, record: dict[str, Any], kind: str, data: dict[str, Any]) -> dict[str, Any]:
-        return self.workers.event(
+        return self.scheduler_state.event(
             record["experiment_id"],
             str(uuid4()),
             record["claim_token"],
@@ -61,7 +61,7 @@ class LocalScheduler:
         current = next(
             (
                 item
-                for item in self.workers.active(self.node_id)
+                for item in self.scheduler_state.active(self.node_id)
                 if item["experiment_id"] == identity
             ),
             claim,
@@ -198,14 +198,14 @@ class LocalScheduler:
 
     def tick(self) -> None:
         snapshot = self.sampler.sample()
-        self.workers.heartbeat(self.node_id, snapshot)
-        active = self.workers.active(self.node_id)
+        self.scheduler_state.heartbeat(self.node_id, snapshot)
+        active = self.scheduler_state.active(self.node_id)
         if active:
             for record in active:
                 if record["state"] != "needs_reconciliation":
                     self._observe(record, snapshot)
             return
-        queue = self.execution.queue()
+        queue = self.experiments.queue()
         if queue["active"] or not queue["waiting"]:
             self.last_action = "idle"
             return
@@ -216,7 +216,7 @@ class LocalScheduler:
             self.last_action = "waiting-for-gpu"
             self.last_reason = snapshot.get("reason") or f"No available GPU for {requested}"
             return
-        claim, _ = self.workers.claim(
+        claim, _ = self.scheduler_state.claim(
             first["id"], first["revision"], self.node_id, device, str(uuid4())
         )
         self._launch(claim)

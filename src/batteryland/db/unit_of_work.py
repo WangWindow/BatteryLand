@@ -7,7 +7,6 @@ from batteryland.datasets.split_repository import SqlSplitRepository
 from batteryland.documents.repository import SqlDocumentRepository
 from batteryland.experiments.input_repository import SqlValidatedInputRepository
 from batteryland.experiments.repository import SqlExperimentRepository
-from batteryland.experiments.template_repository import SqlTemplateRepository
 from batteryland.results.repository import SqlResultRepository
 from batteryland.scheduler.repository import SqlWorkerRepository
 
@@ -20,7 +19,6 @@ class SqlUnitOfWork:
         self.workers = SqlWorkerRepository(session)
         self.documents = SqlDocumentRepository(session)
         self.splits = SqlSplitRepository(session)
-        self.templates = SqlTemplateRepository(session)
         self.experiments = SqlExperimentRepository(session)
         self.artifacts = SqlArtifactRepository(session)
         self.results = SqlResultRepository(session)

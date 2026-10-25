@@ -89,7 +89,7 @@ def test_whole_source_split_uses_registered_members_and_expected_revision(tmp_pa
     source_revision = resources.list_sources(1, 10)["items"][0]["revision"]
     batteries = resources.list_batteries({"source_id": source["id"]}, 1, 10)["items"]
     splits = SplitService(
-        database.unit_of_work, SQLiteDocumentStore(database.unit_of_work, tmp_path / "documents")
+        database.unit_of_work, SQLiteDocumentStore(database.unit_of_work)
     )
 
     split = splits.create(
@@ -139,7 +139,7 @@ def test_preview_returns_exact_counts_without_saving_a_split(tmp_path: Path) -> 
     resources.import_batteries(source["id"], [{"file_name": name} for name in ("a.pkl", "b.pkl")])
     source_revision = resources.list_sources(1, 10)["items"][0]["revision"]
     splits = SplitService(
-        database.unit_of_work, SQLiteDocumentStore(database.unit_of_work, tmp_path / "documents")
+        database.unit_of_work, SQLiteDocumentStore(database.unit_of_work)
     )
 
     body = {
@@ -173,7 +173,7 @@ def test_preview_rejects_a_source_without_registered_batteries(tmp_path: Path) -
     source = resources.create_source("Empty", "demo")
     source_revision = resources.list_sources(1, 10)["items"][0]["revision"]
     splits = SplitService(
-        database.unit_of_work, SQLiteDocumentStore(database.unit_of_work, tmp_path / "documents")
+        database.unit_of_work, SQLiteDocumentStore(database.unit_of_work)
     )
 
     with pytest.raises(DomainError, match="at least one"):

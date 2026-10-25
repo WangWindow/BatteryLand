@@ -312,12 +312,6 @@ class DeeplatformGateway:
                 "Registered resource references do not match the configured data source",
             )
 
-    def validate(self, config: Record, resources: Record) -> Record:
-        self._ensure_runtime()
-        self._preflight(config, resources)
-        result = cast(Record, self._control("validate", {"config": config}))
-        return result | {"provider_commit": PROVIDER_COMMIT}
-
     def prepare(self, materialized: Record) -> Record:
         self._ensure_runtime()
         snapshot = materialized["snapshot"]

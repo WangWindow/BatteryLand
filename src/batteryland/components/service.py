@@ -15,13 +15,11 @@ class ArtifactService:
         provider: ComponentGateway,
         files: ArtifactFiles,
         checkpoint_limit: int,
-        external_execution: bool = False,
     ) -> None:
         self.units = units
         self.provider = provider
         self.files = files
         self.checkpoint_limit = checkpoint_limit
-        self.external_execution = external_execution
         self._registry_lock = threading.RLock()
 
     def components(self, scope: str | None = None) -> list[Record]:
@@ -127,25 +125,14 @@ class ArtifactService:
         return self.files.resolve(value["relative_key"]), value["name"]
 
     def capabilities(self) -> list[Record]:
-        execution = (
+        return self.provider.capabilities() + [
             {
                 "provider_id": "scheduler-local/v1",
                 "version": "1",
                 "available": True,
                 "supported_operations": ["fifo", "claim", "observe", "stop", "auto_gpu"],
                 "limitations": ["single active execution", "GPU training only"],
-            }
-            if self.external_execution
-            else {
-                "provider_id": "engine-execution/v1",
-                "version": "1",
-                "available": True,
-                "supported_operations": ["fifo", "dispatch", "observe", "stop"],
-                "limitations": ["explicit devices only", "single active execution"],
-            }
-        )
-        return self.provider.capabilities() + [
-            execution,
+            },
             {
                 "provider_id": "basic-difference/v1",
                 "version": "1",

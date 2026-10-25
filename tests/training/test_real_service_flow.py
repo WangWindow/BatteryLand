@@ -55,15 +55,15 @@ def test_real_gpu_experiment_uses_a_fresh_id_and_returns_results(tmp_path, reque
         identity = created.json()["data"]["id"]
         assert client.post(f"/api/v1/validated-experiments/{identity}/submit").status_code == 202
         scheduler = LocalScheduler(
-            container.workers,
-            container.execution,
+            container.scheduler_state,
+            container.validated_experiments,
             container.training_runs,
             container.results,
             container.artifacts,
             settings.data_dir,
         )
         scheduler.tick()
-        active = container.workers.active(scheduler.node_id)
+        active = container.scheduler_state.active(scheduler.node_id)
         assert len(active) == 1
         claim = active[0]
         first = container.training_runs.status(identity)["receipt"]

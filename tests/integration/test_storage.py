@@ -1,8 +1,5 @@
-import hashlib
-import json
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -17,68 +14,14 @@ from batteryland.documents.store import SQLiteDocumentStore
 from batteryland.documents.types import DocumentRef
 
 
-def make_legacy_document(
-    root: Path,
-    *,
-    identity: str | None = None,
-    kind: str = "config",
-    owner_id: str = "experiment-a",
-    version: int = 1,
-    payload: dict | None = None,
-) -> tuple[DocumentRef, bytes]:
-    identity = identity or str(uuid4())
-    envelope = {
-        "schema_version": 1,
-        "kind": kind,
-        "owner_id": owner_id,
-        "version": version,
-        "created_at": datetime.now(UTC).isoformat(),
-        "payload": payload or {"seed": 42},
-    }
-    content = json.dumps(
-        envelope, ensure_ascii=False, sort_keys=True, allow_nan=False, separators=(",", ":")
-    ).encode("utf-8")
-    root.mkdir(parents=True, exist_ok=True)
-    (root / f"{identity}.json").write_bytes(content)
-    reference = DocumentRef(
-        identity,
-        kind,
-        owner_id,
-        version,
-        f"{identity}.json",
-        hashlib.sha256(content).hexdigest(),
-        envelope["created_at"],
-    )
-    return reference, content
-
-
-def make_store(tmp_path: Path) -> tuple[Database, SQLiteDocumentStore, Path]:
+def make_store(tmp_path: Path) -> tuple[Database, SQLiteDocumentStore]:
     database = Database(tmp_path / "platform.sqlite")
     database.initialize()
-    legacy_root = tmp_path / "documents"
-    return database, SQLiteDocumentStore(database.unit_of_work, legacy_root), legacy_root
-
-
-def insert_legacy_metadata(database: Database, reference, *, checksum: str | None = None) -> None:
-    with database.engine.begin() as connection:
-        connection.exec_driver_sql(
-            """INSERT INTO document_versions
-               (id, kind, owner_id, version, schema_version, sha256, storage_key, created_at)
-               VALUES (?, ?, ?, ?, 1, ?, ?, ?)""",
-            (
-                reference.id,
-                reference.kind,
-                reference.owner_id,
-                reference.version,
-                checksum or reference.sha256,
-                reference.storage_key,
-                reference.created_at,
-            ),
-        )
+    return database, SQLiteDocumentStore(database.unit_of_work)
 
 
 def test_document_round_trip_and_immutable_identity(tmp_path: Path) -> None:
-    database, store, _ = make_store(tmp_path)
+    database, store = make_store(tmp_path)
     reference = store.publish("config", "experiment-a", 1, {"seed": 42})
 
     assert reference.storage_key == f"sqlite:{reference.id}"
@@ -99,7 +42,7 @@ def test_document_round_trip_and_immutable_identity(tmp_path: Path) -> None:
 
 
 def test_document_rows_and_payload_roll_back_together(tmp_path: Path) -> None:
-    database, _, _ = make_store(tmp_path)
+    database, _ = make_store(tmp_path)
     identity = str(uuid4())
 
     with pytest.raises(RuntimeError), database.unit_of_work() as unit:
@@ -139,11 +82,25 @@ def test_database_migrations_foreign_keys_and_existing_rows(tmp_path: Path) -> N
         assert "payload" in {
             row[1] for row in connection.exec_driver_sql("PRAGMA table_info(document_versions)")
         }
+        assert "template_document_id" not in {
+            row[1] for row in connection.exec_driver_sql("PRAGMA table_info(experiments)")
+        }
+        assert "templates" not in {
+            row[0]
+            for row in connection.exec_driver_sql(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+        experiment_schema = connection.exec_driver_sql(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'experiments'"
+        ).scalar()
+        assert "CHECK (kind IN ('train','evaluate','transfer'))" in experiment_schema
+        assert "CHECK (state IN ('draft','queued'" in experiment_schema
     database.engine.dispose()
 
 
 def test_documents_detect_corruption_and_reference_mismatch(tmp_path: Path) -> None:
-    database, store, _ = make_store(tmp_path)
+    database, store = make_store(tmp_path)
     reference = store.publish("split", "dataset-a", 1, {"train": ["a"]})
     with database.engine.begin() as connection:
         connection.exec_driver_sql(
@@ -159,7 +116,7 @@ def test_documents_detect_corruption_and_reference_mismatch(tmp_path: Path) -> N
 
 
 def test_failed_publication_does_not_replace_previous_content(tmp_path: Path) -> None:
-    database, store, _ = make_store(tmp_path)
+    database, store = make_store(tmp_path)
     reference = store.publish("config", "a", 1, {"value": "old"})
     with pytest.raises((ValueError, DomainError)):
         store.publish("config", "a", 2, {"bad": float("nan")})
@@ -167,91 +124,8 @@ def test_failed_publication_does_not_replace_previous_content(tmp_path: Path) ->
     database.engine.dispose()
 
 
-def test_legacy_documents_migrate_idempotently_and_keep_a_backup(tmp_path: Path) -> None:
-    database, store, legacy_root = make_store(tmp_path)
-    reference, content = make_legacy_document(legacy_root)
-    insert_legacy_metadata(database, reference)
-
-    store.migrate_legacy()
-
-    backup = tmp_path / "documents.legacy"
-    assert not legacy_root.exists()
-    assert (backup / f"{reference.id}.json").read_bytes() == content
-    with database.unit_of_work() as unit:
-        migrated_reference = unit.documents.get(reference.id)
-    migrated = store.read(migrated_reference)
-    assert migrated["payload"] == {"seed": 42}
-
-    store.migrate_legacy()
-    with database.engine.connect() as connection:
-        assert connection.exec_driver_sql("SELECT count(*) FROM document_versions").scalar() == 1
-    assert (backup / f"{reference.id}.json").read_bytes() == content
-    database.engine.dispose()
-
-
-def test_legacy_migration_is_retryable_after_import_before_backup(tmp_path: Path) -> None:
-    database, store, legacy_root = make_store(tmp_path)
-    reference, content = make_legacy_document(legacy_root, payload={"native_config": {"lr": 0.1}})
-    original_archive = store._archive_legacy
-
-    def fail_before_archive() -> None:
-        raise OSError("Simulated interruption")
-
-    store._archive_legacy = fail_before_archive
-    with pytest.raises(OSError, match="Simulated interruption"):
-        store.migrate_legacy()
-    assert (legacy_root / f"{reference.id}.json").read_bytes() == content
-    with database.engine.connect() as connection:
-        assert (
-            connection.exec_driver_sql(
-                "SELECT json_extract(payload, '$.native_config.lr') FROM document_versions WHERE id = ?",
-                (reference.id,),
-            ).scalar()
-            == 0.1
-        )
-
-    store._archive_legacy = original_archive
-    store.migrate_legacy()
-    assert (tmp_path / "documents.legacy" / f"{reference.id}.json").read_bytes() == content
-    database.engine.dispose()
-
-
-def test_corrupt_or_conflicting_legacy_document_fails_without_removing_source(
-    tmp_path: Path,
-) -> None:
-    database, store, legacy_root = make_store(tmp_path)
-    reference, content = make_legacy_document(legacy_root)
-    insert_legacy_metadata(database, reference, checksum="0" * 64)
-
-    with pytest.raises(DomainError) as corrupt:
-        store.migrate_legacy()
-    assert corrupt.value.symbol == "storage_corrupt"
-    assert (legacy_root / f"{reference.id}.json").read_bytes() == content
-    assert not (tmp_path / "documents.legacy").exists()
-    database.engine.dispose()
-
-
-def test_unresolved_database_document_prevents_legacy_backup(tmp_path: Path) -> None:
-    database, store, legacy_root = make_store(tmp_path)
-    legacy_root.mkdir()
-    identity = str(uuid4())
-    with database.engine.begin() as connection:
-        connection.exec_driver_sql(
-            """INSERT INTO document_versions
-               (id, kind, owner_id, version, schema_version, sha256, storage_key)
-               VALUES (?, 'config', 'experiment-a', 1, 1, ?, ?)""",
-            (identity, "0" * 64, f"{identity}.json"),
-        )
-
-    with pytest.raises(DomainError, match="missing"):
-        store.migrate_legacy()
-    assert legacy_root.is_dir()
-    assert not (tmp_path / "documents.legacy").exists()
-    database.engine.dispose()
-
-
 def test_concurrent_publish_is_idempotent_within_the_backend(tmp_path: Path) -> None:
-    _, store, _ = make_store(tmp_path)
+    _, store = make_store(tmp_path)
     identity = str(uuid4())
 
     def publish(_index: int) -> DocumentRef:
@@ -264,33 +138,15 @@ def test_concurrent_publish_is_idempotent_within_the_backend(tmp_path: Path) -> 
     assert store.read(references[0])["payload"] == {"seed": 42}
 
 
-def test_configuration_service_reads_sqlite_documents_after_restart(tmp_path: Path) -> None:
-    settings = Settings(data_dir=tmp_path)
+def test_container_reopens_sqlite_documents_after_restart(tmp_path: Path) -> None:
+    settings = Settings(data_dir=tmp_path, auto_index_catalog=False)
     first = Container(settings)
-    created = first.configurations.create("baseline", {"model": {"type": "linear"}})
+    reference = first.documents.publish("configuration", "experiment-a", 1, {"seed": 42})
     first.close()
 
     second = Container(settings)
     try:
-        loaded = second.configurations.get(created["id"])
-        assert loaded["native_config"] == {"model": {"type": "linear"}}
+        assert second.documents.read(reference)["payload"] == {"seed": 42}
         assert not (tmp_path / "documents").exists()
     finally:
         second.close()
-
-
-def test_container_startup_migrates_existing_document_files(tmp_path: Path) -> None:
-    database = Database(tmp_path / "platform.sqlite")
-    database.initialize()
-    reference, content = make_legacy_document(tmp_path / "documents", payload={"threshold": 0.8})
-    insert_legacy_metadata(database, reference)
-    database.engine.dispose()
-
-    container = Container(Settings(data_dir=tmp_path))
-    try:
-        with container.database.unit_of_work() as unit:
-            migrated_reference = unit.documents.get(reference.id)
-        assert container.documents.read(migrated_reference)["payload"] == {"threshold": 0.8}
-        assert (tmp_path / "documents.legacy" / f"{reference.id}.json").read_bytes() == content
-    finally:
-        container.close()

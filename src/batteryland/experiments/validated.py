@@ -1,6 +1,7 @@
 """Validated input workflow owned by the data service."""
 
 import re
+from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from uuid import uuid4
 
@@ -8,6 +9,7 @@ from batteryland.common.errors import DomainError
 from batteryland.common.serialization import load_config, load_json
 from batteryland.db.contracts import Record, UnitOfWorkFactory
 from batteryland.experiments.receipt import verify_receipt
+from batteryland.experiments.states import ACTIVE_STATES
 from batteryland.training.gateway import PROVIDER_COMMIT
 
 
@@ -95,7 +97,6 @@ class ValidatedExperimentService:
             "split_document_id": None,
             "source_split_document_id": None,
             "target_split_document_id": None,
-            "template_document_id": None,
             "checkpoint_id": None,
         }
 
@@ -180,6 +181,33 @@ class ValidatedExperimentService:
             **value,
         }
 
+    def list(self, filters: Record, page: int, page_size: int) -> Record:
+        with self.units() as unit:
+            result = unit.experiments.list_experiments(filters, page, page_size)
+        return {**result, "items": [self._summary(item) for item in result["items"]]}
+
+    @staticmethod
+    def _summary(value: Record) -> Record:
+        return {
+            key: item
+            for key, item in value.items()
+            if not key.startswith("_")
+            and not key.endswith("_document_id")
+            and key != "checkpoint_id"
+        }
+
+    def queue(self) -> Record:
+        with self.units() as unit:
+            waiting = unit.experiments.executions({"queued"})
+            active = unit.experiments.executions(ACTIVE_STATES)
+        paused = any(item["state"] == "needs_reconciliation" for item in active)
+        return {
+            "waiting": [self._summary(item) for item in waiting],
+            "active": [self._summary(item) for item in active],
+            "dispatch_paused": paused,
+            "reason": "Execution identity requires reconciliation" if paused else None,
+        }
+
     def members(
         self, identity: str, version: int | None, partition: str | None, page: int, page_size: int
     ) -> Record:
@@ -211,4 +239,29 @@ class ValidatedExperimentService:
                 "needs_reconciliation",
             }:
                 raise DomainError("conflict", "A finished experiment cannot run again")
+        return self.get(identity)
+
+    def stop(self, identity: str) -> Record:
+        with self.units() as unit:
+            header = unit.experiments.get(identity)
+            state = header["state"]
+            requested_at = datetime.now(UTC).isoformat()
+            if state == "queued":
+                changed = unit.experiments.transition(
+                    identity, {state}, "cancelled", {"stop_requested_at": requested_at}
+                )
+            elif state in {"starting", "running"}:
+                changed = unit.experiments.transition(
+                    identity, {state}, "stopping", {"stop_requested_at": requested_at}
+                )
+            elif state == "stopping":
+                changed = True
+            elif state == "needs_reconciliation":
+                raise DomainError(
+                    "needs_reconciliation", "Verify the original process before stopping"
+                )
+            else:
+                raise DomainError("conflict", "Only queued or active experiments can be stopped")
+            if not changed:
+                raise DomainError("conflict", "Experiment state changed while stopping")
         return self.get(identity)

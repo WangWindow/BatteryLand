@@ -20,17 +20,26 @@ def test_all_operations_declare_typed_success_and_uniform_errors(settings):
         for method, operation in path.items()
         if method in {"get", "post", "put", "patch", "delete"}
     ]
-    assert len(operations) >= 60
+    assert len(operations) >= 35
     for path in (
         "/api/v1/training/validation",
         "/api/v1/validated-experiments",
         "/api/v1/validated-experiments/{experiment_id}/members",
+        "/api/v1/validated-experiments/{experiment_id}/stop",
         "/api/v1/catalog/named-groups",
+        "/api/v1/scheduler/queue",
         "/api/v1/scheduler/resources",
-        "/api/v1/worker/claims",
-        "/api/v1/worker/experiments/{experiment_id}/result",
+        "/api/v1/experiments/{experiment_id}/results",
     ):
         assert path in schema["paths"]
+    for path in (
+        "/api/v1/worker/claims",
+        "/api/v1/queue/submissions",
+        "/api/v1/queue/dispatch",
+        "/api/v1/templates",
+        "/api/v1/data-sources/{source_id}/import",
+    ):
+        assert path not in schema["paths"]
     for operation in operations:
         assert operation["responses"]["422"]["content"]["application/json"]["schema"][
             "$ref"

@@ -4,17 +4,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import Field
 
-from batteryland.api.legacy import require_legacy_writes
 from batteryland.api.schemas import Envelope, Page, RequestModel
 from batteryland.container import Container
 from batteryland.datasets.service import ResourceService
 
 router = APIRouter(prefix="/api/v1", tags=["resources"])
-
-
-class DataSourceWrite(RequestModel):
-    name: str = Field(min_length=1, max_length=200)
-    root_alias: str = Field(min_length=1)
 
 
 class SourceOption(RequestModel):
@@ -35,22 +29,15 @@ class DataSource(RequestModel):
     created_at: str
 
 
-class BatteryInput(RequestModel):
-    file_name: str = Field(min_length=1)
-    relative_key: str | None = None
-    parent_battery_id: UUID | None = None
-    metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-class Battery(BatteryInput):
+class Battery(RequestModel):
     id: str
     source_id: str
+    file_name: str
+    relative_key: str
+    parent_battery_id: str | None
+    metadata: dict[str, Any]
     availability: str
     created_at: str
-
-
-class BatteryImport(RequestModel):
-    batteries: list[BatteryInput]
 
 
 class DiscoveredBatteryFile(RequestModel):
@@ -59,12 +46,6 @@ class DiscoveredBatteryFile(RequestModel):
     size_bytes: int = Field(ge=0)
     importable: bool
     reason: str | None
-
-
-class ImportReport(RequestModel):
-    imported: int
-    existing: int
-    errors: list[dict[str, Any]]
 
 
 class Pagination(RequestModel):
@@ -88,19 +69,6 @@ def source_options(resources: Annotated[ResourceService, Depends(service)]) -> d
     return {"data": resources.source_options()}
 
 
-@router.post(
-    "/data-sources",
-    status_code=201,
-    response_model=Envelope[DataSource],
-    dependencies=[Depends(require_legacy_writes)],
-    deprecated=True,
-)
-def add_source(
-    body: DataSourceWrite, resources: Annotated[ResourceService, Depends(service)]
-) -> dict[str, Any]:
-    return {"data": resources.create_source(body.name, body.root_alias)}
-
-
 @router.get("/data-sources/{source_id}/files", response_model=Envelope[Page[DiscoveredBatteryFile]])
 def source_files(
     source_id: UUID,
@@ -110,25 +78,6 @@ def source_files(
     page_size: int = Query(default=50, ge=1, le=200),
 ) -> dict[str, Any]:
     return {"data": resources.list_source_files(str(source_id), q, page, page_size)}
-
-
-@router.post(
-    "/data-sources/{source_id}/import",
-    response_model=Envelope[ImportReport],
-    dependencies=[Depends(require_legacy_writes)],
-    deprecated=True,
-)
-def import_batteries(
-    source_id: UUID,
-    body: BatteryImport,
-    resources: Annotated[ResourceService, Depends(service)],
-) -> dict[str, Any]:
-    return {
-        "data": resources.import_batteries(
-            str(source_id),
-            [item.model_dump(mode="json", exclude_none=True) for item in body.batteries],
-        )
-    }
 
 
 @router.get("/batteries", response_model=Envelope[Page[Battery]])

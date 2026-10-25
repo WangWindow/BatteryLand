@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import Field, StrictBool, StrictFloat, StrictInt, StrictStr
 
-from batteryland.api.legacy import require_legacy_writes
 from batteryland.api.schemas import Envelope, Page, RequestModel
 from batteryland.common.errors import DomainError
 from batteryland.container import Container
@@ -121,8 +120,6 @@ def list_splits(
     "",
     status_code=201,
     response_model=Envelope[Split],
-    dependencies=[Depends(require_legacy_writes)],
-    deprecated=True,
 )
 def create_split(
     body: SplitWrite, splits: Annotated[SplitService, Depends(service)]
@@ -133,8 +130,6 @@ def create_split(
 @router.post(
     "/preview",
     response_model=Envelope[SplitPreviewResponse],
-    dependencies=[Depends(require_legacy_writes)],
-    deprecated=True,
 )
 def preview_split(
     body: SplitWrite, splits: Annotated[SplitService, Depends(service)]
@@ -146,8 +141,6 @@ def preview_split(
     "/import",
     status_code=201,
     response_model=Envelope[Split],
-    dependencies=[Depends(require_legacy_writes)],
-    deprecated=True,
 )
 def import_split(
     source_id: Annotated[UUID, Form()],
@@ -172,8 +165,6 @@ def get_split(
 @router.put(
     "/{split_id}",
     response_model=Envelope[Split],
-    dependencies=[Depends(require_legacy_writes)],
-    deprecated=True,
 )
 def update_split(
     split_id: UUID, body: SplitUpdate, splits: Annotated[SplitService, Depends(service)]
@@ -190,8 +181,6 @@ def update_split(
 @router.delete(
     "/{split_id}",
     response_model=Envelope[dict[str, bool]],
-    dependencies=[Depends(require_legacy_writes)],
-    deprecated=True,
 )
 def delete_split(
     split_id: UUID, splits: Annotated[SplitService, Depends(service)]

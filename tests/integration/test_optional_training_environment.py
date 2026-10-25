@@ -8,7 +8,7 @@ from batteryland.api.app import create_app
 
 def test_api_and_static_components_work_when_training_environment_is_missing(settings, tmp_path):
     settings = replace(settings, training_python=tmp_path / "absent/bin/python")
-    with TestClient(create_app(settings, start_monitor=False, legacy_writes=True)) as client:
+    with TestClient(create_app(settings, start_monitor=False)) as client:
         assert client.get("/api/v1/data-sources").status_code == 200
         assert client.get("/api/v1/components").status_code == 200
         failure = client.get("/api/v1/components/model/cpmlp/schema")

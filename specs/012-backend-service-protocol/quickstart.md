@@ -47,8 +47,10 @@ print(experiment["id"])
 | 实验及输入版本 | `GET /validated-experiments/{id}?version=N` |
 | 划分成员分页 | `GET /validated-experiments/{id}/members?partition=train&page=1` |
 | 固定集合与命名划分 | `GET /data-sources`、`GET /catalog/named-groups` |
-| 队列与资源 | `GET /queue`、`GET /scheduler/resources` |
-| 停止 | `POST /experiments/{id}/stop` |
+| 实验列表 | `GET /validated-experiments` |
+| 队列与资源 | `GET /scheduler/queue`、`GET /scheduler/resources` |
+| 停止 | `POST /validated-experiments/{id}/stop` |
 | 日志、结果、指标和产物 | `GET /experiments/{id}/logs`、`/results`、`/metrics`、`/artifacts` |
 
-浏览器使用相同的公开接口；`/worker/*` 属于带令牌的内部兼容接口，不是前端契约。
+浏览器和其他调用方使用同一组公开接口。调度器在后端进程内直接更新执行状态，不提供
+远程 worker HTTP 接口。

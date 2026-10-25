@@ -5,7 +5,6 @@ from typing import Annotated, Any, cast
 from fastapi import APIRouter, Depends, Request
 
 from batteryland.api.schemas import Envelope, RequestModel
-from batteryland.common.errors import DomainError
 from batteryland.container import Container
 from batteryland.training.runs import TrainingRunService
 
@@ -18,10 +17,7 @@ class ValidationRequest(RequestModel):
 
 
 def training_service(request: Request) -> TrainingRunService:
-    service = cast(Container, request.app.state.container).training_runs
-    if service is None:
-        raise DomainError("unsupported_capability", "Local training validation is unavailable")
-    return service
+    return cast(Container, request.app.state.container).training_runs
 
 
 @router.post("/training/validation", response_model=Envelope[dict[str, Any]])
@@ -47,4 +43,4 @@ def scheduler_status(request: Request) -> dict[str, Any]:
 @router.get("/scheduler/resources", response_model=Envelope[list[dict[str, Any]]])
 def scheduler_resources(request: Request) -> dict[str, Any]:
     container = cast(Container, request.app.state.container)
-    return {"data": container.workers.nodes()}
+    return {"data": container.scheduler_state.nodes()}

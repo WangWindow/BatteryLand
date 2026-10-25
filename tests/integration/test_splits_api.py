@@ -2,13 +2,11 @@ from fastapi.testclient import TestClient
 
 
 def setup_batteries(client: TestClient) -> tuple[str, list[str]]:
-    source = client.post(
-        "/api/v1/data-sources", json={"name": "demo", "root_alias": "demo"}
-    ).json()["data"]
-    client.post(
-        f"/api/v1/data-sources/{source['id']}/import",
-        json={"batteries": [{"file_name": f"{name}.pkl"} for name in "abcd"]},
-    ).raise_for_status()
+    resources = client.app.state.container.resources
+    source = resources.create_source("demo", "demo")
+    resources.import_batteries(
+        source["id"], [{"file_name": f"{name}.pkl"} for name in "abcd"]
+    )
     batteries = client.get("/api/v1/batteries").json()["data"]["items"]
     return source["id"], [
         item["id"] for item in sorted(batteries, key=lambda item: item["file_name"])

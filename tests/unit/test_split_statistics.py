@@ -29,7 +29,7 @@ def setup_split(tmp_path: Path):
     )
     batteries = resources.list_batteries({"source_id": source["id"]}, 1, 10)["items"]
     by_name = {battery["file_name"]: battery for battery in batteries}
-    splits = SplitService(units, SQLiteDocumentStore(units, tmp_path / "documents"))
+    splits = SplitService(units, SQLiteDocumentStore(units))
     body = {
         "name": "Measured",
         "source_id": source["id"],
@@ -71,7 +71,7 @@ def test_split_statistics_are_versioned_and_survive_reopen(tmp_path: Path) -> No
     reopened.initialize()
     restored = SplitService(
         reopened.unit_of_work,
-        SQLiteDocumentStore(reopened.unit_of_work, tmp_path / "documents"),
+        SQLiteDocumentStore(reopened.unit_of_work),
     ).get(created["id"], 1)
     assert restored["statistics"] == old_version["statistics"]
     reopened.engine.dispose()

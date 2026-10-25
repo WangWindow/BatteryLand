@@ -16,13 +16,9 @@ class Settings:
     source_roots: dict[str, Path] = field(default_factory=dict)
     provider_root: Path = DEFAULT_PROVIDER_ROOT
     training_python: Path = DEFAULT_TRAINING_PYTHON
-    poll_interval: float = 0.2
-    interrupt_timeout: float = 10.0
-    terminate_timeout: float = 5.0
     component_limit: int = 1024 * 1024
     checkpoint_limit: int = 1024 * 1024 * 1024
     validation_secret: str = ""
-    service_token: str = ""
     auto_index_catalog: bool = False
 
     @classmethod
@@ -47,6 +43,5 @@ class Settings:
                 else DEFAULT_TRAINING_PYTHON
             ),
             validation_secret=os.environ.get("BATTERYLAND_VALIDATION_SECRET", ""),
-            service_token=os.environ.get("BATTERYLAND_SERVICE_TOKEN", ""),
             auto_index_catalog=os.environ.get("BATTERYLAND_AUTO_INDEX_CATALOG", "1") != "0",
         )

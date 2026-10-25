@@ -2,11 +2,11 @@
 
 import hashlib
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from batteryland.common.errors import DomainError
@@ -160,92 +160,6 @@ class SqlDocumentRepository:
         if checksum != row.sha256:
             raise DomainError("storage_corrupt", "Document checksum does not match its content")
         return envelope
-
-    def import_legacy(self, reference: DocumentRef, envelope: dict[str, Any]) -> None:
-        """Import one validated v1 file, filling old metadata rows without replacing data."""
-        if (
-            reference.storage_key != f"{reference.id}.json"
-            or set(envelope)
-            != {"schema_version", "kind", "owner_id", "version", "created_at", "payload"}
-            or type(envelope.get("schema_version")) is not int
-            or envelope.get("schema_version") != 1
-            or envelope.get("kind") != reference.kind
-            or envelope.get("owner_id") != reference.owner_id
-            or type(envelope.get("version")) is not int
-            or envelope.get("version") != reference.version
-            or envelope.get("created_at") != reference.created_at
-            or not isinstance(envelope.get("payload"), dict)
-        ):
-            raise DomainError(
-                "storage_corrupt", "Legacy document envelope does not match its reference"
-            )
-        try:
-            timestamp = datetime.fromisoformat(reference.created_at)
-        except ValueError as exc:
-            raise DomainError("storage_corrupt", "Legacy document timestamp is invalid") from exc
-        if timestamp.tzinfo is None or timestamp.utcoffset() != timedelta(0):
-            raise DomainError("storage_corrupt", "Legacy document timestamp must be UTC")
-
-        checksum = hashlib.sha256(_encode(envelope, symbol="storage_corrupt")).hexdigest()
-        if checksum != reference.sha256:
-            raise DomainError(
-                "storage_corrupt", "Legacy document checksum does not match its content"
-            )
-
-        row = self.session.get(DocumentRow, reference.id)
-        if row is None:
-            conflicting_version = self.session.scalar(
-                select(DocumentRow).where(
-                    DocumentRow.kind == reference.kind,
-                    DocumentRow.owner_id == reference.owner_id,
-                    DocumentRow.version == reference.version,
-                )
-            )
-            if conflicting_version is not None:
-                raise DomainError(
-                    "storage_corrupt", "Legacy document version has a conflicting identity"
-                )
-            row = DocumentRow(
-                id=reference.id,
-                kind=reference.kind,
-                owner_id=reference.owner_id,
-                version=reference.version,
-                schema_version=1,
-                sha256=reference.sha256,
-                storage_key=_storage_key(reference.id),
-                created_at=reference.created_at,
-                payload=envelope["payload"],
-            )
-            self.session.add(row)
-            self.session.flush()
-            return
-
-        if (
-            row.kind != reference.kind
-            or row.owner_id != reference.owner_id
-            or row.version != reference.version
-            or row.schema_version != 1
-            or row.sha256 != reference.sha256
-            or row.created_at != reference.created_at
-            or row.storage_key not in (reference.storage_key, _storage_key(reference.id))
-        ):
-            raise DomainError("storage_corrupt", "Legacy document conflicts with database metadata")
-        if row.payload is not None and row.payload != envelope["payload"]:
-            raise DomainError(
-                "storage_corrupt", "Legacy document conflicts with stored JSON content"
-            )
-        row.payload = envelope["payload"]
-        row.storage_key = _storage_key(reference.id)
-        self.session.flush()
-
-    def ensure_complete(self) -> None:
-        missing = self.session.scalar(
-            select(func.count()).select_from(DocumentRow).where(DocumentRow.payload.is_(None))
-        )
-        if missing:
-            raise DomainError(
-                "storage_corrupt", "SQLite contains document metadata with missing content"
-            )
 
     def get(self, identity: str) -> DocumentRef:
         row = self.session.get(DocumentRow, identity)

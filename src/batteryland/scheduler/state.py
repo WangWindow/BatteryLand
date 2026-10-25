@@ -1,9 +1,9 @@
-"""Transactional scheduler ownership and execution reporting use cases."""
+"""Transactional ownership and execution state for the in-process scheduler."""
 
 from batteryland.db.contracts import Record, UnitOfWorkFactory
 
 
-class WorkerProtocolService:
+class SchedulerStateService:
     def __init__(self, units: UnitOfWorkFactory) -> None:
         self.units = units
 

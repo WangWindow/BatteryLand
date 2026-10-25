@@ -155,8 +155,8 @@ def test_one_backend_port_validates_and_runs_once_with_local_coordinator(setting
         sampler = GpuSampler()
         training = TrainingStub(tmp_path / "report.txt")
         scheduler = LocalScheduler(
-            container.workers,
-            container.execution,
+            container.scheduler_state,
+            container.validated_experiments,
             training,
             container.results,
             container.artifacts,
@@ -202,8 +202,8 @@ def test_local_stop_never_restarts_an_experiment(settings, tmp_path):
         sampler.available = True
         training = TrainingStub(tmp_path / "stopped-report.txt")
         scheduler = LocalScheduler(
-            container.workers,
-            container.execution,
+            container.scheduler_state,
+            container.validated_experiments,
             training,
             container.results,
             container.artifacts,
@@ -212,7 +212,9 @@ def test_local_stop_never_restarts_an_experiment(settings, tmp_path):
         )
         scheduler.tick()
         assert training.starts == 1
-        assert client.post(f"/api/v1/experiments/{identity}/stop").status_code == 202
+        assert client.post(
+            f"/api/v1/validated-experiments/{identity}/stop"
+        ).status_code == 202
         scheduler.tick()
         scheduler.tick()
         assert (

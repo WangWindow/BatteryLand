@@ -7,11 +7,15 @@ from pydantic import Field
 from batteryland.analytics.service import AnalysisService
 from batteryland.api.schemas import Envelope, RequestModel
 from batteryland.container import Container
-from batteryland.experiments.routes import VersionRef
 from batteryland.results.routes import Metric, ResultSource
 
 router = APIRouter(prefix="/api/v1", tags=["analysis"])
 type Category = Literal["source", "chemistry", "material", "temperature_c"]
+
+
+class VersionRef(RequestModel):
+    id: UUID
+    version: int = Field(ge=1)
 
 
 class ComparisonRequest(RequestModel):

@@ -1,5 +1,6 @@
 """Public workflow for complete provider-validated experiment inputs."""
 
+from datetime import UTC, datetime
 from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 
@@ -8,6 +9,7 @@ from pydantic import Field
 
 from batteryland.api.schemas import Envelope, Page, RequestModel
 from batteryland.container import Container
+from batteryland.experiments.schemas import ExperimentSummary
 from batteryland.experiments.validated import ValidatedExperimentService
 
 router = APIRouter(prefix="/api/v1/validated-experiments", tags=["validated experiments"])
@@ -49,6 +51,31 @@ class ValidatedExperiment(RequestModel):
 
 def service(request: Request) -> ValidatedExperimentService:
     return cast(Container, request.app.state.container).validated_experiments
+
+
+@router.get("", response_model=Envelope[Page[ExperimentSummary]])
+def list_experiments(
+    workflow: Annotated[ValidatedExperimentService, Depends(service)],
+    q: str | None = None,
+    state: str | None = None,
+    model_type: str | None = None,
+    task_type: str | None = None,
+    requested_device: str | None = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+) -> dict[str, Any]:
+    filters = {
+        "q": q,
+        "state": state,
+        "model_type": model_type,
+        "task_type": task_type,
+        "requested_device": requested_device,
+        "created_from": created_from.astimezone(UTC).isoformat() if created_from else None,
+        "created_to": created_to.astimezone(UTC).isoformat() if created_to else None,
+    }
+    return {"data": workflow.list(filters, page, page_size)}
 
 
 @router.post("", status_code=201, response_model=Envelope[ValidatedExperiment])
@@ -112,3 +139,13 @@ def submit(
     workflow: Annotated[ValidatedExperimentService, Depends(service)],
 ) -> dict[str, Any]:
     return {"data": workflow.submit(str(experiment_id))}
+
+
+@router.post(
+    "/{experiment_id}/stop", status_code=202, response_model=Envelope[ValidatedExperiment]
+)
+def stop(
+    experiment_id: UUID,
+    workflow: Annotated[ValidatedExperimentService, Depends(service)],
+) -> dict[str, Any]:
+    return {"data": workflow.stop(str(experiment_id))}

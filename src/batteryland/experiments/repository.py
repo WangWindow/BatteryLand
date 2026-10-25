@@ -10,6 +10,7 @@ from batteryland.db.models import (
     ExperimentRow,
     QueueSequenceRow,
     ResultRow,
+    ValidatedInputRow,
     utc_now,
 )
 from batteryland.experiments.states import ensure_transition
@@ -18,7 +19,6 @@ REFERENCE_FIELDS = (
     "split_document_id",
     "source_split_document_id",
     "target_split_document_id",
-    "template_document_id",
     "checkpoint_id",
 )
 
@@ -146,6 +146,7 @@ class SqlExperimentRepository:
             .join(ExperimentQueryRow)
             .outerjoin(ExecutionRow)
             .outerjoin(ResultRow, ResultRow.experiment_id == ExperimentRow.id)
+            .where(ExperimentRow.id.in_(select(ValidatedInputRow.experiment_id).distinct()))
         )
         for key, value in filters.items():
             if value is None:
@@ -273,6 +274,7 @@ class SqlExperimentRepository:
             .join(ExecutionRow)
             .outerjoin(ExperimentQueryRow, ExperimentQueryRow.experiment_id == ExperimentRow.id)
             .where(ExperimentRow.state.in_(states))
+            .where(ExperimentRow.id.in_(select(ValidatedInputRow.experiment_id).distinct()))
             .order_by(ExecutionRow.queue_order, ExperimentRow.id)
         )
         return [
