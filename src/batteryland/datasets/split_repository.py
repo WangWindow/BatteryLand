@@ -266,7 +266,14 @@ class SqlSplitRepository:
             item["head_version"] = item["version"] = item["revision"]
         return result
 
-    def members(self, document_id: str, partition: str | None, page: int, page_size: int) -> Record:
+    def members(
+        self,
+        document_id: str,
+        partition: str | None,
+        query: str | None,
+        page: int,
+        page_size: int,
+    ) -> Record:
         statement = (
             select(BatteryRow)
             .join(SplitMemberRow, BatteryRow.id == SplitMemberRow.battery_id)
@@ -274,6 +281,15 @@ class SqlSplitRepository:
         )
         if partition:
             statement = statement.where(SplitMemberRow.partition == partition)
+        if query and (value := query.strip()):
+            escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            pattern = f"%{escaped}%"
+            statement = statement.where(
+                or_(
+                    BatteryRow.file_name.ilike(pattern, escape="\\"),
+                    BatteryRow.relative_key.ilike(pattern, escape="\\"),
+                )
+            )
         return page_of(
             self.session,
             statement.order_by(

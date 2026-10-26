@@ -4229,6 +4229,7 @@ export interface operations {
             query?: {
                 version?: number | null;
                 partition?: ("train" | "val" | "test") | null;
+                q?: string | null;
                 page?: number;
                 page_size?: number;
             };

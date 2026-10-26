@@ -4,7 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useEffect, useRef, useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { api, download } from "../api/client"
-import type { Battery, Schema, SplitWrite } from "../api/types"
+import type { Battery, Schema, Split, SplitWrite } from "../api/types"
 import { useSelection } from "../app/context"
 import { BatteryExplorer } from "../components/battery-explorer"
 import { Details, Empty, ErrorNotice, Loading, Modal, PageHeader, Pager } from "../components/common"
@@ -149,13 +149,23 @@ function SplitDetails({ id, close }: { id: string; close: () => void }) {
   const sources = useQuery({ queryKey: ["sources"], queryFn: ({ signal }) => api.sources(signal) })
   const [partition, setPartition] = useState("train"),
     [page, setPage] = useState(1),
-    [showMembers, setShowMembers] = useState(false)
+    [showMembers, setShowMembers] = useState(false),
+    [memberSearch, setMemberSearch] = useState("")
   const members = useQuery({
-    queryKey: ["split-members", id, partition, page],
+    queryKey: ["split-members", id, partition, page, memberSearch],
     enabled: showMembers,
-    queryFn: ({ signal }) => api.splitMembers(id, partition, page, signal),
-    placeholderData: keepPreviousData,
+    queryFn: ({ signal }) => api.splitMembers(id, partition, page, memberSearch, signal),
   })
+  const manifestMemberNames = providerPartitionMembers(split.data?.payload, partition)
+  const partitionIssues = (split.data?.resolution.issues ?? []).filter(
+    (issue) => issue.status !== "empty_partition" && manifestMemberNames.includes(issue.file_name),
+  )
+  const visiblePartitionIssues = partitionIssues.filter((issue) =>
+    issue.file_name.toLocaleLowerCase().includes(memberSearch.trim().toLocaleLowerCase()),
+  )
+  const unavailableOnPage =
+    members.data?.items.filter((item) => item.availability !== "available").length ?? 0
+  const visibleProblemCount = unavailableOnPage + visiblePartitionIssues.length
   const remove = useMutation({
     mutationFn: () => api.deleteSplit(id),
     onSuccess: () => {
@@ -234,17 +244,21 @@ function SplitDetails({ id, close }: { id: string; close: () => void }) {
               }}
             />
             {!split.data.execution_ready && (
-              <div className="notice error" role="status">
+              <div className="notice error split-readiness-notice" role="status">
                 <div>
                   <strong>当前无法用于训练</strong>
-                  <ul>
-                    {uniqueIssues(split.data.resolution.issues ?? []).map((issue) => (
-                      <li key={`${issue.file_name}-${issue.status}-${issue.partition ?? ""}`}>
-                        {issue.file_name || issue.partition || "数据文件"} · {resolutionLabel(issue.status)}
-                        {issue.candidates?.length ? `（${issue.candidates.length} 个同名候选）` : ""}
-                      </li>
-                    ))}
-                  </ul>
+                  <p>
+                    {split.data.resolution.missing > 0 && `缺少 ${split.data.resolution.missing} 个文件。`}
+                    {split.data.resolution.ambiguous > 0 &&
+                      `有 ${split.data.resolution.ambiguous} 个文件名对应多个电池。`}
+                    {split.data.resolution.duplicates > 0 &&
+                      `有 ${split.data.resolution.duplicates} 个重复成员。`}
+                    {split.data.resolution.manifest_missing && "内置划分清单已不存在。"}
+                    {(split.data.resolution.issues ?? []).some(
+                      (issue) => issue.status === "empty_partition",
+                    ) && "存在空分组。"}
+                  </p>
+                  <span className="subtle">展开电池成员，可按训练、验证和测试分组定位问题文件。</span>
                 </div>
               </div>
             )}
@@ -253,38 +267,150 @@ function SplitDetails({ id, close }: { id: string; close: () => void }) {
               {showMembers ? "隐藏成员" : "查看电池成员"}
             </Button>
             {showMembers && (
-              <>
-                <Select
-                  aria-label="电池分组"
-                  value={partition}
-                  onChange={(event) => {
-                    setPartition(event.target.value)
-                    setPage(1)
-                  }}
-                >
-                  {partitions.map((item) => (
-                    <Select.Option key={item} value={item}>
-                      {item === "train" ? "训练集" : item === "val" ? "验证集" : "测试集"}
-                    </Select.Option>
-                  ))}
-                </Select>
+              <section className="member-inspector" aria-label="电池成员">
+                <header className="member-inspector-heading">
+                  <div>
+                    <h3>电池成员</h3>
+                    <p>按分组浏览文件；异常成员会标出原因和来源位置。</p>
+                  </div>
+                  <div className="member-inspector-meta">
+                    <span className="subtle">{members.data?.total.toLocaleString() ?? "—"} 个已登记成员</span>
+                    {members.data && (
+                      <span className={`member-health${visibleProblemCount ? " has-problems" : ""}`}>
+                        {visibleProblemCount > 0
+                          ? `${visibleProblemCount} 个问题文件`
+                          : members.data.total > 0
+                            ? "未发现异常"
+                            : "没有已登记成员"}
+                      </span>
+                    )}
+                  </div>
+                </header>
+                <fieldset className="member-partition-tabs">
+                  <legend className="sr-only">选择数据分组</legend>
+                  {partitions.map((item) => {
+                    const label = item === "train" ? "训练集" : item === "val" ? "验证集" : "测试集"
+                    return (
+                      <button
+                        aria-pressed={partition === item}
+                        className={`member-partition-tab${partition === item ? " is-active" : ""}`}
+                        key={item}
+                        onClick={() => {
+                          setPartition(item)
+                          setPage(1)
+                        }}
+                        type="button"
+                      >
+                        <span>{label}</span>
+                        <strong>{(split.data?.counts[item] ?? 0).toLocaleString()}</strong>
+                      </button>
+                    )
+                  })}
+                </fieldset>
+                <div className="member-list-toolbar">
+                  <TextInput
+                    aria-label="搜索电池成员"
+                    placeholder="按文件名或路径搜索…"
+                    value={memberSearch}
+                    onChange={(event) => {
+                      setMemberSearch(event.target.value)
+                      setPage(1)
+                    }}
+                  />
+                  <span className="subtle">{members.data?.total.toLocaleString() ?? "—"} 项匹配</span>
+                </div>
                 <ErrorNotice error={members.error} />
                 {members.isPending ? (
                   <Loading />
                 ) : (
                   <>
-                    <div className="compact-list">
-                      {members.data?.items.map((item) => (
-                        <div className="member-row" key={item.id}>
-                          {item.file_name}
-                          <span>{item.availability}</span>
+                    {visiblePartitionIssues.length > 0 && (
+                      <div className="member-issue-list" role="alert">
+                        <div className="member-issue-heading">
+                          <strong>未匹配的清单文件</strong>
+                          <span>{visiblePartitionIssues.length} 项需要处理</span>
                         </div>
-                      ))}
-                    </div>
-                    <Pager page={page} size={100} total={members.data?.total ?? 0} onChange={setPage} />
+                        {visiblePartitionIssues.map((issue) => (
+                          <div
+                            className={`member-issue-row member-issue--${issue.status === "ambiguous" ? "warning" : "error"}`}
+                            key={`${issue.file_name}-${issue.status}`}
+                          >
+                            <code title={issue.file_name}>{issue.file_name}</code>
+                            <span className="member-status-label">{resolutionLabel(issue.status)}</span>
+                            {issue.candidates && issue.candidates.length > 0 && (
+                              <small>
+                                候选来源：
+                                {issue.candidates
+                                  .map((candidate) => `${candidate.source_name} · ${candidate.relative_key}`)
+                                  .join(" / ")}
+                              </small>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {members.data?.items.length ? (
+                      <div className="member-table-wrap">
+                        <table className="member-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">#</th>
+                              <th scope="col">电池文件</th>
+                              <th scope="col">数据来源</th>
+                              <th scope="col">状态</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {members.data.items.map((item, index) => {
+                              const statusKind =
+                                item.availability === "available"
+                                  ? "available"
+                                  : item.availability === "missing"
+                                    ? "missing"
+                                    : "warning"
+                              const sourceName =
+                                sources.data?.items.find((source) => source.id === item.source_id)?.name ??
+                                "未知来源"
+                              return (
+                                <tr className={`member-table-row is-${statusKind}`} key={item.id}>
+                                  <td className="member-row-number">
+                                    {((page - 1) * 100 + index + 1).toLocaleString()}
+                                  </td>
+                                  <td>
+                                    <code className="member-file-name" title={item.file_name}>
+                                      {item.file_name}
+                                    </code>
+                                    <small className="member-file-path" title={item.relative_key}>
+                                      {item.relative_key}
+                                    </small>
+                                  </td>
+                                  <td className="member-source-name">{sourceName}</td>
+                                  <td>
+                                    <span className={`member-status is-${statusKind}`}>
+                                      {item.availability === "available"
+                                        ? "可用"
+                                        : item.availability === "missing"
+                                          ? "文件不存在"
+                                          : `状态异常 · ${item.availability}`}
+                                    </span>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : visiblePartitionIssues.length === 0 ? (
+                      <div className="member-empty">
+                        {memberSearch ? "没有匹配的电池文件。" : "此分组没有已登记的电池文件。"}
+                      </div>
+                    ) : null}
+                    {(members.data?.total ?? 0) > 100 && (
+                      <Pager page={page} size={100} total={members.data?.total ?? 0} onChange={setPage} />
+                    )}
                   </>
                 )}
-              </>
+              </section>
             )}
           </>
         )
@@ -302,6 +428,13 @@ function resolutionLabel(status: string): string {
       empty_partition: "分组为空",
     }[status] ?? status
   )
+}
+
+function providerPartitionMembers(payload: Split["payload"], partition: string): string[] {
+  const providerSplit = payload?.provider_split
+  if (!providerSplit || typeof providerSplit !== "object" || Array.isArray(providerSplit)) return []
+  const members = (providerSplit as Record<string, unknown>)[partition]
+  return Array.isArray(members) ? members.filter((name): name is string => typeof name === "string") : []
 }
 
 function uniqueIssues(issues: Schema["ImportIssue"][]): Schema["ImportIssue"][] {

@@ -536,7 +536,13 @@ class SplitService:
         return result
 
     def members(
-        self, identity: str, version: int | None, partition: str | None, page: int, page_size: int
+        self,
+        identity: str,
+        version: int | None,
+        partition: str | None,
+        query: str | None,
+        page: int,
+        page_size: int,
     ) -> Record:
         with self.units() as unit:
             header = unit.splits.get(identity)
@@ -545,7 +551,7 @@ class SplitService:
                 if version is None
                 else unit.documents.find("split", identity, version)
             )
-            return unit.splits.members(document.id, partition, page, page_size)
+            return unit.splits.members(document.id, partition, query, page, page_size)
 
     def export(self, identity: str, version: int | None = None) -> Record:
         split = self.get(identity, version)

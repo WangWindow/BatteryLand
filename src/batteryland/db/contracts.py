@@ -186,7 +186,12 @@ class SplitRepository(Protocol):
         self, source_ids: list[str] | None, q: str | None, page: int, page_size: int
     ) -> Record: ...
     def members(
-        self, document_id: str, partition: str | None, page: int, page_size: int
+        self,
+        document_id: str,
+        partition: str | None,
+        query: str | None,
+        page: int,
+        page_size: int,
     ) -> Record: ...
     def delete(self, identity: str) -> None: ...
 

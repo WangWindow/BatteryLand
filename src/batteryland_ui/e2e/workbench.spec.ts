@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test"
 const sourceId = "11111111-1111-4111-8111-111111111111"
 const splitId = "22222222-2222-4222-8222-222222222222"
 const experimentId = "33333333-3333-4333-8333-333333333333"
+const problematicSplitId = "66666666-6666-4666-8666-666666666666"
 const now = "2026-10-25T10:00:00Z"
 const source = {
   id: sourceId,
@@ -27,6 +28,36 @@ const batteries = Array.from({ length: 10 }, (_, index) => ({
   modified_at_ns: 1792915200000000000,
   created_at: now,
 }))
+const problematicSplit = {
+  id: problematicSplitId,
+  name: "Incomplete built-in dataset",
+  sources: [{ source_id: sourceId, source_revision: 1, root_alias: "battery_life" }],
+  origin: "builtin",
+  source_ref: "datasets/batteryLife/data_split/incomplete.json",
+  read_only: true,
+  execution_ready: false,
+  resolution: {
+    matched: 2,
+    missing: 1,
+    ambiguous: 0,
+    duplicates: 0,
+    issues: [{ file_name: "MISSING.pkl", status: "missing", candidates: [] }],
+  },
+  revision: 1,
+  head_version: 1,
+  version: 1,
+  counts: { train: 1, val: 1, test: 1 },
+  payload: {
+    provider_split: {
+      dataset: "Incomplete built-in dataset",
+      train: ["MISSING.pkl"],
+      val: ["B4.pkl"],
+      test: ["B5.pkl"],
+    },
+  },
+  statistics: null,
+  created_at: now,
+}
 const components = [
   ["task", "BatteryLifeRun"],
   ["runtime", "accelerator"],
@@ -141,7 +172,9 @@ test("creates a split, validates a config, saves and submits an experiment", asy
     if (request.method() === "GET" && path === "/components") return success(components)
     if (request.method() === "GET" && path === "/scheduler/resources") return success([])
     if (request.method() === "GET" && path === "/splits") {
-      const items = [split, importedSplit].filter((item): item is Record<string, unknown> => item !== null)
+      const items = [split, importedSplit, problematicSplit].filter(
+        (item): item is Record<string, unknown> => item !== null,
+      )
       return success({ items, total: items.length, page: 1, page_size: 100 })
     }
     if (request.method() === "POST" && path === "/splits/preview") {
@@ -214,8 +247,12 @@ test("creates a split, validates a config, saves and submits an experiment", asy
       return success(split, 201)
     }
     if (request.method() === "GET" && path === `/splits/${splitId}`) return success(split)
+    if (request.method() === "GET" && path === `/splits/${problematicSplitId}`)
+      return success(problematicSplit)
     if (request.method() === "GET" && path === `/splits/${String(importedSplit?.id ?? "")}`)
       return success(importedSplit)
+    if (request.method() === "GET" && path === `/splits/${problematicSplitId}/members`)
+      return success({ items: [], total: 0, page: 1, page_size: 100 })
     if (request.method() === "GET" && path === "/splits/55555555-5555-4555-8555-555555555555/members") {
       const partition = url.searchParams.get("partition")
       const names =
@@ -224,7 +261,16 @@ test("creates a split, validates a config, saves and submits an experiment", asy
       return success({ items, total: items.length, page: 1, page_size: 100 })
     }
     if (request.method() === "GET" && path === `/splits/${splitId}/members`) {
-      return success({ items: [], total: 0, page: 1, page_size: 100 })
+      const partition = url.searchParams.get("partition")
+      const query = url.searchParams.get("q")?.toLocaleLowerCase() ?? ""
+      const names =
+        partition === "train" ? ["B1.pkl", "B2.pkl", "B3.pkl"] : partition === "val" ? ["B4.pkl"] : ["B5.pkl"]
+      const items = batteries
+        .filter(
+          (item) => names.includes(item.file_name) && item.file_name.toLocaleLowerCase().includes(query),
+        )
+        .map((item) => (item.file_name === "B2.pkl" ? { ...item, availability: "missing" } : item))
+      return success({ items, total: items.length, page: 1, page_size: 100 })
     }
     if (request.method() === "POST" && path === "/training/validation") {
       validationRequest = request.postDataJSON() as Record<string, unknown>
@@ -340,6 +386,15 @@ test("creates a split, validates a config, saves and submits an experiment", asy
   await expect(page.getByRole("textbox", { name: "划分名称" })).toHaveValue("实验数据划分")
   await page.getByRole("button", { name: "保存数据集" }).click()
   await expect(page.getByRole("heading", { name: "实验数据划分" })).toBeVisible()
+  await page.getByRole("button", { name: "查看电池成员" }).click()
+  await expect(page.getByRole("button", { name: /训练集/ })).toHaveAttribute("aria-pressed", "true")
+  const missingMember = page.getByRole("row").filter({ hasText: "B2.pkl" })
+  await expect(missingMember).toContainText("文件不存在")
+  await expect(missingMember).toHaveClass(/is-missing/)
+  await page.getByRole("textbox", { name: "搜索电池成员" }).fill("B2")
+  await expect(missingMember).toBeVisible()
+  await page.getByRole("textbox", { name: "搜索电池成员" }).fill("B1")
+  await expect(missingMember).toHaveCount(0)
   await page.getByRole("button", { name: "用于新实验" }).click()
 
   await expect(page.getByRole("heading", { name: "新建实验" })).toBeVisible()
@@ -382,4 +437,9 @@ test("creates a split, validates a config, saves and submits an experiment", asy
   await page.getByRole("button", { name: "预览划分" }).click()
   await page.getByRole("button", { name: "保存新版本" }).click()
   await expect(page.getByText("v2", { exact: true })).toBeVisible()
+  await page.goto(`/splits?open=${problematicSplitId}`)
+  await expect(page.getByRole("heading", { name: "Incomplete built-in dataset" })).toBeVisible()
+  await page.getByRole("button", { name: "查看电池成员" }).click()
+  await expect(page.getByText("MISSING.pkl", { exact: true })).toBeVisible()
+  await expect(page.getByText("未找到文件", { exact: true })).toBeVisible()
 })

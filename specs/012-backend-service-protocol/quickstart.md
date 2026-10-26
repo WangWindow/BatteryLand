@@ -78,3 +78,6 @@ print(experiment["id"])
 | 日志、结果、指标和产物 | `GET /experiments/{id}/logs`、`/results`、`/metrics`、`/artifacts` |
 
 调度器在后端进程内直接更新执行状态，不提供远程 worker HTTP 接口。
+
+成员接口支持 `partition=train|val|test`、分页参数以及可选的 `q` 文件名/相对路径搜索；数据集
+详情同时返回解析问题，供界面按分区突出显示无法匹配或不可用的文件。

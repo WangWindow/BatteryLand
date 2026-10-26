@@ -76,9 +76,9 @@ export const api = {
     send<Split>(`/splits/${encodeURIComponent(id)}`, body, "PUT"),
   deleteSplit: (id: string) =>
     request<{ deleted: boolean }>(`/splits/${encodeURIComponent(id)}`, { method: "DELETE" }),
-  splitMembers: (id: string, partition?: string, page = 1, signal?: AbortSignal) =>
+  splitMembers: (id: string, partition?: string, page = 1, q?: string, signal?: AbortSignal) =>
     get<Page<Battery>>(
-      `/splits/${encodeURIComponent(id)}/members${qs({ partition, page, page_size: 100 })}`,
+      `/splits/${encodeURIComponent(id)}/members${qs({ partition, q, page, page_size: 100 })}`,
       signal,
     ),
   previewSplitImport: (data: File, bindings: Record<string, string> = {}) => {

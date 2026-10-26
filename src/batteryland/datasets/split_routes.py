@@ -284,10 +284,11 @@ def members(
     splits: Annotated[SplitService, Depends(service)],
     version: int | None = Query(None, ge=1),
     partition: Literal["train", "val", "test"] | None = None,
+    q: str | None = Query(None, max_length=200),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
 ) -> dict[str, Any]:
-    return {"data": splits.members(str(split_id), version, partition, page, page_size)}
+    return {"data": splits.members(str(split_id), version, partition, q, page, page_size)}
 
 
 class ProviderSplit(RequestModel):

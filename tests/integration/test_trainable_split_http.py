@@ -67,6 +67,19 @@ async def _exercise_catalog_flow(tmp_path: Path) -> None:
             assert baseline["read_only"] is True
             assert baseline["execution_ready"] is True
             assert baseline["counts"] == {"train": 1, "val": 1, "test": 1}
+            searched_members = await client.get(
+                f"/api/v1/splits/{baseline['id']}/members",
+                params={"partition": "train", "q": "train"},
+            )
+            assert searched_members.status_code == 200
+            assert [item["file_name"] for item in searched_members.json()["data"]["items"]] == [
+                "train.pkl"
+            ]
+            empty_search = await client.get(
+                f"/api/v1/splits/{baseline['id']}/members",
+                params={"partition": "train", "q": "not-present"},
+            )
+            assert empty_search.json()["data"]["total"] == 0
             assert missing["execution_ready"] is False
             assert missing["resolution"]["missing"] == 1
             missing_detail = await client.get(f"/api/v1/splits/{missing['id']}")
