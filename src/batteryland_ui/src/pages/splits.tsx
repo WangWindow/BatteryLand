@@ -92,10 +92,12 @@ export default function SplitsPage() {
             setPage(1)
           }}
         />
-        <Button onClick={() => setImportOpen(true)}>导入 JSON</Button>
-        <Button leadingVisual={PlusIcon} variant="primary" onClick={() => setParams({ create: "1" })}>
-          新建数据集
-        </Button>
+        <div className="actions split-actions">
+          <Button onClick={() => setImportOpen(true)}>导入 JSON</Button>
+          <Button leadingVisual={PlusIcon} variant="primary" onClick={() => setParams({ create: "1" })}>
+            新建数据集
+          </Button>
+        </div>
       </div>
       <ErrorNotice error={query.error} />
       {query.isPending ? (

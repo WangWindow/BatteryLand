@@ -442,4 +442,8 @@ test("creates a split, validates a config, saves and submits an experiment", asy
   await page.getByRole("button", { name: "查看电池成员" }).click()
   await expect(page.getByText("MISSING.pkl", { exact: true })).toBeVisible()
   await expect(page.getByText("未找到文件", { exact: true })).toBeVisible()
+  await page.goto("/splits")
+  const splitActions = page.locator(".split-actions")
+  await expect(splitActions.getByRole("button", { name: "导入 JSON" })).toBeVisible()
+  await expect(splitActions.getByRole("button", { name: "新建数据集" })).toBeVisible()
 })
