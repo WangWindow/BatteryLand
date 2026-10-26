@@ -127,6 +127,27 @@ def test_custom_split_validation_signs_execution_supported_inputs(tmp_path: Path
     assert result["receipt"]["execution_supported"] is True
 
 
+def test_custom_split_validation_accepts_empty_platform_managed_split_file(tmp_path: Path):
+    service, _, split = create_service(tmp_path)
+    config = CONFIG.replace(
+        "    dataset: custom\n", "    dataset: custom\n    split_file: null\n"
+    )
+
+    result = service.validate(config, split["id"], split["version"])
+
+    assert result["execution_supported"] is True
+
+
+def test_custom_split_validation_rejects_user_supplied_split_file(tmp_path: Path):
+    service, _, split = create_service(tmp_path)
+    config = CONFIG.replace(
+        "    dataset: custom\n", "    dataset: custom\n    split_file: /tmp/split.json\n"
+    )
+
+    with pytest.raises(DomainError, match="split_file is assigned by the platform"):
+        service.validate(config, split["id"], split["version"])
+
+
 def test_custom_split_requires_matching_config_dataset(tmp_path: Path):
     service, _, split = create_service(tmp_path)
     mismatched = CONFIG.replace("dataset: custom", "dataset: another")

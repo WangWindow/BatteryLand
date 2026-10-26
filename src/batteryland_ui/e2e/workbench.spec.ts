@@ -46,7 +46,23 @@ const components = [
   source_hash: `hash-${index}`,
   origin: "builtin",
   resource_ref: null,
-  schema: { params: [] },
+  schema:
+    scope === "datafactory"
+      ? {
+          params: [
+            {
+              name: "split_file",
+              annotation: "str | None",
+              required: false,
+              has_default: true,
+              default: null,
+              default_serializable: true,
+              configurable: false,
+            },
+          ],
+          defaults: { split_file: null },
+        }
+      : { params: [] },
 }))
 
 test("creates a split, validates a config, saves and submits an experiment", async ({ page }) => {
@@ -278,5 +294,6 @@ test("creates a split, validates a config, saves and submits an experiment", asy
   expect(configText).toContain("BatteryLandBatteryLifeDatasetFactory")
   expect(configText).toContain("eval_cycle_max: 100")
   expect(configText).toContain("used_metric:")
+  expect(configText).not.toContain("split_file")
   expect(submitted).toBe(true)
 })

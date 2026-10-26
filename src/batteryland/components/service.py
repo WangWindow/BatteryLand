@@ -7,6 +7,7 @@ from batteryland.common.errors import DomainError
 from batteryland.common.file_contracts import ArtifactFiles
 from batteryland.db.contracts import Record, UnitOfWorkFactory
 from batteryland.training.contracts import ComponentGateway
+from batteryland.training.split_support import CUSTOM_BATTERY_FACTORY
 
 TEXT_PREVIEW_LIMIT = 1024 * 1024
 TEXT_PREVIEW_SUFFIXES = frozenset(
@@ -62,17 +63,63 @@ class ArtifactService:
         with self._registry_lock:
             values = self.provider.components(scope)
             with self.units() as unit:
-                return unit.artifacts.sync_components(values)
+                values = unit.artifacts.sync_components(values)
+        return [self._component_for_editor(value) for value in values]
 
     def schema(self, scope: str, name: str) -> Record:
         values = self.provider.components(scope)
         value = next((item for item in values if item["type"] == name.lower()), None)
         if value is None:
             raise DomainError("not_found", "Component not found")
-        descriptor = self.provider.schema(scope, name)
+        descriptor = self._schema_for_editor(scope, name, self.provider.schema(scope, name))
         with self._registry_lock, self.units() as unit:
             unit.artifacts.sync_components([value | {"schema": descriptor}])
         return descriptor
+
+    @staticmethod
+    def _schema_for_editor(scope: str, name: str, schema: Record) -> Record:
+        if scope.casefold() != "datafactory" or name.casefold() != CUSTOM_BATTERY_FACTORY:
+            return schema
+
+        parameters = schema.get("params")
+        if not isinstance(parameters, list):
+            return schema
+        managed = [
+            item
+            for item in parameters
+            if isinstance(item, dict) and item.get("name") == "split_file"
+        ]
+        if not managed:
+            return schema
+
+        result = dict(schema)
+        result["params"] = [item for item in parameters if item not in managed]
+        result["required"] = [
+            item for item in schema.get("required", []) if item != "split_file"
+        ]
+        defaults = schema.get("defaults")
+        if isinstance(defaults, dict):
+            result["defaults"] = {key: value for key, value in defaults.items() if key != "split_file"}
+        injected = list(schema.get("injected_params", []))
+        injected.extend(
+            {"name": "split_file", "source": "BatteryLand execution"}
+            for item in managed
+            if not any(
+                isinstance(existing, dict) and existing.get("name") == item["name"]
+                for existing in injected
+            )
+        )
+        result["injected_params"] = injected
+        return result
+
+    @classmethod
+    def _component_for_editor(cls, value: Record) -> Record:
+        schema = value.get("schema")
+        if isinstance(schema, dict):
+            return value | {
+                "schema": cls._schema_for_editor(value["scope"], value["type"], schema)
+            }
+        return value
 
     def upload_component(self, scope: str, filename: str, content: bytes) -> Record:
         with self._registry_lock:

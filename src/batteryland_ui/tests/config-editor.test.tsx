@@ -29,6 +29,15 @@ vi.mock("../src/api/client", () => ({
           default_serializable: true,
           configurable: true,
         },
+        {
+          name: "split_file",
+          annotation: "str | None",
+          required: false,
+          has_default: true,
+          default: null,
+          default_serializable: true,
+          configurable: false,
+        },
       ],
       defaults: { batch_size: 16 },
     }),
@@ -146,6 +155,8 @@ describe("visual training config editor", () => {
         datafactory: { params: { batch_size?: number } }
       }
       expect(config.datafactory.params.batch_size).toBe(16)
+      expect(config.datafactory.params).not.toHaveProperty("split_file")
     })
+    expect(screen.queryByRole("textbox", { name: "split_file" })).not.toBeInTheDocument()
   })
 })

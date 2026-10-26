@@ -66,7 +66,7 @@ def execution_support(config: Record, split: Record, runtime_root: Path) -> tupl
         raise DomainError("invalid_input", "Factory params must be an object")
 
     if str(factory.get("type", "")).casefold() == CUSTOM_BATTERY_FACTORY:
-        if "split_file" in parameters:
+        if parameters.get("split_file") is not None:
             raise DomainError(
                 "invalid_input", "split_file is assigned by the platform during execution"
             )

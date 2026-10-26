@@ -66,6 +66,7 @@ function defaultsFromSchema(value: unknown): Data {
     parameters.flatMap((raw) => {
       const parameter = record(raw)
       return parameter.name &&
+        parameter.configurable !== false &&
         parameter.has_default &&
         parameter.default_serializable !== false &&
         Object.hasOwn(parameter, "default")
@@ -449,19 +450,21 @@ function ComponentBlock({
       )}
       {schema.length > 0 ? (
         <div className="property-grid">
-          {schema.map((raw) => {
-            const name = String(raw.name ?? "")
-            if (!name) return null
-            return (
-              <FieldEditor
-                key={name}
-                label={`${name}${raw.required ? " · 必填" : ""}`}
-                annotation={raw.annotation}
-                value={Object.hasOwn(params, name) ? params[name] : raw.default}
-                onChange={(value) => onChange({ ...group, params: { ...params, [name]: value } })}
-              />
-            )
-          })}
+          {schema
+            .filter((raw) => raw.configurable !== false)
+            .map((raw) => {
+              const name = String(raw.name ?? "")
+              if (!name) return null
+              return (
+                <FieldEditor
+                  key={name}
+                  label={`${name}${raw.required ? " · 必填" : ""}`}
+                  annotation={raw.annotation}
+                  value={Object.hasOwn(params, name) ? params[name] : raw.default}
+                  onChange={(value) => onChange({ ...group, params: { ...params, [name]: value } })}
+                />
+              )
+            })}
         </div>
       ) : (
         <p className="subtle">当前组件没有可发现的参数定义。可切换到 YAML 编辑其他配置，未知字段会保留。</p>
