@@ -81,10 +81,16 @@ export const api = {
       `/splits/${encodeURIComponent(id)}/members${qs({ partition, page, page_size: 100 })}`,
       signal,
     ),
-  importSplit: (sources: string[], data: File) => {
+  previewSplitImport: (data: File, bindings: Record<string, string> = {}) => {
     const form = new FormData()
-    for (const id of sources) form.append("source_ids", id)
     form.set("file", data)
+    form.set("member_bindings", JSON.stringify(bindings))
+    return file<Schema["SplitImportPreview"]>("/splits/import/preview", form)
+  },
+  importSplit: (data: File, bindings: Record<string, string> = {}) => {
+    const form = new FormData()
+    form.set("file", data)
+    form.set("member_bindings", JSON.stringify(bindings))
     return file<Split>("/splits/import", form)
   },
   components: (signal?: AbortSignal) => get<Component[]>("/components", signal),
@@ -143,8 +149,6 @@ export const api = {
   compare: (body: Schema["ComparisonRequest"]) => send<Schema["ComparisonData"]>("/comparisons", body),
   differences: (body: Schema["DifferenceRequest"]) => send<Schema["DifferenceResult"]>("/differences", body),
   charts: (body: Schema["ChartRequest"]) => send<Schema["ChartBundle"]>("/charts", body),
-  groups: (signal?: AbortSignal) =>
-    get<Page<Schema["NamedGroup"]>>("/catalog/named-groups?page_size=200", signal),
   catalogStatus: (signal?: AbortSignal) => get<Schema["CatalogStatus"]>("/catalog/status", signal),
   selectionPreview: (body: Schema["PreviewWrite"], page = 1, signal?: AbortSignal) =>
     request<Page<Battery>>(`/logical-datasets/preview${qs({ page, page_size: 40 })}`, {

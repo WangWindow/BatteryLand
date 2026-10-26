@@ -276,6 +276,17 @@ def test_preview_returns_exact_counts_without_saving_a_split(tmp_path: Path) -> 
     assert result == {
         "source_revisions": {source["id"]: source_revision},
         "counts": {"all": 2, "train": 2, "val": 0, "test": 0},
+        "execution_ready": False,
+        "resolution": {
+            "matched": 0,
+            "missing": 0,
+            "ambiguous": 0,
+            "duplicates": 0,
+            "issues": [
+                {"file_name": "", "status": "empty_partition", "partition": "val"},
+                {"file_name": "", "status": "empty_partition", "partition": "test"},
+            ],
+        },
     }
     assert splits.list([source["id"]], None, 1, 10)["total"] == 0
     created = splits.create(body)

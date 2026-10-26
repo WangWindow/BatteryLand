@@ -12,7 +12,7 @@ import { partitions } from "../lib/format"
 type Part = "train" | "val" | "test"
 type SetChoice = {
   key: string
-  kind: "source" | "split" | "group" | "logical"
+  kind: "source" | "split" | "logical"
   ref: string
   label: string
   version?: number
@@ -27,7 +27,6 @@ export default function DatasetAnalysisPage() {
     queryKey: ["splits", "analysis"],
     queryFn: ({ signal }) => api.splits({ page_size: 100 }, signal),
   })
-  const groups = useQuery({ queryKey: ["groups"], queryFn: ({ signal }) => api.groups(signal) })
   const logicalDatasets = useQuery({
     queryKey: ["logical-datasets"],
     queryFn: ({ signal }) => api.logicalDatasets(1, signal),
@@ -55,15 +54,13 @@ export default function DatasetAnalysisPage() {
       )
     if (kind === "split")
       return (
-        splits.data?.items.map((item) => ({ value: item.id, label: `${item.name} · v${item.version}` })) ?? []
+        splits.data?.items.map((item) => ({
+          value: item.id,
+          label: `${item.name} · v${item.version}${item.execution_ready ? "" : " · 未完全匹配"}`,
+        })) ?? []
       )
-    return (
-      groups.data?.items.map((item) => ({
-        value: item.name,
-        label: `${item.name} · ${item.counts.matched.toLocaleString()} 个匹配电池`,
-      })) ?? []
-    )
-  }, [kind, sources.data, splits.data, groups.data, logicalDatasets.data])
+    return []
+  }, [kind, sources.data, splits.data, logicalDatasets.data])
   const request = useMemo<Schema["DifferenceRequest"]>(
     () => ({
       analysis_kind: analysis,
@@ -73,11 +70,9 @@ export default function DatasetAnalysisPage() {
         partitions: choice.parts,
         ...(choice.kind === "source"
           ? { source_id: choice.ref }
-          : choice.kind === "group"
-            ? { named_group: choice.ref }
-            : choice.kind === "logical"
-              ? { logical_dataset_id: choice.ref }
-              : { split: { id: choice.ref, version: choice.version ?? 1 } }),
+          : choice.kind === "logical"
+            ? { logical_dataset_id: choice.ref }
+            : { split: { id: choice.ref, version: choice.version ?? 1 } }),
       })),
     }),
     [analysis, category, choices],
@@ -131,16 +126,14 @@ export default function DatasetAnalysisPage() {
     )
   }
 
-  const loading = sources.isPending || splits.isPending || groups.isPending || logicalDatasets.isPending
+  const loading = sources.isPending || splits.isPending || logicalDatasets.isPending
   return (
     <>
       <PageHeader
         title="数据集比较"
         description="比较已登记数据来源和已保存数据划分，可查看整体或训练、验证、测试分组的统计差异。"
       />
-      <ErrorNotice
-        error={sources.error ?? splits.error ?? groups.error ?? logicalDatasets.error ?? compare.error}
-      />
+      <ErrorNotice error={sources.error ?? splits.error ?? logicalDatasets.error ?? compare.error} />
       {loading ? (
         <Loading />
       ) : (
@@ -156,7 +149,6 @@ export default function DatasetAnalysisPage() {
                 ["source", "数据来源"],
                 ["logical", "逻辑数据集"],
                 ["split", "数据划分"],
-                ["group", "命名集合"],
               ].map(([value, name]) => (
                 <Button
                   key={value}
@@ -217,9 +209,7 @@ export default function DatasetAnalysisPage() {
                         ? "完整数据来源"
                         : item.kind === "logical"
                           ? "完整逻辑数据集"
-                          : item.kind === "group"
-                            ? "命名集合"
-                            : `数据划分 v${item.version}`}
+                          : `数据集划分 v${item.version}`}
                     </span>
                     {item.kind === "source" || item.kind === "logical" ? (
                       <span className="subtle">以完整集合参与统计。</span>

@@ -7,7 +7,7 @@ from batteryland.analytics.service import AnalysisService
 from batteryland.common.storage import LocalSourceFiles, ManagedArtifacts
 from batteryland.components.service import ArtifactService
 from batteryland.config import Settings
-from batteryland.datasets.catalog import FixedCatalogIndexer, NamedGroupService
+from batteryland.datasets.catalog import FixedCatalogIndexer
 from batteryland.datasets.logical import LogicalDatasetService
 from batteryland.datasets.service import ResourceService
 from batteryland.datasets.splits import SplitService
@@ -45,10 +45,9 @@ class Container:
             self.database.unit_of_work, LocalSourceFiles(settings.source_roots)
         )
         self.splits = SplitService(self.database.unit_of_work, self.documents)
-        self.named_groups = NamedGroupService(self.database.unit_of_work)
         self.logical_datasets = LogicalDatasetService(self.database.unit_of_work)
         self.catalog_indexer = FixedCatalogIndexer(
-            settings, self.resources, self.database.unit_of_work
+            settings, self.resources, self.database.unit_of_work, self.splits
         )
         training_settings = replace(settings, data_dir=settings.data_dir / "training")
         experiment_root = settings.data_dir / "experiments"

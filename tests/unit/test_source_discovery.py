@@ -7,7 +7,9 @@ from batteryland.common.storage import LocalSourceFiles
 from batteryland.config import Settings
 from batteryland.datasets.catalog import FixedCatalogIndexer
 from batteryland.datasets.service import ResourceService
+from batteryland.datasets.splits import SplitService
 from batteryland.db.database import Database
+from batteryland.documents.store import SQLiteDocumentStore
 
 
 def test_source_file_discovery_is_scoped_searchable_and_paged(tmp_path: Path) -> None:
@@ -81,7 +83,8 @@ def test_resource_service_reads_indexed_files_without_scanning_the_source_root(
     database = Database(tmp_path / "platform.sqlite")
     database.initialize()
     service = ResourceService(database.unit_of_work, LocalSourceFiles(settings.source_roots))
-    indexer = FixedCatalogIndexer(settings, service, database.unit_of_work)
+    splits = SplitService(database.unit_of_work, SQLiteDocumentStore(database.unit_of_work))
+    indexer = FixedCatalogIndexer(settings, service, database.unit_of_work, splits)
     indexer.index()
     source = service.list_sources(1, 50)["items"][0]
 

@@ -26,7 +26,7 @@ def test_all_operations_declare_typed_success_and_uniform_errors(settings):
         "/api/v1/validated-experiments",
         "/api/v1/validated-experiments/{experiment_id}/members",
         "/api/v1/validated-experiments/{experiment_id}/stop",
-        "/api/v1/catalog/named-groups",
+        "/api/v1/splits/import/preview",
         "/api/v1/scheduler/queue",
         "/api/v1/scheduler/resources",
         "/api/v1/experiments/{experiment_id}/results",
@@ -42,9 +42,12 @@ def test_all_operations_declare_typed_success_and_uniform_errors(settings):
     ):
         assert path not in schema["paths"]
     for operation in operations:
-        assert operation["responses"]["422"]["content"]["application/json"]["schema"][
-            "$ref"
-        ].endswith("/ErrorEnvelope")
+        validation_media = operation["responses"]["422"]["content"]
+        assert validation_media
+        assert all(
+            response["schema"]["$ref"].endswith("/ErrorEnvelope")
+            for response in validation_media.values()
+        )
         success = next(
             response
             for status, response in operation["responses"].items()

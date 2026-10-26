@@ -84,9 +84,7 @@ class AnalysisService:
                 elif item.get("source_id") is not None:
                     source_id = str(item["source_id"])
                     unit.resources.get_source(source_id)
-                    ids = [
-                        row["id"] for row in unit.resources.list_source_batteries(source_id)
-                    ]
+                    ids = [row["id"] for row in unit.resources.list_source_batteries(source_id)]
                     batteries = unit.resources.get_batteries(ids)
                     identity = f"source:{source_id}"
                     reference = {"source_id": source_id}
@@ -101,41 +99,6 @@ class AnalysisService:
                     warnings = (
                         [f"{item['label']}: saved physical source data has changed"]
                         if dataset["stale"]
-                        else []
-                    )
-                else:
-                    group_name = item["named_group"]
-                    unit.named_groups.get(group_name)
-                    page = 1
-                    members: list[Record] = []
-                    while True:
-                        result = unit.named_groups.members(group_name, None, page, 500)
-                        members.extend(
-                            row for row in result["items"] if row["partition"] in partitions
-                        )
-                        if page * 500 >= result["total"]:
-                            break
-                        page += 1
-                    member_ids = list(
-                        dict.fromkeys(
-                            row["battery_id"]
-                            for row in members
-                            if row["match_status"] == "matched" and row["battery_id"]
-                        )
-                    )
-                    batteries = unit.resources.get_batteries(member_ids)
-                    resolved_ids = {battery["id"] for battery in batteries}
-                    unresolved = sum(
-                        row["match_status"] != "matched"
-                        or not row["battery_id"]
-                        or row["battery_id"] not in resolved_ids
-                        for row in members
-                    )
-                    identity = f"group:{group_name}:{','.join(sorted(partitions))}"
-                    reference = {"named_group": group_name, "partitions": partitions}
-                    warnings = (
-                        [f"{item['label']}: {unresolved} named-group members could not be resolved"]
-                        if unresolved
                         else []
                     )
             resolved.append(

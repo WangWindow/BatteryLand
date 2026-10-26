@@ -4,7 +4,6 @@ from batteryland.components.repository import SqlArtifactRepository
 from batteryland.datasets.catalog_repository import (
     SqlCatalogRepository,
     SqlLogicalDatasetRepository,
-    SqlNamedGroupRepository,
 )
 from batteryland.datasets.repository import SqlResourceRepository
 from batteryland.datasets.split_repository import SqlSplitRepository
@@ -18,7 +17,6 @@ from batteryland.scheduler.repository import SqlWorkerRepository
 class SqlUnitOfWork:
     def __init__(self, session: Session) -> None:
         self.resources = SqlResourceRepository(session)
-        self.named_groups = SqlNamedGroupRepository(session)
         self.catalog = SqlCatalogRepository(session)
         self.logical_datasets = SqlLogicalDatasetRepository(session)
         self.validated_inputs = SqlValidatedInputRepository(session)

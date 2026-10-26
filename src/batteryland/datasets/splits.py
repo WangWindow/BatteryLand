@@ -1,5 +1,9 @@
+import hashlib
+import json
 from collections.abc import Sequence
-from uuid import uuid4
+from pathlib import PurePosixPath
+from typing import cast
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from batteryland.common.errors import DomainError
 from batteryland.common.serialization import load_json
@@ -15,6 +19,212 @@ class SplitService:
         self.documents = documents
 
     @staticmethod
+    def _manifest(content: bytes) -> Record:
+        value = load_json(content)
+        if (
+            not isinstance(value, dict)
+            or set(value) != {"dataset", *PARTITIONS}
+            or not isinstance(value["dataset"], str)
+            or not value["dataset"].strip()
+        ):
+            raise DomainError("invalid_input", "Split import requires dataset, train, val and test")
+        for partition in PARTITIONS:
+            members = value[partition]
+            if not isinstance(members, list) or any(
+                not isinstance(item, str)
+                or not item.strip()
+                or item != item.strip()
+                or "\x00" in item
+                or "\\" in item
+                or PurePosixPath(item).name != item
+                or item in {".", ".."}
+                for item in members
+            ):
+                raise DomainError(
+                    "invalid_input", f"Split {partition} must contain plain file names"
+                )
+        return value
+
+    @staticmethod
+    def _resolve_manifest(
+        unit: UnitOfWork, manifest: Record, member_bindings: Record | None = None
+    ) -> Record:
+        bindings = member_bindings or {}
+        filenames = list(dict.fromkeys(name for part in PARTITIONS for name in manifest[part]))
+        unexpected_bindings = set(bindings) - set(filenames)
+        if unexpected_bindings:
+            raise DomainError(
+                "invalid_input",
+                "Import bindings contain file names that are not in the split",
+                details={"file_names": sorted(unexpected_bindings)},
+            )
+        batteries = unit.resources.find_batteries_by_names(filenames)
+        by_name: dict[str, list[Record]] = {name: [] for name in filenames}
+        for battery in batteries:
+            by_name[battery["file_name"]].append(battery)
+
+        counts = {part: len(manifest[part]) for part in PARTITIONS}
+        resolution: Record = {
+            "matched": 0,
+            "missing": 0,
+            "ambiguous": 0,
+            "duplicates": 0,
+            "issues": [],
+        }
+        selected_by_name: dict[str, Record] = {}
+        occurrences: dict[str, list[str]] = {}
+        for partition in PARTITIONS:
+            for filename in manifest[partition]:
+                occurrences.setdefault(filename, []).append(partition)
+
+        for filename, partitions in occurrences.items():
+            candidates = by_name[filename]
+            binding = bindings.get(filename)
+            chosen = None
+            if not candidates:
+                resolution["missing"] += len(partitions)
+                resolution["issues"].append(
+                    {"file_name": filename, "status": "missing", "candidates": []}
+                )
+                continue
+            if binding is not None:
+                chosen = next((item for item in candidates if item["id"] == binding), None)
+                if chosen is None:
+                    raise DomainError(
+                        "invalid_input",
+                        "A selected import member is not a candidate for its file name",
+                        details={"file_name": filename, "battery_id": binding},
+                    )
+            elif len(candidates) == 1:
+                chosen = candidates[0]
+
+            if chosen is None:
+                resolution["ambiguous"] += len(partitions)
+                resolution["issues"].append(
+                    {
+                        "file_name": filename,
+                        "status": "ambiguous",
+                        "candidates": [
+                            {
+                                "battery_id": item["id"],
+                                "source_id": item["source_id"],
+                                "source_name": item["source_name"],
+                                "relative_key": item["relative_key"],
+                            }
+                            for item in candidates
+                        ],
+                    }
+                )
+                continue
+
+            selected_by_name[filename] = chosen
+            resolution["matched"] += len(partitions)
+
+        selected_ids: set[str] = set()
+        partitions_by_id = {part: [] for part in PARTITIONS}
+        sources: dict[str, Record] = {}
+        for partition in PARTITIONS:
+            for filename in manifest[partition]:
+                battery = selected_by_name.get(filename)
+                if battery is None:
+                    continue
+                if battery["id"] in selected_ids:
+                    resolution["duplicates"] += 1
+                    resolution["issues"].append(
+                        {
+                            "file_name": filename,
+                            "status": "duplicate_member",
+                            "candidates": [
+                                {
+                                    "battery_id": battery["id"],
+                                    "source_id": battery["source_id"],
+                                    "source_name": battery["source_name"],
+                                    "relative_key": battery["relative_key"],
+                                }
+                            ],
+                        }
+                    )
+                    continue
+                selected_ids.add(battery["id"])
+                partitions_by_id[partition].append(battery["id"])
+                sources[battery["source_id"]] = {
+                    "source_id": battery["source_id"],
+                    "source_revision": battery["source_revision"],
+                    "include_all": False,
+                }
+
+        for partition in PARTITIONS:
+            if counts[partition] == 0:
+                resolution["issues"].append(
+                    {
+                        "file_name": "",
+                        "status": "empty_partition",
+                        "partition": partition,
+                        "candidates": [],
+                    }
+                )
+
+        total_members = sum(counts.values())
+        ready = (
+            resolution["missing"] == 0
+            and resolution["ambiguous"] == 0
+            and resolution["duplicates"] == 0
+            and all(counts[part] > 0 for part in PARTITIONS)
+            and resolution["matched"] == total_members
+        )
+        return {
+            "name": manifest["dataset"].strip(),
+            "counts": counts,
+            "resolution": resolution,
+            "execution_ready": ready,
+            "partitions": partitions_by_id,
+            "sources": list(sources.values()),
+            "batteries": selected_by_name,
+        }
+
+    @staticmethod
+    def _provider_payload(manifest: Record, resolved: Record) -> Record:
+        return {
+            "dataset_name": resolved["name"],
+            "logical_dataset_id": None,
+            "sources": resolved["sources"],
+            **resolved["partitions"],
+            "method": "provider",
+            "seed": None,
+            "algorithm_version": "provider-manifest-v1",
+            "parameters": {},
+            "origin": "builtin",
+            "execution_ready": resolved["execution_ready"],
+            "counts": resolved["counts"],
+            "resolution": resolved["resolution"],
+            "provider_split": manifest,
+        }
+
+    @staticmethod
+    def _readiness(counts: Record, resolution: Record) -> tuple[bool, Record]:
+        issues = list(resolution.get("issues", []))
+        for partition in PARTITIONS:
+            if counts[partition] == 0 and not any(
+                issue.get("status") == "empty_partition" and issue.get("partition") == partition
+                for issue in issues
+            ):
+                issues.append(
+                    {"file_name": "", "status": "empty_partition", "partition": partition}
+                )
+        normalized = {
+            "matched": resolution.get("matched", 0),
+            "missing": resolution.get("missing", 0),
+            "ambiguous": resolution.get("ambiguous", 0),
+            "duplicates": resolution.get("duplicates", 0),
+            "issues": issues,
+        }
+        ready = all(counts[partition] > 0 for partition in PARTITIONS) and not any(
+            issue.get("status") in {"missing", "ambiguous", "duplicate_member", "empty_partition"}
+            for issue in issues
+        )
+        return ready, normalized
+
+    @staticmethod
     def _statistics(unit: UnitOfWork, payload: Record) -> Record:
         member_ids = [member for name in PARTITIONS for member in payload[name]]
         records = unit.resources.get_batteries(member_ids)
@@ -24,9 +234,11 @@ class SplitService:
             metadata,
         )
 
-    def _payload(self, unit: UnitOfWork, body: Record) -> Record:
+    def _payload(
+        self, unit: UnitOfWork, body: Record, *, allow_catalog_scan: bool = False
+    ) -> Record:
         catalog_state = unit.catalog.status()["state"]
-        if catalog_state == "running":
+        if catalog_state == "running" and not allow_catalog_scan:
             raise DomainError("conflict", "The asset catalog is syncing; retry after it finishes")
         enforce_availability = catalog_state == "ready"
         if body.get("logical_dataset_id"):
@@ -40,9 +252,7 @@ class SplitService:
             if len(selected_records) != len(ids) or any(
                 item["availability"] != "available" for item in selected_records
             ):
-                raise DomainError(
-                    "conflict", "A logical dataset member is no longer available"
-                )
+                raise DomainError("conflict", "A logical dataset member is no longer available")
             records = {item["id"]: item for item in selected_records}
             source_snapshots = [
                 {
@@ -107,9 +317,7 @@ class SplitService:
                         raise DomainError(
                             "invalid_input", "Excluded files require a whole-source selection"
                         )
-                    raise DomainError(
-                        "invalid_input", "Each selected source needs selected files"
-                    )
+                    raise DomainError("invalid_input", "Each selected source needs selected files")
                 else:
                     if excluded_ids:
                         raise DomainError(
@@ -142,7 +350,9 @@ class SplitService:
         if len(ids) != len(set(ids)):
             raise DomainError("invalid_input", "A battery can only be selected once")
         if includes_whole_source and body["method"] != "random":
-            raise DomainError("invalid_input", "Whole-source selections must use random partitioning")
+            raise DomainError(
+                "invalid_input", "Whole-source selections must use random partitioning"
+            )
         parents = (
             {record["parent_battery_id"] for record in records.values()} - {None} - records.keys()
         )
@@ -187,12 +397,25 @@ class SplitService:
     def _view(
         header: Record, version: int, payload: Record, statistics: Record | None = None
     ) -> Record:
+        is_head = version == header["revision"]
         return {key: value for key, value in header.items() if key != "head_document_id"} | {
             "name": payload["dataset_name"],
             "logical_dataset_id": payload.get("logical_dataset_id"),
             "head_version": header["revision"],
             "version": version,
-            "counts": {name: len(payload[name]) for name in PARTITIONS},
+            "origin": payload.get("origin", header.get("origin", "created")),
+            "read_only": header.get("read_only", False),
+            "execution_ready": (
+                header.get("execution_ready", True)
+                if is_head
+                else payload.get("execution_ready", True)
+            ),
+            "resolution": (
+                header.get("resolution", {})
+                if is_head
+                else payload.get("resolution", header.get("resolution", {}))
+            ),
+            "counts": payload.get("counts", {name: len(payload[name]) for name in PARTITIONS}),
             "payload": payload,
             "statistics": statistics,
         }
@@ -201,12 +424,28 @@ class SplitService:
         identity = str(uuid4())
         with self.units() as unit:
             payload = self._payload(unit, body)
+            counts = {name: len(payload[name]) for name in PARTITIONS}
+            ready, resolution = self._readiness(counts, {"issues": []})
+            payload.update(
+                origin="created",
+                execution_ready=ready,
+                counts=counts,
+                resolution=resolution,
+            )
             statistics = self._statistics(unit, payload)
         with self.documents.write_lock():
             document = self.documents.publish("split", identity, 1, payload)
             with self.units() as unit:
                 unit.documents.add(document)
-                header = unit.splits.add(identity, body["name"], document.id, payload["sources"])
+                header = unit.splits.add(
+                    identity,
+                    body["name"],
+                    document.id,
+                    payload["sources"],
+                    counts,
+                    resolution,
+                    execution_ready=ready,
+                )
                 unit.splits.add_members(document.id, {name: payload[name] for name in PARTITIONS})
                 unit.splits.add_statistics(document.id, statistics)
         return self._view(header, 1, payload, statistics)
@@ -215,11 +454,14 @@ class SplitService:
         with self.units() as unit:
             payload = self._payload(unit, body)
         counts = {name: len(payload[name]) for name in PARTITIONS}
+        ready, resolution = self._readiness(counts, {"issues": []})
         return {
             "source_revisions": {
                 source["source_id"]: source["source_revision"] for source in payload["sources"]
             },
             "counts": {"all": sum(counts.values()), **counts},
+            "execution_ready": ready,
+            "resolution": resolution,
         }
 
     def update(self, identity: str, body: Record, revision: int) -> Record:
@@ -227,14 +469,31 @@ class SplitService:
             old = unit.splits.get(identity)
             if old["revision"] != revision:
                 raise DomainError("conflict", "Split revision has changed")
+            if old["read_only"]:
+                raise DomainError("conflict", "Built-in training datasets are read-only")
             payload = self._payload(unit, body)
+            counts = {name: len(payload[name]) for name in PARTITIONS}
+            ready, resolution = self._readiness(counts, {"issues": []})
+            payload.update(
+                origin="imported" if old["origin"] == "imported" else "created",
+                execution_ready=ready,
+                counts=counts,
+                resolution=resolution,
+            )
             statistics = self._statistics(unit, payload)
         with self.documents.write_lock():
             document = self.documents.publish("split", identity, revision + 1, payload)
             with self.units() as unit:
                 unit.documents.add(document)
                 header = unit.splits.update(
-                    identity, revision, body["name"], document.id, payload["sources"]
+                    identity,
+                    revision,
+                    body["name"],
+                    document.id,
+                    payload["sources"],
+                    counts,
+                    resolution,
+                    ready,
                 )
                 unit.splits.add_members(document.id, {name: payload[name] for name in PARTITIONS})
                 unit.splits.add_statistics(document.id, statistics)
@@ -251,7 +510,16 @@ class SplitService:
             payload = self.documents.read(document)["payload"]
             header = header | {"sources": unit.splits.sources(document.id)}
             statistics = unit.splits.statistics(document.id)
-            if statistics is None:
+            is_head = document.version == header["revision"]
+            resolution = cast(
+                Record,
+                header["resolution"] if is_head else payload.get("resolution", {}),
+            )
+            unresolved_members = resolution.get("manifest_missing") or any(
+                issue.get("status") in {"missing", "ambiguous", "duplicate_member"}
+                for issue in resolution.get("issues", [])
+            )
+            if statistics is None and not unresolved_members:
                 statistics = self._statistics(unit, payload)
                 unit.splits.add_statistics(document.id, statistics)
         return self._view(header, document.version, payload, statistics)
@@ -260,7 +528,9 @@ class SplitService:
         self, source_ids: Sequence[str] | None, q: str | None, page: int, page_size: int
     ) -> Record:
         with self.units() as unit:
-            result = unit.splits.list_splits(list(source_ids) if source_ids is not None else None, q, page, page_size)
+            result = unit.splits.list_splits(
+                list(source_ids) if source_ids is not None else None, q, page, page_size
+            )
         for item in result["items"]:
             item.pop("head_document_id")
         return result
@@ -280,6 +550,8 @@ class SplitService:
     def export(self, identity: str, version: int | None = None) -> Record:
         split = self.get(identity, version)
         payload = split["payload"]
+        if "provider_split" in payload:
+            return payload["provider_split"]
         with self.units() as unit:
             records = unit.resources.get_batteries(
                 [member for name in PARTITIONS for member in payload[name]]
@@ -299,6 +571,19 @@ class SplitService:
                 else unit.documents.find("split", identity, version)
             )
             payload = self.documents.read(document)["payload"]
+            is_head = document.version == header["revision"]
+            execution_ready = (
+                header["execution_ready"] if is_head else payload.get("execution_ready", True)
+            )
+            resolution = (
+                header["resolution"] if is_head else payload.get("resolution", header["resolution"])
+            )
+            if not execution_ready:
+                raise DomainError(
+                    "conflict",
+                    "This training dataset is not ready to run",
+                    details={"resolution": resolution},
+                )
             member_ids = [member for name in PARTITIONS for member in payload[name]]
             batteries = unit.resources.get_batteries(member_ids)
             if len(batteries) != len(member_ids):
@@ -313,12 +598,9 @@ class SplitService:
                 members.append(battery | {"root_alias": source["root_alias"]})
 
             names = {battery["id"]: battery["file_name"] for battery in batteries}
-            provider_split = {
+            provider_split = payload.get("provider_split") or {
                 "dataset": payload["dataset_name"],
-                **{
-                    name: [names[member] for member in payload[name]]
-                    for name in PARTITIONS
-                },
+                **{name: [names[member] for member in payload[name]] for name in PARTITIONS},
             }
             return {
                 "split_id": identity,
@@ -330,69 +612,141 @@ class SplitService:
                 "provider_split": provider_split,
             }
 
-    def import_document(self, source_ids: Sequence[str], content: bytes) -> Record:
-        value = load_json(content)
-        if (
-            set(value) != {"dataset", *PARTITIONS}
-            or not isinstance(value["dataset"], str)
-            or not value["dataset"].strip()
-        ):
-            raise DomainError("invalid_input", "Split import requires dataset, train, val and test")
-        if not source_ids or len(source_ids) != len(set(source_ids)):
-            raise DomainError("invalid_input", "Choose one or more unique data sources")
-
-        partitions: dict[str, list[str]] = {}
-        matched_sources: dict[str, Record] = {}
-        matched_batteries: dict[str, Record] = {}
+    def preview_import(self, content: bytes, member_bindings: Record | None = None) -> Record:
+        manifest = self._manifest(content)
         with self.units() as unit:
-            sources = {identity: unit.resources.get_source(identity) for identity in source_ids}
-            for name in PARTITIONS:
-                if not isinstance(value[name], list) or any(
-                    not isinstance(item, str) or not item for item in value[name]
-                ):
-                    raise DomainError("invalid_input", "Split members must be file name lists")
-                partitions[name] = []
-                for filename in value[name]:
-                    candidates = [
-                        battery
-                        for source_id in source_ids
-                        if (battery := unit.resources.find_battery(source_id, filename)) is not None
-                    ]
-                    if len(candidates) != 1:
-                        raise DomainError(
-                            "invalid_input",
-                            "Imported member is missing or ambiguous across selected sources",
-                            details={"file_name": filename, "matches": len(candidates)},
-                        )
-                    battery = candidates[0]
-                    matched_sources[battery["source_id"]] = sources[battery["source_id"]]
-                    matched_batteries[battery["id"]] = battery
-                    partitions[name].append(battery["id"])
+            if unit.catalog.status()["state"] == "running":
+                raise DomainError(
+                    "conflict", "The asset catalog is syncing; retry after it finishes"
+                )
+            resolved = self._resolve_manifest(unit, manifest, member_bindings)
+        return {
+            "name": resolved["name"],
+            "counts": resolved["counts"],
+            "resolution": resolved["resolution"],
+            "execution_ready": resolved["execution_ready"],
+        }
 
-        if not matched_sources:
-            raise DomainError("invalid_input", "Imported split contains no registered files")
-        return self.create(
-            {
-                "name": value["dataset"],
-                "source_selections": [
-                    {
-                        "source_id": source_id,
-                        "expected_revision": source["revision"],
-                        "battery_ids": [
-                            battery_id
-                            for partition in partitions.values()
-                            for battery_id in partition
-                            if matched_batteries[battery_id]["source_id"] == source_id
-                        ],
-                    }
-                    for source_id, source in sorted(matched_sources.items())
-                ],
+    def import_document(self, content: bytes, member_bindings: Record | None = None) -> Record:
+        manifest = self._manifest(content)
+        with self.units() as unit:
+            if unit.catalog.status()["state"] == "running":
+                raise DomainError(
+                    "conflict", "The asset catalog is syncing; retry after it finishes"
+                )
+            resolved = self._resolve_manifest(unit, manifest, member_bindings)
+            if not resolved["execution_ready"]:
+                raise DomainError(
+                    "invalid_input",
+                    "Imported training dataset has unresolved members or empty partitions",
+                    details={
+                        "resolution": resolved["resolution"],
+                        "counts": resolved["counts"],
+                    },
+                )
+            payload = {
+                "dataset_name": resolved["name"],
+                "logical_dataset_id": None,
+                "sources": resolved["sources"],
+                **resolved["partitions"],
                 "method": "manual",
-                "partitions": partitions,
+                "seed": None,
+                "algorithm_version": "import-v1",
+                "parameters": {},
+                "origin": "imported",
+                "execution_ready": True,
+                "counts": resolved["counts"],
+                "resolution": resolved["resolution"],
             }
-        )
+            statistics = self._statistics(unit, payload)
+        identity = str(uuid4())
+        with self.documents.write_lock():
+            document = self.documents.publish("split", identity, 1, payload)
+            with self.units() as unit:
+                unit.documents.add(document)
+                header = unit.splits.add(
+                    identity,
+                    resolved["name"],
+                    document.id,
+                    resolved["sources"],
+                    resolved["counts"],
+                    resolved["resolution"],
+                    origin="imported",
+                    execution_ready=True,
+                )
+                unit.splits.add_members(document.id, resolved["partitions"])
+                unit.splits.add_statistics(document.id, statistics)
+        return self._view(header, 1, payload, statistics)
+
+    def sync_provider_manifests(self, manifests: Sequence[Record]) -> None:
+        seen_refs: set[str] = set()
+        for source in manifests:
+            source_ref = source["source_ref"]
+            content = source["content"]
+            manifest = self._manifest(content)
+            with self.units() as unit:
+                resolved = self._resolve_manifest(unit, manifest)
+            payload = self._provider_payload(manifest, resolved)
+            digest_input = json.dumps(
+                {
+                    "manifest": hashlib.sha256(content).hexdigest(),
+                    "partitions": resolved["partitions"],
+                    "resolution": resolved["resolution"],
+                    "sources": resolved["sources"],
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
+            source_hash = hashlib.sha256(digest_input).hexdigest()
+            identity = str(uuid5(NAMESPACE_URL, f"batteryland:provider-split:{source_ref}"))
+            with self.units() as unit:
+                current = unit.splits.get_by_source_ref(source_ref)
+            changed = current is None or current["source_hash"] != source_hash
+            version = current["revision"] + 1 if current else 1
+            if changed:
+                with self.units() as unit:
+                    statistics = (
+                        self._statistics(unit, payload) if resolved["execution_ready"] else None
+                    )
+                with self.documents.write_lock():
+                    document = self.documents.publish("split", identity, version, payload)
+                    with self.units() as unit:
+                        unit.documents.add(document)
+                        unit.splits.sync_builtin(
+                            identity,
+                            resolved["name"],
+                            source_ref,
+                            source_hash,
+                            document.id,
+                            resolved["sources"],
+                            resolved["partitions"],
+                            resolved["counts"],
+                            resolved["resolution"],
+                            resolved["execution_ready"],
+                            statistics,
+                        )
+            else:
+                with self.units() as unit:
+                    unit.splits.sync_builtin(
+                        identity,
+                        resolved["name"],
+                        source_ref,
+                        source_hash,
+                        current["head_document_id"],
+                        resolved["sources"],
+                        resolved["partitions"],
+                        resolved["counts"],
+                        resolved["resolution"],
+                        resolved["execution_ready"],
+                        None,
+                    )
+            seen_refs.add(source_ref)
+        with self.units() as unit:
+            unit.splits.mark_missing_builtins(seen_refs)
 
     def delete(self, identity: str) -> Record:
         with self.units() as unit:
+            if unit.splits.get(identity)["read_only"]:
+                raise DomainError("conflict", "Built-in training datasets cannot be deleted")
             unit.splits.delete(identity)
         return {"deleted": True}

@@ -67,6 +67,7 @@ const components = [
 
 test("creates a split, validates a config, saves and submits an experiment", async ({ page }) => {
   let split: Record<string, unknown> | null = null
+  let importedSplit: Record<string, unknown> | null = null
   let logicalDataset: Record<string, unknown> | null = null
   let experiment: Record<string, unknown> | null = null
   let submitted = false
@@ -139,16 +140,57 @@ test("creates a split, validates a config, saves and submits an experiment", asy
     }
     if (request.method() === "GET" && path === "/components") return success(components)
     if (request.method() === "GET" && path === "/scheduler/resources") return success([])
-    if (request.method() === "GET" && path === "/catalog/named-groups") {
-      return success({ items: [], total: 0, page: 1, page_size: 200 })
-    }
     if (request.method() === "GET" && path === "/splits") {
-      const items = split ? [split] : []
+      const items = [split, importedSplit].filter((item): item is Record<string, unknown> => item !== null)
       return success({ items, total: items.length, page: 1, page_size: 100 })
     }
     if (request.method() === "POST" && path === "/splits/preview") {
       previewRequest = request.postDataJSON() as Record<string, unknown>
-      return success({ source_revisions: { [sourceId]: 1 }, counts: { all: 2, train: 1, val: 1, test: 0 } })
+      return success({
+        source_revisions: { [sourceId]: 1 },
+        counts: { all: 5, train: 3, val: 1, test: 1 },
+        execution_ready: true,
+        resolution: { matched: 5, missing: 0, ambiguous: 0, duplicates: 0, issues: [] },
+      })
+    }
+    if (request.method() === "POST" && path === "/splits/import/preview") {
+      return success({
+        name: "Imported baseline",
+        counts: { train: 3, val: 1, test: 1 },
+        resolution: { matched: 5, missing: 0, ambiguous: 0, duplicates: 0, issues: [] },
+        execution_ready: true,
+      })
+    }
+    if (request.method() === "POST" && path === "/splits/import") {
+      importedSplit = {
+        id: "55555555-5555-4555-8555-555555555555",
+        name: "Imported baseline",
+        sources: [{ source_id: sourceId, source_revision: 1, root_alias: "battery_life" }],
+        origin: "imported",
+        source_ref: null,
+        read_only: false,
+        execution_ready: true,
+        resolution: { matched: 5, missing: 0, ambiguous: 0, duplicates: 0, issues: [] },
+        revision: 1,
+        head_version: 1,
+        version: 1,
+        counts: { train: 3, val: 1, test: 1 },
+        payload: null,
+        statistics: null,
+        created_at: now,
+      }
+      return success(importedSplit, 201)
+    }
+    if (request.method() === "PUT" && path === "/splits/55555555-5555-4555-8555-555555555555") {
+      const body = request.postDataJSON() as Record<string, unknown>
+      importedSplit = {
+        ...importedSplit,
+        name: body.name,
+        revision: 2,
+        head_version: 2,
+        version: 2,
+      }
+      return success(importedSplit)
     }
     if (request.method() === "POST" && path === "/splits") {
       const body = request.postDataJSON() as Record<string, unknown>
@@ -156,10 +198,15 @@ test("creates a split, validates a config, saves and submits an experiment", asy
         id: splitId,
         name: body.name,
         sources: [{ source_id: sourceId, source_revision: 1, root_alias: "battery_life" }],
+        origin: "created",
+        source_ref: null,
+        read_only: false,
+        execution_ready: true,
+        resolution: { matched: 5, missing: 0, ambiguous: 0, duplicates: 0, issues: [] },
         revision: 1,
         head_version: 1,
         version: 1,
-        counts: { train: 7, val: 2, test: 1 },
+        counts: { train: 3, val: 1, test: 1 },
         payload: null,
         statistics: null,
         created_at: now,
@@ -167,6 +214,15 @@ test("creates a split, validates a config, saves and submits an experiment", asy
       return success(split, 201)
     }
     if (request.method() === "GET" && path === `/splits/${splitId}`) return success(split)
+    if (request.method() === "GET" && path === `/splits/${String(importedSplit?.id ?? "")}`)
+      return success(importedSplit)
+    if (request.method() === "GET" && path === "/splits/55555555-5555-4555-8555-555555555555/members") {
+      const partition = url.searchParams.get("partition")
+      const names =
+        partition === "train" ? ["B1.pkl", "B2.pkl", "B3.pkl"] : partition === "val" ? ["B4.pkl"] : ["B5.pkl"]
+      const items = batteries.filter((item) => names.includes(item.file_name))
+      return success({ items, total: items.length, page: 1, page_size: 100 })
+    }
     if (request.method() === "GET" && path === `/splits/${splitId}/members`) {
       return success({ items: [], total: 0, page: 1, page_size: 100 })
     }
@@ -205,7 +261,7 @@ test("creates a split, validates a config, saves and submits an experiment", asy
         split_sha256: "split-hash",
         config: {},
         split: {},
-        split_counts: { train: 7, val: 2, test: 1 },
+        split_counts: { train: 3, val: 1, test: 1 },
         receipt: { execution_supported: true, signature: "fixture" },
         provider_commit: "provider-commit",
         created_at: now,
@@ -266,16 +322,23 @@ test("creates a split, validates a config, saves and submits an experiment", asy
   await page.mouse.up()
   await expect(page.getByRole("button", { name: "取消选择 B1.pkl" })).toHaveAttribute("aria-pressed", "true")
   await expect(page.getByRole("button", { name: "取消选择 B2.pkl" })).toHaveAttribute("aria-pressed", "true")
+  await page.getByRole("button", { name: "清空", exact: true }).click()
+  await page.getByRole("button", { name: "列表", exact: true }).click()
+  for (const name of ["B1.pkl", "B2.pkl", "B3.pkl", "B4.pkl", "B5.pkl"]) {
+    const checkbox = page.getByRole("checkbox", { name: `选择 ${name}` })
+    await checkbox.check()
+    await expect(checkbox).toBeChecked()
+  }
   await page.getByRole("button", { name: "保存为逻辑数据集", exact: true }).click()
   await page.getByRole("textbox", { name: "逻辑数据集名称" }).fill("Selected CALCE cells")
   await page.getByRole("button", { name: "保存到数据库" }).click()
   await page.getByRole("button", { name: "Selected CALCE cells", exact: true }).click()
   await page.getByRole("button", { name: "创建数据划分" }).click()
 
-  await expect(page.getByRole("heading", { name: "新建数据划分" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "新建数据集" })).toBeVisible()
   await page.getByRole("button", { name: "预览划分" }).click()
   await expect(page.getByRole("textbox", { name: "划分名称" })).toHaveValue("实验数据划分")
-  await page.getByRole("button", { name: "保存划分" }).click()
+  await page.getByRole("button", { name: "保存数据集" }).click()
   await expect(page.getByRole("heading", { name: "实验数据划分" })).toBeVisible()
   await page.getByRole("button", { name: "用于新实验" }).click()
 
@@ -296,4 +359,27 @@ test("creates a split, validates a config, saves and submits an experiment", asy
   expect(configText).toContain("used_metric:")
   expect(configText).not.toContain("split_file")
   expect(submitted).toBe(true)
+
+  await page.goto("/splits")
+  await page.getByRole("button", { name: "导入 JSON" }).click()
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "baseline.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        dataset: "Imported baseline",
+        train: ["B1.pkl", "B2.pkl", "B3.pkl"],
+        val: ["B4.pkl"],
+        test: ["B5.pkl"],
+      }),
+    ),
+  })
+  await expect(page.getByText("所有成员已唯一匹配，可以导入。", { exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "导入数据集", exact: true }).click()
+  await expect(page.getByRole("heading", { name: "Imported baseline" })).toBeVisible()
+  await page.getByRole("button", { name: "编辑数据集", exact: true }).click()
+  await expect(page.getByRole("heading", { name: "编辑数据集划分" })).toBeVisible()
+  await page.getByRole("button", { name: "预览划分" }).click()
+  await page.getByRole("button", { name: "保存新版本" }).click()
+  await expect(page.getByText("v2", { exact: true })).toBeVisible()
 })

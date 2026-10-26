@@ -55,7 +55,7 @@ def test_same_filename_in_two_original_groups_keeps_two_battery_identities(setti
         assert len({item["id"] for item in rows}) == 2
 
 
-def test_named_split_shortcut_deduplicates_same_name_members(settings, tmp_path):
+def test_provider_split_is_indexed_as_read_only_training_split(settings, tmp_path):
     root = tmp_path / "BatteryLife_Processed"
     for group, filename in (("CALCE", "unique.pkl"), ("one", "same.pkl"), ("two", "same.pkl")):
         (root / group).mkdir(parents=True)
@@ -75,26 +75,50 @@ def test_named_split_shortcut_deduplicates_same_name_members(settings, tmp_path)
         sources = client.get("/api/v1/data-sources").json()["data"]
         assert sources["total"] == 3
         assert sum(item["battery_count"] for item in sources["items"]) == 3
-        groups = client.get("/api/v1/catalog/named-groups").json()["data"]
+        groups = client.get("/api/v1/splits").json()["data"]
         assert groups["total"] == 1
-        assert groups["items"][0]["counts"] == {
-            "train": 1,
-            "val": 1,
-            "test": 0,
-            "matched": 2,
-            "missing": 0,
-            "ambiguous": 0,
-        }
-        ambiguous = client.get(
-            "/api/v1/catalog/named-groups/demo/members", params={"partition": "train"}
-        ).json()["data"]["items"][0]
-        assert ambiguous["match_status"] == "matched"
-        assert ambiguous["candidate_count"] == 1
+        builtin = groups["items"][0]
+        assert builtin["origin"] == "builtin"
+        assert builtin["read_only"] is True
+        assert builtin["execution_ready"] is False
+        assert builtin["counts"] == {"train": 1, "val": 1, "test": 0}
+        assert builtin["resolution"]["ambiguous"] == 1
+        details = client.get(f"/api/v1/splits/{builtin['id']}").json()["data"]
+        assert details["resolution"]["issues"][0]["file_name"] == "same.pkl"
+        assert len(details["resolution"]["issues"][0]["candidates"]) == 2
         batteries = client.get("/api/v1/batteries", params={"q": "same.pkl"}).json()["data"][
             "items"
         ]
-        canonical = next(item for item in batteries if item["relative_key"] == "one/same.pkl")
-        assert ambiguous["battery_id"] == canonical["id"]
-        assert (
-            client.get("/api/v1/catalog/named-groups/demo").json()["data"]["document"] == document
-        )
+        assert len(batteries) == 2
+        assert client.put(f"/api/v1/splits/{builtin['id']}", json={}).status_code == 409
+        assert client.delete(f"/api/v1/splits/{builtin['id']}").status_code == 409
+
+
+def test_provider_split_index_is_stable_and_versions_manifest_changes(settings, tmp_path):
+    root = tmp_path / "BatteryLife_Processed"
+    (root / "CALCE").mkdir(parents=True)
+    (root / "CALCE" / "cell.pkl").write_bytes(b"cell")
+    provider = tmp_path / "provider"
+    folder = provider / "datasets/batteryLife/data_split"
+    folder.mkdir(parents=True)
+    manifest = {"dataset": "CALCE", "train": ["cell.pkl"], "val": [], "test": []}
+    path = folder / "CALCE.json"
+    path.write_text(json.dumps(manifest))
+    configured = replace(
+        settings, source_roots={"pool": root}, provider_root=provider, auto_index_catalog=True
+    )
+    with TestClient(create_app(configured)) as client:
+        wait_for_catalog(client)
+        first = client.get("/api/v1/splits").json()["data"]["items"][0]
+        time.sleep(0.01)
+        manifest["val"] = ["cell.pkl"]
+        manifest["train"] = []
+        path.write_text(json.dumps(manifest))
+        client.app.state.container.catalog_indexer.index()
+        second = client.get("/api/v1/splits").json()["data"]["items"][0]
+        assert second["id"] == first["id"]
+        assert second["version"] == first["version"] + 1
+        previous = client.get(
+            f"/api/v1/splits/{first['id']}", params={"version": first["version"]}
+        ).json()["data"]
+        assert previous["counts"] == {"train": 1, "val": 0, "test": 0}

@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.orm import Session
@@ -236,6 +236,25 @@ class SqlResourceRepository:
             rows = self.session.scalars(select(BatteryRow).where(BatteryRow.id.in_(batch)))
             by_id.update({row.id: battery_value(row) for row in rows})
         return [by_id[identity] for identity in identities if identity in by_id]
+
+    def find_batteries_by_names(self, file_names: Sequence[str]) -> list[Record]:
+        if not file_names:
+            return []
+        rows = self.session.execute(
+            select(BatteryRow, DataSourceRow.name, DataSourceRow.revision)
+            .join(DataSourceRow, DataSourceRow.id == BatteryRow.source_id)
+            .where(
+                BatteryRow.file_name.in_(set(file_names)),
+                BatteryRow.availability == "available",
+                DataSourceRow.availability == "available",
+            )
+            .order_by(DataSourceRow.name, BatteryRow.relative_key, BatteryRow.id)
+        )
+        return [
+            battery_value(battery)
+            | {"source_name": source_name, "source_revision": source_revision}
+            for battery, source_name, source_revision in rows
+        ]
 
     def list_source_batteries(self, source_id: str) -> list[Record]:
         rows = self.session.execute(

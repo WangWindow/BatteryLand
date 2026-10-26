@@ -1630,370 +1630,6 @@
         }
       }
     },
-    "/api/v1/catalog/named-groups": {
-      "get": {
-        "tags": [
-          "catalog"
-        ],
-        "summary": "List Groups",
-        "operationId": "list_groups_api_v1_catalog_named_groups_get",
-        "parameters": [
-          {
-            "name": "page",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 1,
-              "title": "Page"
-            }
-          },
-          {
-            "name": "page_size",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Page Size"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_Page_NamedGroup__"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unprocessable Content"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Not Implemented"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Service Unavailable"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/v1/catalog/named-groups/{name}": {
-      "get": {
-        "tags": [
-          "catalog"
-        ],
-        "summary": "Get Group",
-        "operationId": "get_group_api_v1_catalog_named_groups__name__get",
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Name"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_NamedGroupDetail_"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unprocessable Content"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Not Implemented"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Service Unavailable"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/v1/catalog/named-groups/{name}/members": {
-      "get": {
-        "tags": [
-          "catalog"
-        ],
-        "summary": "List Members",
-        "operationId": "list_members_api_v1_catalog_named_groups__name__members_get",
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Name"
-            }
-          },
-          {
-            "name": "partition",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "train",
-                    "val",
-                    "test"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Partition"
-            }
-          },
-          {
-            "name": "page",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 1,
-              "title": "Page"
-            }
-          },
-          {
-            "name": "page_size",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Page Size"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_Page_Member__"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unprocessable Content"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Not Implemented"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Service Unavailable"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          }
-        }
-      }
-    },
     "/api/v1/splits": {
       "get": {
         "tags": [
@@ -2269,6 +1905,107 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_SplitPreviewResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/splits/import/preview": {
+      "post": {
+        "tags": [
+          "splits"
+        ],
+        "summary": "Preview Import Split",
+        "operationId": "preview_import_split_api_v1_splits_import_preview_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_preview_import_split_api_v1_splits_import_preview_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SplitImportPreview_"
                 }
               }
             }
@@ -6924,26 +6661,41 @@
       },
       "Body_import_split_api_v1_splits_import_post": {
         "properties": {
-          "source_ids": {
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "type": "array",
-            "title": "Source Ids"
-          },
           "file": {
             "type": "string",
             "contentMediaType": "application/octet-stream",
             "title": "File"
+          },
+          "member_bindings": {
+            "type": "string",
+            "title": "Member Bindings",
+            "default": "{}"
           }
         },
         "type": "object",
         "required": [
-          "source_ids",
           "file"
         ],
         "title": "Body_import_split_api_v1_splits_import_post"
+      },
+      "Body_preview_import_split_api_v1_splits_import_preview_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "member_bindings": {
+            "type": "string",
+            "title": "Member Bindings",
+            "default": "{}"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_preview_import_split_api_v1_splits_import_preview_post"
       },
       "Body_upload_checkpoint_api_v1_checkpoints_post": {
         "properties": {
@@ -7487,45 +7239,6 @@
         ],
         "title": "ComponentUpload"
       },
-      "Counts": {
-        "properties": {
-          "train": {
-            "type": "integer",
-            "title": "Train"
-          },
-          "val": {
-            "type": "integer",
-            "title": "Val"
-          },
-          "test": {
-            "type": "integer",
-            "title": "Test"
-          },
-          "matched": {
-            "type": "integer",
-            "title": "Matched"
-          },
-          "missing": {
-            "type": "integer",
-            "title": "Missing"
-          },
-          "ambiguous": {
-            "type": "integer",
-            "title": "Ambiguous"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "train",
-          "val",
-          "test",
-          "matched",
-          "missing",
-          "ambiguous"
-        ],
-        "title": "Counts"
-      },
       "DataSource": {
         "properties": {
           "id": {
@@ -7929,29 +7642,6 @@
         ],
         "title": "Envelope[LogicalDataset]"
       },
-      "Envelope_NamedGroupDetail_": {
-        "properties": {
-          "code": {
-            "type": "integer",
-            "const": 0,
-            "title": "Code",
-            "default": 0
-          },
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "ok"
-          },
-          "data": {
-            "$ref": "#/components/schemas/NamedGroupDetail"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "Envelope[NamedGroupDetail]"
-      },
       "Envelope_Page_Artifact__": {
         "properties": {
           "code": {
@@ -8113,29 +7803,6 @@
         ],
         "title": "Envelope[Page[LogicalDataset]]"
       },
-      "Envelope_Page_Member__": {
-        "properties": {
-          "code": {
-            "type": "integer",
-            "const": 0,
-            "title": "Code",
-            "default": 0
-          },
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "ok"
-          },
-          "data": {
-            "$ref": "#/components/schemas/Page_Member_"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "Envelope[Page[Member]]"
-      },
       "Envelope_Page_Metric__": {
         "properties": {
           "code": {
@@ -8158,29 +7825,6 @@
           "data"
         ],
         "title": "Envelope[Page[Metric]]"
-      },
-      "Envelope_Page_NamedGroup__": {
-        "properties": {
-          "code": {
-            "type": "integer",
-            "const": 0,
-            "title": "Code",
-            "default": 0
-          },
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "ok"
-          },
-          "data": {
-            "$ref": "#/components/schemas/Page_NamedGroup_"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "Envelope[Page[NamedGroup]]"
       },
       "Envelope_Page_SplitMember__": {
         "properties": {
@@ -8273,6 +7917,29 @@
           "data"
         ],
         "title": "Envelope[Result]"
+      },
+      "Envelope_SplitImportPreview_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "const": 0,
+            "title": "Code",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "ok"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SplitImportPreview"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[SplitImportPreview]"
       },
       "Envelope_SplitPreviewResponse_": {
         "properties": {
@@ -8702,6 +8369,123 @@
         ],
         "title": "ExperimentSummary"
       },
+      "ImportCandidate": {
+        "properties": {
+          "battery_id": {
+            "type": "string",
+            "title": "Battery Id"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "source_name": {
+            "type": "string",
+            "title": "Source Name"
+          },
+          "relative_key": {
+            "type": "string",
+            "title": "Relative Key"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "battery_id",
+          "source_id",
+          "source_name",
+          "relative_key"
+        ],
+        "title": "ImportCandidate"
+      },
+      "ImportIssue": {
+        "properties": {
+          "file_name": {
+            "type": "string",
+            "title": "File Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "missing",
+              "ambiguous",
+              "duplicate_member",
+              "empty_partition"
+            ],
+            "title": "Status"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/ImportCandidate"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "partition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "file_name",
+          "status"
+        ],
+        "title": "ImportIssue"
+      },
+      "ImportResolution": {
+        "properties": {
+          "matched": {
+            "type": "integer",
+            "title": "Matched",
+            "default": 0
+          },
+          "missing": {
+            "type": "integer",
+            "title": "Missing",
+            "default": 0
+          },
+          "ambiguous": {
+            "type": "integer",
+            "title": "Ambiguous",
+            "default": 0
+          },
+          "duplicates": {
+            "type": "integer",
+            "title": "Duplicates",
+            "default": 0
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ImportIssue"
+            },
+            "type": "array",
+            "title": "Issues"
+          },
+          "manifest_missing": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manifest Missing"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ImportResolution"
+      },
       "LogChunk": {
         "properties": {
           "stream": {
@@ -8901,62 +8685,6 @@
         ],
         "title": "LogicalDatasetWrite"
       },
-      "Member": {
-        "properties": {
-          "partition": {
-            "type": "string",
-            "enum": [
-              "train",
-              "val",
-              "test"
-            ],
-            "title": "Partition"
-          },
-          "ordinal": {
-            "type": "integer",
-            "title": "Ordinal"
-          },
-          "file_name": {
-            "type": "string",
-            "title": "File Name"
-          },
-          "battery_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Battery Id"
-          },
-          "match_status": {
-            "type": "string",
-            "enum": [
-              "matched",
-              "missing",
-              "ambiguous"
-            ],
-            "title": "Match Status"
-          },
-          "candidate_count": {
-            "type": "integer",
-            "title": "Candidate Count"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "partition",
-          "ordinal",
-          "file_name",
-          "battery_id",
-          "match_status",
-          "candidate_count"
-        ],
-        "title": "Member"
-      },
       "Metric": {
         "properties": {
           "epoch": {
@@ -9067,78 +8795,6 @@
           "experiment_id"
         ],
         "title": "MetricRow"
-      },
-      "NamedGroup": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "manifest_sha256": {
-            "type": "string",
-            "title": "Manifest Sha256"
-          },
-          "counts": {
-            "$ref": "#/components/schemas/Counts"
-          },
-          "created_at": {
-            "type": "string",
-            "title": "Created At"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "manifest_sha256",
-          "counts",
-          "created_at"
-        ],
-        "title": "NamedGroup"
-      },
-      "NamedGroupDetail": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "manifest_sha256": {
-            "type": "string",
-            "title": "Manifest Sha256"
-          },
-          "counts": {
-            "$ref": "#/components/schemas/Counts"
-          },
-          "created_at": {
-            "type": "string",
-            "title": "Created At"
-          },
-          "document": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Document"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "manifest_sha256",
-          "counts",
-          "created_at",
-          "document"
-        ],
-        "title": "NamedGroupDetail"
       },
       "Page_Artifact_": {
         "properties": {
@@ -9357,37 +9013,6 @@
         ],
         "title": "Page[LogicalDataset]"
       },
-      "Page_Member_": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/Member"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          },
-          "page": {
-            "type": "integer",
-            "title": "Page"
-          },
-          "page_size": {
-            "type": "integer",
-            "title": "Page Size"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items",
-          "total",
-          "page",
-          "page_size"
-        ],
-        "title": "Page[Member]"
-      },
       "Page_Metric_": {
         "properties": {
           "items": {
@@ -9418,37 +9043,6 @@
           "page_size"
         ],
         "title": "Page[Metric]"
-      },
-      "Page_NamedGroup_": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/NamedGroup"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          },
-          "page": {
-            "type": "integer",
-            "title": "Page"
-          },
-          "page_size": {
-            "type": "integer",
-            "title": "Page Size"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items",
-          "total",
-          "page",
-          "page_size"
-        ],
-        "title": "Page[NamedGroup]"
       },
       "Page_SplitMember_": {
         "properties": {
@@ -9989,18 +9583,6 @@
             ],
             "title": "Source Id"
           },
-          "named_group": {
-            "anyOf": [
-              {
-                "type": "string",
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Named Group"
-          },
           "logical_dataset_id": {
             "anyOf": [
               {
@@ -10139,6 +9721,37 @@
             ],
             "title": "Logical Dataset Id"
           },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "created",
+              "imported",
+              "builtin"
+            ],
+            "title": "Origin"
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref"
+          },
+          "read_only": {
+            "type": "boolean",
+            "title": "Read Only"
+          },
+          "execution_ready": {
+            "type": "boolean",
+            "title": "Execution Ready"
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/ImportResolution"
+          },
           "revision": {
             "type": "integer",
             "title": "Revision"
@@ -10191,6 +9804,10 @@
           "id",
           "name",
           "sources",
+          "origin",
+          "read_only",
+          "execution_ready",
+          "resolution",
           "revision",
           "head_version",
           "version",
@@ -10198,6 +9815,57 @@
           "created_at"
         ],
         "title": "Split"
+      },
+      "SplitImportCounts": {
+        "properties": {
+          "train": {
+            "type": "integer",
+            "title": "Train"
+          },
+          "val": {
+            "type": "integer",
+            "title": "Val"
+          },
+          "test": {
+            "type": "integer",
+            "title": "Test"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "train",
+          "val",
+          "test"
+        ],
+        "title": "SplitImportCounts"
+      },
+      "SplitImportPreview": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/SplitImportCounts"
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/ImportResolution"
+          },
+          "execution_ready": {
+            "type": "boolean",
+            "title": "Execution Ready"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "counts",
+          "resolution",
+          "execution_ready"
+        ],
+        "title": "SplitImportPreview"
       },
       "SplitMember": {
         "properties": {
@@ -10272,13 +9940,22 @@
           },
           "counts": {
             "$ref": "#/components/schemas/SplitPreviewCounts"
+          },
+          "execution_ready": {
+            "type": "boolean",
+            "title": "Execution Ready"
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/ImportResolution"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "source_revisions",
-          "counts"
+          "counts",
+          "execution_ready",
+          "resolution"
         ],
         "title": "SplitPreviewResponse"
       },

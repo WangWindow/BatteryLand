@@ -1,4 +1,4 @@
-from sqlalchemy import case, delete, false, func, or_, select, update
+from sqlalchemy import case, delete, false, or_, select, update
 from sqlalchemy.orm import Session
 
 from batteryland.common.errors import DomainError
@@ -23,6 +23,12 @@ def split_header(row: SplitRow, sources: list[Record] | None = None) -> Record:
         "sources": sources or [],
         "head_document_id": row.head_document_id,
         "revision": row.revision,
+        "origin": row.origin,
+        "read_only": row.origin == "builtin",
+        "source_ref": row.source_ref,
+        "execution_ready": row.execution_ready,
+        "counts": row.counts,
+        "resolution": row.resolution,
         "created_at": row.created_at,
     }
 
@@ -56,9 +62,30 @@ class SqlSplitRepository:
         ]
 
     def add(
-        self, identity: str, name: str, document_id: str, sources: list[Record]
+        self,
+        identity: str,
+        name: str,
+        document_id: str,
+        sources: list[Record],
+        counts: Record,
+        resolution: Record,
+        *,
+        origin: str = "created",
+        source_ref: str | None = None,
+        source_hash: str | None = None,
+        execution_ready: bool = True,
     ) -> Record:
-        row = SplitRow(id=identity, name=name, head_document_id=document_id)
+        row = SplitRow(
+            id=identity,
+            name=name,
+            head_document_id=document_id,
+            origin=origin,
+            source_ref=source_ref,
+            source_hash=source_hash,
+            execution_ready=execution_ready,
+            counts=counts,
+            resolution=resolution,
+        )
         self.session.add(row)
         self.session.flush()
         self._add_sources(document_id, sources)
@@ -83,6 +110,77 @@ class SqlSplitRepository:
             raise DomainError("not_found", "Split not found")
         return split_header(row, self.sources(row.head_document_id))
 
+    def get_by_source_ref(self, source_ref: str) -> Record | None:
+        row = self.session.scalar(select(SplitRow).where(SplitRow.source_ref == source_ref))
+        if row is None:
+            return None
+        return split_header(row, self.sources(row.head_document_id)) | {
+            "source_hash": row.source_hash
+        }
+
+    def sync_builtin(
+        self,
+        identity: str,
+        name: str,
+        source_ref: str,
+        source_hash: str,
+        document_id: str,
+        sources: list[Record],
+        partitions: dict[str, list[str]],
+        counts: Record,
+        resolution: Record,
+        execution_ready: bool,
+        statistics: Record | None,
+    ) -> tuple[Record, bool]:
+        row = self.session.scalar(select(SplitRow).where(SplitRow.source_ref == source_ref))
+        if row is None:
+            row = SplitRow(
+                id=identity,
+                name=name,
+                head_document_id=document_id,
+                origin="builtin",
+                source_ref=source_ref,
+                source_hash=source_hash,
+                execution_ready=execution_ready,
+                counts=counts,
+                resolution=resolution,
+            )
+            self.session.add(row)
+        elif row.source_hash == source_hash:
+            if (
+                row.execution_ready != execution_ready
+                or row.counts != counts
+                or row.resolution != resolution
+            ):
+                row.name = name
+                row.execution_ready = execution_ready
+                row.counts = counts
+                row.resolution = resolution
+                self.session.flush()
+            return split_header(row, self.sources(row.head_document_id)), False
+        else:
+            row.name = name
+            row.head_document_id = document_id
+            row.revision += 1
+            row.source_hash = source_hash
+            row.execution_ready = execution_ready
+            row.counts = counts
+            row.resolution = resolution
+        self.session.flush()
+        self._add_sources(document_id, sources)
+        self.add_members(document_id, partitions)
+        if statistics is not None:
+            self.add_statistics(document_id, statistics)
+        return split_header(row, self.sources(document_id)), True
+
+    def mark_missing_builtins(self, source_refs: set[str]) -> None:
+        rows = self.session.scalars(select(SplitRow).where(SplitRow.origin == "builtin")).all()
+        for row in rows:
+            if row.source_ref in source_refs or row.resolution.get("manifest_missing"):
+                continue
+            row.execution_ready = False
+            row.resolution = {**row.resolution, "manifest_missing": True}
+
     def update(
         self,
         identity: str,
@@ -90,11 +188,21 @@ class SqlSplitRepository:
         name: str,
         document_id: str,
         sources: list[Record],
+        counts: Record,
+        resolution: Record,
+        execution_ready: bool,
     ) -> Record:
         updated = self.session.scalar(
             update(SplitRow)
             .where(SplitRow.id == identity, SplitRow.revision == revision)
-            .values(name=name, revision=revision + 1, head_document_id=document_id)
+            .values(
+                name=name,
+                revision=revision + 1,
+                head_document_id=document_id,
+                execution_ready=execution_ready,
+                counts=counts,
+                resolution=resolution,
+            )
             .returning(SplitRow.id)
         )
         if updated is None:
@@ -153,22 +261,9 @@ class SqlSplitRepository:
             page,
             page_size,
         )
-        documents = [item["head_document_id"] for item in result["items"]]
-        counts = {
-            (document, partition): total
-            for document, partition, total in self.session.execute(
-                select(SplitMemberRow.document_id, SplitMemberRow.partition, func.count())
-                .where(SplitMemberRow.document_id.in_(documents))
-                .group_by(SplitMemberRow.document_id, SplitMemberRow.partition)
-            )
-        }
         for item in result["items"]:
             item["sources"] = self.sources(item["head_document_id"])
             item["head_version"] = item["version"] = item["revision"]
-            item["counts"] = {
-                name: counts.get((item["head_document_id"], name), 0)
-                for name in ("train", "val", "test")
-            }
         return result
 
     def members(self, document_id: str, partition: str | None, page: int, page_size: int) -> Record:
@@ -208,7 +303,5 @@ class SqlSplitRepository:
         )
         if used is not None:
             raise DomainError("resource_in_use", "Split is referenced by an experiment")
-        self.session.execute(
-            delete(SplitSourceRow).where(SplitSourceRow.document_id.in_(versions))
-        )
+        self.session.execute(delete(SplitSourceRow).where(SplitSourceRow.document_id.in_(versions)))
         self.session.execute(delete(SplitRow).where(SplitRow.id == identity))

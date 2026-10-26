@@ -193,57 +193,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/catalog/named-groups": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Groups */
-        get: operations["list_groups_api_v1_catalog_named_groups_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/catalog/named-groups/{name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Group */
-        get: operations["get_group_api_v1_catalog_named_groups__name__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/catalog/named-groups/{name}/members": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Members */
-        get: operations["list_members_api_v1_catalog_named_groups__name__members_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/splits": {
         parameters: {
             query?: never;
@@ -273,6 +222,23 @@ export interface paths {
         put?: never;
         /** Preview Split */
         post: operations["preview_split_api_v1_splits_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/splits/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Import Split */
+        post: operations["preview_import_split_api_v1_splits_import_preview_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -902,10 +868,23 @@ export interface components {
         };
         /** Body_import_split_api_v1_splits_import_post */
         Body_import_split_api_v1_splits_import_post: {
-            /** Source Ids */
-            source_ids: string[];
             /** File */
             file: string;
+            /**
+             * Member Bindings
+             * @default {}
+             */
+            member_bindings: string;
+        };
+        /** Body_preview_import_split_api_v1_splits_import_preview_post */
+        Body_preview_import_split_api_v1_splits_import_preview_post: {
+            /** File */
+            file: string;
+            /**
+             * Member Bindings
+             * @default {}
+             */
+            member_bindings: string;
         };
         /** Body_upload_checkpoint_api_v1_checkpoints_post */
         Body_upload_checkpoint_api_v1_checkpoints_post: {
@@ -1060,21 +1039,6 @@ export interface components {
             sha256: string;
             /** Components */
             components: components["schemas"]["Component"][];
-        };
-        /** Counts */
-        Counts: {
-            /** Train */
-            train: number;
-            /** Val */
-            val: number;
-            /** Test */
-            test: number;
-            /** Matched */
-            matched: number;
-            /** Missing */
-            missing: number;
-            /** Ambiguous */
-            ambiguous: number;
         };
         /** DataSource */
         DataSource: {
@@ -1284,21 +1248,6 @@ export interface components {
             message: string;
             data: components["schemas"]["LogicalDataset"];
         };
-        /** Envelope[NamedGroupDetail] */
-        Envelope_NamedGroupDetail_: {
-            /**
-             * Code
-             * @default 0
-             * @constant
-             */
-            code: 0;
-            /**
-             * Message
-             * @default ok
-             */
-            message: string;
-            data: components["schemas"]["NamedGroupDetail"];
-        };
         /** Envelope[Page[Artifact]] */
         Envelope_Page_Artifact__: {
             /**
@@ -1404,21 +1353,6 @@ export interface components {
             message: string;
             data: components["schemas"]["Page_LogicalDataset_"];
         };
-        /** Envelope[Page[Member]] */
-        Envelope_Page_Member__: {
-            /**
-             * Code
-             * @default 0
-             * @constant
-             */
-            code: 0;
-            /**
-             * Message
-             * @default ok
-             */
-            message: string;
-            data: components["schemas"]["Page_Member_"];
-        };
         /** Envelope[Page[Metric]] */
         Envelope_Page_Metric__: {
             /**
@@ -1433,21 +1367,6 @@ export interface components {
              */
             message: string;
             data: components["schemas"]["Page_Metric_"];
-        };
-        /** Envelope[Page[NamedGroup]] */
-        Envelope_Page_NamedGroup__: {
-            /**
-             * Code
-             * @default 0
-             * @constant
-             */
-            code: 0;
-            /**
-             * Message
-             * @default ok
-             */
-            message: string;
-            data: components["schemas"]["Page_NamedGroup_"];
         };
         /** Envelope[Page[SplitMember]] */
         Envelope_Page_SplitMember__: {
@@ -1508,6 +1427,21 @@ export interface components {
              */
             message: string;
             data: components["schemas"]["Result"];
+        };
+        /** Envelope[SplitImportPreview] */
+        Envelope_SplitImportPreview_: {
+            /**
+             * Code
+             * @default 0
+             * @constant
+             */
+            code: 0;
+            /**
+             * Message
+             * @default ok
+             */
+            message: string;
+            data: components["schemas"]["SplitImportPreview"];
         };
         /** Envelope[SplitPreviewResponse] */
         Envelope_SplitPreviewResponse_: {
@@ -1731,6 +1665,58 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** ImportCandidate */
+        ImportCandidate: {
+            /** Battery Id */
+            battery_id: string;
+            /** Source Id */
+            source_id: string;
+            /** Source Name */
+            source_name: string;
+            /** Relative Key */
+            relative_key: string;
+        };
+        /** ImportIssue */
+        ImportIssue: {
+            /** File Name */
+            file_name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "missing" | "ambiguous" | "duplicate_member" | "empty_partition";
+            /** Candidates */
+            candidates?: components["schemas"]["ImportCandidate"][];
+            /** Partition */
+            partition?: string | null;
+        };
+        /** ImportResolution */
+        ImportResolution: {
+            /**
+             * Matched
+             * @default 0
+             */
+            matched: number;
+            /**
+             * Missing
+             * @default 0
+             */
+            missing: number;
+            /**
+             * Ambiguous
+             * @default 0
+             */
+            ambiguous: number;
+            /**
+             * Duplicates
+             * @default 0
+             */
+            duplicates: number;
+            /** Issues */
+            issues?: components["schemas"]["ImportIssue"][];
+            /** Manifest Missing */
+            manifest_missing?: boolean | null;
+        };
         /** LogChunk */
         LogChunk: {
             /** Stream */
@@ -1802,27 +1788,6 @@ export interface components {
             /** Source Selections */
             source_selections: components["schemas"]["SourceSelection"][];
         };
-        /** Member */
-        Member: {
-            /**
-             * Partition
-             * @enum {string}
-             */
-            partition: "train" | "val" | "test";
-            /** Ordinal */
-            ordinal: number;
-            /** File Name */
-            file_name: string;
-            /** Battery Id */
-            battery_id: string | null;
-            /**
-             * Match Status
-             * @enum {string}
-             */
-            match_status: "matched" | "missing" | "ambiguous";
-            /** Candidate Count */
-            candidate_count: number;
-        };
         /** Metric */
         Metric: {
             /** Epoch */
@@ -1854,34 +1819,6 @@ export interface components {
             granularity: string;
             /** Experiment Id */
             experiment_id: string;
-        };
-        /** NamedGroup */
-        NamedGroup: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Manifest Sha256 */
-            manifest_sha256: string;
-            counts: components["schemas"]["Counts"];
-            /** Created At */
-            created_at: string;
-        };
-        /** NamedGroupDetail */
-        NamedGroupDetail: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Manifest Sha256 */
-            manifest_sha256: string;
-            counts: components["schemas"]["Counts"];
-            /** Created At */
-            created_at: string;
-            /** Document */
-            document: {
-                [key: string]: unknown;
-            };
         };
         /** Page[Artifact] */
         Page_Artifact_: {
@@ -1960,32 +1897,10 @@ export interface components {
             /** Page Size */
             page_size: number;
         };
-        /** Page[Member] */
-        Page_Member_: {
-            /** Items */
-            items: components["schemas"]["Member"][];
-            /** Total */
-            total: number;
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-        };
         /** Page[Metric] */
         Page_Metric_: {
             /** Items */
             items: components["schemas"]["Metric"][];
-            /** Total */
-            total: number;
-            /** Page */
-            page: number;
-            /** Page Size */
-            page_size: number;
-        };
-        /** Page[NamedGroup] */
-        Page_NamedGroup_: {
-            /** Items */
-            items: components["schemas"]["NamedGroup"][];
             /** Total */
             total: number;
             /** Page */
@@ -2143,8 +2058,6 @@ export interface components {
             split?: components["schemas"]["VersionRef"] | null;
             /** Source Id */
             source_id?: string | null;
-            /** Named Group */
-            named_group?: string | null;
             /** Logical Dataset Id */
             logical_dataset_id?: string | null;
             /**
@@ -2199,6 +2112,18 @@ export interface components {
             }[];
             /** Logical Dataset Id */
             logical_dataset_id?: string | null;
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "created" | "imported" | "builtin";
+            /** Source Ref */
+            source_ref?: string | null;
+            /** Read Only */
+            read_only: boolean;
+            /** Execution Ready */
+            execution_ready: boolean;
+            resolution: components["schemas"]["ImportResolution"];
             /** Revision */
             revision: number;
             /** Head Version */
@@ -2216,6 +2141,24 @@ export interface components {
             statistics?: components["schemas"]["DatasetStatistics"] | null;
             /** Created At */
             created_at: string;
+        };
+        /** SplitImportCounts */
+        SplitImportCounts: {
+            /** Train */
+            train: number;
+            /** Val */
+            val: number;
+            /** Test */
+            test: number;
+        };
+        /** SplitImportPreview */
+        SplitImportPreview: {
+            /** Name */
+            name: string;
+            counts: components["schemas"]["SplitImportCounts"];
+            resolution: components["schemas"]["ImportResolution"];
+            /** Execution Ready */
+            execution_ready: boolean;
         };
         /** SplitMember */
         SplitMember: {
@@ -2247,6 +2190,9 @@ export interface components {
                 [key: string]: number;
             };
             counts: components["schemas"]["SplitPreviewCounts"];
+            /** Execution Ready */
+            execution_ready: boolean;
+            resolution: components["schemas"]["ImportResolution"];
         };
         /** SplitSourceSelection */
         SplitSourceSelection: {
@@ -3581,266 +3527,6 @@ export interface operations {
             };
         };
     };
-    list_groups_api_v1_catalog_named_groups_get: {
-        parameters: {
-            query?: {
-                page?: number;
-                page_size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_Page_NamedGroup__"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Unprocessable Content */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Not Implemented */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    get_group_api_v1_catalog_named_groups__name__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_NamedGroupDetail_"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Unprocessable Content */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Not Implemented */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    list_members_api_v1_catalog_named_groups__name__members_get: {
-        parameters: {
-            query?: {
-                partition?: ("train" | "val" | "test") | null;
-                page?: number;
-                page_size?: number;
-            };
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_Page_Member__"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Unprocessable Content */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Not Implemented */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
     list_splits_api_v1_splits_get: {
         parameters: {
             query?: {
@@ -4036,6 +3722,93 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_SplitPreviewResponse_"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    preview_import_split_api_v1_splits_import_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_preview_import_split_api_v1_splits_import_preview_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SplitImportPreview_"];
                 };
             };
             /** @description Unauthorized */

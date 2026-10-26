@@ -47,6 +47,7 @@ export default function ExperimentEditorPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const didInitialize = useRef(false)
   const components = componentsQuery.data ?? []
+  const runnableSplits = splitsQuery.data?.items.filter((item) => item.execution_ready) ?? []
   const yamlError = useMemo(() => {
     try {
       const parsed = parse(configText)
@@ -205,7 +206,7 @@ export default function ExperimentEditorPage() {
               <FormControl.Label>数据划分</FormControl.Label>
               <Select value={splitId} onChange={(event) => changeSplit(event.target.value)}>
                 <Select.Option value="">选择已保存的数据划分</Select.Option>
-                {splitsQuery.data?.items.map((item) => (
+                {runnableSplits.map((item) => (
                   <Select.Option key={item.id} value={item.id}>
                     {item.name} · v{item.version} ·{" "}
                     {Object.values(item.counts)
@@ -232,7 +233,12 @@ export default function ExperimentEditorPage() {
                 <span>创建于 {date(splitDetail.data.created_at)}</span>
               </div>
             )}
-            {!splitsQuery.data?.items.length && (
+            {splitDetail.data && !splitDetail.data.execution_ready && (
+              <div className="notice error" role="status">
+                该数据集尚未完全匹配或包含空分组，不能用于新实验。请先修正数据集划分。
+              </div>
+            )}
+            {!runnableSplits.length && (
               <div className="notice">
                 需要先保存一个数据划分。
                 <Button as="a" href="/splits?create=1" size="small">
@@ -337,7 +343,14 @@ export default function ExperimentEditorPage() {
             <div className="actions">
               <Button
                 loading={validate.isPending}
-                disabled={!name.trim() || !splitId || !configText || Boolean(yamlError) || blocked}
+                disabled={
+                  !name.trim() ||
+                  !splitId ||
+                  !configText ||
+                  Boolean(yamlError) ||
+                  blocked ||
+                  splitDetail.data?.execution_ready === false
+                }
                 onClick={() => validate.mutate()}
               >
                 校验配置

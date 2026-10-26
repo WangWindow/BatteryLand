@@ -15,8 +15,10 @@ def _services(root: Path, data_dir: Path):
     database = Database(data_dir / "platform.sqlite")
     database.initialize()
     resources = ResourceService(database.unit_of_work, LocalSourceFiles(settings.source_roots))
-    indexer = FixedCatalogIndexer(settings, resources, database.unit_of_work)
-    return database, resources, indexer, LogicalDatasetService(database.unit_of_work)
+    documents = SQLiteDocumentStore(database.unit_of_work)
+    splits = SplitService(database.unit_of_work, documents)
+    indexer = FixedCatalogIndexer(settings, resources, database.unit_of_work, splits)
+    return database, resources, indexer, LogicalDatasetService(database.unit_of_work), splits
 
 
 def test_catalog_rescans_invalidate_logical_datasets_and_use_sqlite_for_browsing(tmp_path: Path):
@@ -25,7 +27,7 @@ def test_catalog_rescans_invalidate_logical_datasets_and_use_sqlite_for_browsing
     group.mkdir(parents=True)
     (group / "cell-a.pkl").write_bytes(b"a")
     (group / "cell-b.pkl").write_bytes(b"b")
-    database, resources, indexer, datasets = _services(root, tmp_path / "data")
+    database, resources, indexer, datasets, _ = _services(root, tmp_path / "data")
     try:
         indexer.index()
         source = resources.list_sources(1, 10)["items"][0]
@@ -83,7 +85,7 @@ def test_logical_dataset_can_be_the_input_to_a_saved_split(tmp_path: Path):
     group.mkdir(parents=True)
     for name in ("cell-a.pkl", "cell-b.pkl", "cell-c.pkl"):
         (group / name).write_bytes(name.encode())
-    database, resources, indexer, datasets = _services(root, tmp_path / "data")
+    database, resources, indexer, datasets, splits = _services(root, tmp_path / "data")
     try:
         indexer.index()
         source = resources.list_sources(1, 10)["items"][0]
@@ -101,7 +103,6 @@ def test_logical_dataset_can_be_the_input_to_a_saved_split(tmp_path: Path):
                 }
             ],
         )
-        splits = SplitService(database.unit_of_work, SQLiteDocumentStore(database.unit_of_work))
         split = splits.create(
             {
                 "name": "NASA 70/30",

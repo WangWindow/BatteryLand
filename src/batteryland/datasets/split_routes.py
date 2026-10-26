@@ -7,6 +7,7 @@ from pydantic import Field, StrictBool, StrictFloat, StrictInt, StrictStr, model
 
 from batteryland.api.schemas import Envelope, Page, RequestModel
 from batteryland.common.errors import DomainError
+from batteryland.common.serialization import load_json
 from batteryland.container import Container
 from batteryland.datasets.routes import Battery
 from batteryland.datasets.splits import SplitService
@@ -64,6 +65,44 @@ class SplitPreviewCounts(RequestModel):
 class SplitPreviewResponse(RequestModel):
     source_revisions: dict[str, int]
     counts: SplitPreviewCounts
+    execution_ready: bool
+    resolution: ImportResolution
+
+
+class ImportCandidate(RequestModel):
+    battery_id: str
+    source_id: str
+    source_name: str
+    relative_key: str
+
+
+class ImportIssue(RequestModel):
+    file_name: str
+    status: Literal["missing", "ambiguous", "duplicate_member", "empty_partition"]
+    candidates: list[ImportCandidate] = Field(default_factory=list)
+    partition: str | None = None
+
+
+class ImportResolution(RequestModel):
+    matched: int = 0
+    missing: int = 0
+    ambiguous: int = 0
+    duplicates: int = 0
+    issues: list[ImportIssue] = Field(default_factory=list)
+    manifest_missing: bool | None = None
+
+
+class SplitImportCounts(RequestModel):
+    train: int
+    val: int
+    test: int
+
+
+class SplitImportPreview(RequestModel):
+    name: str
+    counts: SplitImportCounts
+    resolution: ImportResolution
+    execution_ready: bool
 
 
 class StatisticCategory(RequestModel):
@@ -105,6 +144,11 @@ class Split(RequestModel):
     name: str
     sources: list[dict[str, Any]]
     logical_dataset_id: str | None = None
+    origin: Literal["created", "imported", "builtin"]
+    source_ref: str | None = None
+    read_only: bool
+    execution_ready: bool
+    resolution: ImportResolution
     revision: int
     head_version: int
     version: int
@@ -157,20 +201,46 @@ def preview_split(
     return {"data": splits.preview(body.model_dump(mode="json", exclude_none=True))}
 
 
+def _read_import(file: UploadFile) -> bytes:
+    content = file.file.read(1024 * 1024 + 1)
+    if len(content) > 1024 * 1024:
+        raise DomainError("invalid_input", "Split document exceeds 1 MiB")
+    return content
+
+
+def _member_bindings(value: str) -> dict[str, str]:
+    parsed = load_json(value.encode())
+    if not isinstance(parsed, dict) or any(
+        not isinstance(name, str) or not isinstance(identity, str)
+        for name, identity in parsed.items()
+    ):
+        raise DomainError("invalid_input", "Member bindings must map file names to battery IDs")
+    return parsed
+
+
+@router.post(
+    "/import/preview",
+    response_model=Envelope[SplitImportPreview],
+)
+def preview_import_split(
+    file: Annotated[UploadFile, File()],
+    splits: Annotated[SplitService, Depends(service)],
+    member_bindings: Annotated[str, Form()] = "{}",
+) -> dict[str, Any]:
+    return {"data": splits.preview_import(_read_import(file), _member_bindings(member_bindings))}
+
+
 @router.post(
     "/import",
     status_code=201,
     response_model=Envelope[Split],
 )
 def import_split(
-    source_ids: Annotated[list[UUID], Form()],
     file: Annotated[UploadFile, File()],
     splits: Annotated[SplitService, Depends(service)],
+    member_bindings: Annotated[str, Form()] = "{}",
 ) -> dict[str, Any]:
-    content = file.file.read(1024 * 1024 + 1)
-    if len(content) > 1024 * 1024:
-        raise DomainError("invalid_input", "Split document exceeds 1 MiB")
-    return {"data": splits.import_document([str(source_id) for source_id in source_ids], content)}
+    return {"data": splits.import_document(_read_import(file), _member_bindings(member_bindings))}
 
 
 @router.get("/{split_id}", response_model=Envelope[Split])

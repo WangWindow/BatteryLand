@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     ForeignKey,
     ForeignKeyConstraint,
@@ -96,32 +97,6 @@ class LogicalDatasetMemberRow(Base):
     battery_id: Mapped[str] = mapped_column(ForeignKey("batteries.id"))
 
 
-class NamedGroupRow(Identity, Base):
-    __tablename__ = "named_groups"
-    name: Mapped[str] = mapped_column(unique=True)
-    manifest_sha256: Mapped[str]
-    document: Mapped[dict[str, Any]] = mapped_column(JSON)
-    counts: Mapped[dict[str, Any]] = mapped_column(JSON)
-
-
-class NamedGroupMemberRow(Base):
-    __tablename__ = "named_group_members"
-    __table_args__ = (
-        CheckConstraint("partition IN ('train','val','test')"),
-        CheckConstraint("match_status IN ('matched','missing','ambiguous')"),
-        Index("ix_named_group_member_battery", "battery_id"),
-    )
-    group_id: Mapped[str] = mapped_column(
-        ForeignKey("named_groups.id", ondelete="CASCADE"), primary_key=True
-    )
-    partition: Mapped[str] = mapped_column(primary_key=True)
-    ordinal: Mapped[int] = mapped_column(primary_key=True)
-    file_name: Mapped[str]
-    battery_id: Mapped[str | None] = mapped_column(ForeignKey("batteries.id"))
-    match_status: Mapped[str]
-    candidate_count: Mapped[int]
-
-
 class DocumentRow(Identity, Base):
     __tablename__ = "document_versions"
     __table_args__ = (UniqueConstraint("kind", "owner_id", "version"),)
@@ -139,6 +114,12 @@ class SplitRow(Identity, Base):
     name: Mapped[str]
     head_document_id: Mapped[str] = mapped_column(ForeignKey("document_versions.id"))
     revision: Mapped[int] = mapped_column(default=1, server_default="1")
+    origin: Mapped[str] = mapped_column(default="created", server_default="created")
+    source_ref: Mapped[str | None] = mapped_column(unique=True)
+    source_hash: Mapped[str | None]
+    execution_ready: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    counts: Mapped[dict[str, int]] = mapped_column(JSON, default=dict, server_default="{}")
+    resolution: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, server_default="{}")
 
 
 class SplitSourceRow(Base):
@@ -147,9 +128,7 @@ class SplitSourceRow(Base):
     document_id: Mapped[str] = mapped_column(
         ForeignKey("document_versions.id", ondelete="CASCADE"), primary_key=True
     )
-    source_id: Mapped[str] = mapped_column(
-        ForeignKey("data_sources.id"), primary_key=True
-    )
+    source_id: Mapped[str] = mapped_column(ForeignKey("data_sources.id"), primary_key=True)
     source_revision: Mapped[int]
 
 
