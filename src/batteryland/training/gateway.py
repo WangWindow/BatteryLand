@@ -20,6 +20,7 @@ from batteryland.config import Settings
 from batteryland.db.contracts import Record
 from batteryland.scheduler.processes import ProcessSupervisor
 from batteryland.training.materializer import publish_file
+from batteryland.training.paths import experiment_directory, storage_key
 from batteryland.training.plugin_runtime import initialize_runtime
 from batteryland.training.runtime import TrainingRuntime
 from batteryland.training.split_support import (
@@ -34,8 +35,18 @@ PROVIDER_COMMIT = "6b4c76d6e639ddaf9db9c15bf04771179a68d988"
 
 
 class DeeplatformGateway:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        experiment_root: Path | None = None,
+        storage_root: Path | None = None,
+    ) -> None:
         self.settings = settings
+        self.storage_root = (storage_root or settings.data_dir).resolve()
+        self.experiment_root = (
+            experiment_root or self.storage_root / "experiments"
+        ).resolve()
         self.runtime = settings.data_dir.resolve() / "plugins"
         self.supervisor = ProcessSupervisor()
         self.worker = TrainingRuntime(settings.training_python)
@@ -265,15 +276,16 @@ class DeeplatformGateway:
                     )
             else:
                 expected = expected_split_path
-                managed_root = self.settings.data_dir.resolve() / "inputs"
                 managed_experiment = (
-                    managed_root / expected_experiment_id if expected_experiment_id else None
+                    experiment_directory(self.experiment_root, expected_experiment_id)
+                    if expected_experiment_id
+                    else None
                 )
                 if (
                     split_file != str(expected)
                     or expected.is_symlink()
                     or managed_experiment is None
-                    or expected != managed_experiment / "split.json"
+                    or expected != managed_experiment / "inputs" / "split.json"
                     or not expected.resolve().is_relative_to(managed_experiment)
                 ):
                     raise DomainError(
@@ -300,7 +312,7 @@ class DeeplatformGateway:
             )
 
         expected_pool = (
-            self.settings.data_dir.resolve() / "data-pools" / expected_experiment_id
+            experiment_directory(self.experiment_root, expected_experiment_id) / "data-pool"
             if expected_experiment_id
             else None
         )
@@ -378,7 +390,8 @@ class DeeplatformGateway:
                 )
         config = deepcopy(snapshot["native_config"])
         config["mate"]["experiment"] = materialized["experiment_id"]
-        config["mate"]["experiment_root"] = str(self.settings.data_dir.resolve() / "runs")
+        experiment_root = experiment_directory(self.experiment_root, materialized["experiment_id"])
+        config["mate"]["experiment_root"] = str(experiment_root / "runs")
         factories = config.get("datafactory", [])
         for factory in factories if isinstance(factories, list) else [factories]:
             if not isinstance(factory, dict) or str(factory.get("type", "")).casefold() not in {
@@ -387,7 +400,7 @@ class DeeplatformGateway:
             }:
                 continue
             workspace = (
-                self.settings.data_dir.resolve() / "data-workspaces" / materialized["experiment_id"]
+                experiment_root / "workspace"
             )
             for folder in ["Life labels", "seen_unseen_labels"]:
                 (workspace / folder).mkdir(parents=True, exist_ok=True)
@@ -406,7 +419,7 @@ class DeeplatformGateway:
             ),
         )
         directory = Path(prepared["directory"]).resolve()
-        if not directory.is_relative_to(self.settings.data_dir.resolve() / "runs"):
+        if not directory.is_relative_to(experiment_root):
             raise DomainError(
                 "needs_reconciliation", "Provider output directory is outside the managed root"
             )
@@ -428,7 +441,7 @@ class DeeplatformGateway:
             "intent_id": materialized["intent_id"],
             "input_manifest_sha256": materialized["input_manifest_sha256"],
             "provider_config_sha256": prepared["config_sha256"],
-            "directory_ref": str(directory.relative_to(self.settings.data_dir.resolve())),
+            "directory_ref": storage_key(self.storage_root, directory),
             "requested_device": config["mate"]["device"],
             "provider_commit": PROVIDER_COMMIT,
             "data_source_root": selected["data_pool"],

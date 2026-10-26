@@ -1,6 +1,7 @@
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from batteryland.common.errors import DomainError
 from batteryland.datasets.repository import page_of
 from batteryland.db.contracts import Record
 from batteryland.db.models import IngestionCursorRow, MetricRow, ResultRow
@@ -30,6 +31,13 @@ class SqlResultRepository:
             row = ResultRow(experiment_id=identity)
             self.session.add(row)
         row.import_status, row.error = status, error
+        self.session.flush()
+
+    def set_source_artifact(self, identity: str, artifact_id: str) -> None:
+        row = self.session.get(ResultRow, identity)
+        if row is None:
+            raise DomainError("not_found", "Result record not found")
+        row.source_artifact_id = artifact_id
         self.session.flush()
 
     def publish(

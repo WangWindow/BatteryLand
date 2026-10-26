@@ -51,8 +51,19 @@ class Container:
             settings, self.resources, self.database.unit_of_work
         )
         training_settings = replace(settings, data_dir=settings.data_dir / "training")
-        self.provider = DeeplatformGateway(training_settings)
-        self.training_runs = TrainingRunService(training_settings, self.provider, self.splits)
+        experiment_root = settings.data_dir / "experiments"
+        self.provider = DeeplatformGateway(
+            training_settings,
+            experiment_root=experiment_root,
+            storage_root=settings.data_dir,
+        )
+        self.training_runs = TrainingRunService(
+            training_settings,
+            self.provider,
+            self.splits,
+            experiment_root=experiment_root,
+            storage_root=settings.data_dir,
+        )
         self.validated_experiments = ValidatedExperimentService(
             self.database.unit_of_work, settings.validation_secret, self.splits
         )

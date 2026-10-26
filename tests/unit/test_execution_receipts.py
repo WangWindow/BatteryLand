@@ -10,21 +10,21 @@ from batteryland.training.materializer import ExecutionMaterializer
 
 @pytest.mark.parametrize("mismatch", ["intent", "manifest", "config"])
 def test_recovery_binds_receipts_to_intent_and_manifest(tmp_path: Path, mismatch: str):
-    files = ExecutionMaterializer(tmp_path)
+    files = ExecutionMaterializer(tmp_path / "experiments", tmp_path)
     snapshot = {
         "native_config": {"mate": {"device": "cpu"}},
         "resources": {"splits": {}},
         "provider_commit": "test",
     }
     materialized = files.materialize("experiment", "original-intent", snapshot)
-    directory = tmp_path / "runs" / "experiment"
+    directory = tmp_path / "experiments" / "experiment" / "runs" / "experiment"
     directory.mkdir(parents=True)
     shutil.copyfile(materialized["config_path"], directory / "config.yaml")
     receipt = {
         "experiment_id": "experiment",
         "intent_id": "another-intent" if mismatch == "intent" else "original-intent",
         "directory": str(directory),
-        "directory_ref": "runs/experiment",
+        "directory_ref": "experiments/experiment/runs/experiment",
         "input_manifest_sha256": "wrong"
         if mismatch == "manifest"
         else materialized["input_manifest_sha256"],
@@ -44,7 +44,7 @@ def test_recovery_binds_receipts_to_intent_and_manifest(tmp_path: Path, mismatch
 
 
 def test_materialized_split_is_per_experiment_and_read_only(tmp_path: Path):
-    files = ExecutionMaterializer(tmp_path)
+    files = ExecutionMaterializer(tmp_path / "experiments", tmp_path)
     split = {"dataset": "custom", "train": ["a.pkl"], "val": ["b.pkl"], "test": ["c.pkl"]}
     snapshot = {
         "native_config": {"mate": {"device": "cuda:0"}},
@@ -59,4 +59,4 @@ def test_materialized_split_is_per_experiment_and_read_only(tmp_path: Path):
 
     assert json.loads(path.read_text()) == split
     assert path.stat().st_mode & 0o222 == 0
-    assert path.parent.name == "experiment"
+    assert path.parent.parent.name == "experiment"

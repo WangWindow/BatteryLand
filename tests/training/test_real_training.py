@@ -92,7 +92,7 @@ def validate_and_submit(client, name, config_text, split_id, split_version):
 
 
 def run_directory(container, identity):
-    return container.settings.data_dir / "training" / "inputs" / identity
+    return container.settings.data_dir / "experiments" / identity / "inputs"
 
 
 def process_receipt(container, identity):
@@ -377,9 +377,9 @@ def test_real_training_survives_api_restart_and_stops_owned_group(training_setti
             )
             receipt_path = (
                 training_settings.data_dir
-                / "training"
-                / "inputs"
+                / "experiments"
                 / identity
+                / "inputs"
                 / "process-receipt.json"
             )
             deadline = time.monotonic() + 120

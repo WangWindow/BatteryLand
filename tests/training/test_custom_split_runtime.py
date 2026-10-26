@@ -42,7 +42,8 @@ def test_custom_batterylife_split_runs_in_isolated_provider(tmp_path: Path):
     assert gateway.validate_structure(config).get("valid")
 
     experiment_id = "custom-split-acceptance"
-    input_directory = settings.data_dir / "inputs" / experiment_id
+    experiment_root = settings.data_dir / "experiments" / experiment_id
+    input_directory = experiment_root / "inputs"
     config["datafactory"]["params"]["split_file"] = str((input_directory / "split.json").resolve())
     members = [name for partition in ("train", "val", "test") for name in split[partition]]
     resources = {
@@ -62,7 +63,8 @@ def test_custom_batterylife_split_runs_in_isolated_provider(tmp_path: Path):
         "components": gateway.components(),
         "requested_device": "cpu",
     }
-    materialized = ExecutionMaterializer(settings.data_dir).materialize(
+    materializer = ExecutionMaterializer(settings.data_dir / "experiments", settings.data_dir)
+    materialized = materializer.materialize(
         experiment_id, "custom-split-acceptance-intent", snapshot
     )
     process = gateway.spawn(gateway.prepare(materialized))
@@ -84,6 +86,6 @@ def test_custom_batterylife_split_runs_in_isolated_provider(tmp_path: Path):
     assert saved_config["mate"]["device"] == "cpu"
     assert saved_config["datafactory"]["type"] == "BatteryLandBatteryLifeDatasetFactory"
     assert saved_config["datafactory"]["params"]["split_file"] == str(
-        settings.data_dir / "inputs" / experiment_id / "split.json"
+        input_directory / "split.json"
     )
     assert json.loads((input_directory / "split.json").read_text()) == split

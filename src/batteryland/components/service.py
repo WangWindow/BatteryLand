@@ -1,3 +1,4 @@
+import hashlib
 import threading
 from pathlib import Path
 from typing import BinaryIO
@@ -112,29 +113,38 @@ class ArtifactService:
             )
         return self.public(value)
 
-    def upload_execution_artifact(
-        self,
-        experiment_id: str,
-        filename: str,
-        kind: str,
-        expected_sha256: str,
-        stream: BinaryIO,
-    ) -> Record:
+    def register_execution_artifact(self, experiment_id: str, source: Record) -> Record:
+        kind = source.get("kind")
         if kind not in {"checkpoint", "config", "file", "status", "input_manifest"}:
             raise DomainError("invalid_input", "Unknown execution artifact kind")
+        relative_key = source.get("relative_key")
+        filename = source.get("name")
+        expected_sha256 = source.get("sha256")
+        if not isinstance(relative_key, str) or not isinstance(filename, str) or not filename:
+            raise DomainError("invalid_input", "Execution artifact reference is invalid")
+        if not isinstance(expected_sha256, str) or len(expected_sha256) != 64:
+            raise DomainError("invalid_input", "Execution artifact checksum is unavailable")
+        path = self.files.resolve(relative_key)
+        if path.is_symlink() or not path.is_file():
+            raise DomainError("not_found", "Execution artifact is unavailable")
+        with path.open("rb") as content:
+            actual_sha256 = hashlib.file_digest(content, "sha256").hexdigest()
+        if actual_sha256 != expected_sha256:
+            raise DomainError("conflict", "Execution artifact changed while being collected")
         with self.units() as unit:
             unit.experiments.get(experiment_id)
-        value = self.files.save_execution(
-            experiment_id, stream, filename, expected_sha256, self.checkpoint_limit
-        )
-        with self.units() as unit:
             stored = unit.artifacts.upsert(
-                value
-                | {
-                    "component_id": None,
+                {
                     "experiment_id": experiment_id,
-                    "kind": kind,
+                    "component_id": None,
                     "origin": "deeplatform_process",
+                    "kind": kind,
+                    "name": filename,
+                    "relative_key": relative_key,
+                    "sha256": actual_sha256,
+                    "size": path.stat().st_size,
+                    "availability": "available",
+                    "is_directory": False,
                 }
             )
         return self.public(stored)
@@ -148,7 +158,14 @@ class ArtifactService:
     def for_experiment(self, identity: str) -> list[Record]:
         with self.units() as unit:
             unit.experiments.get(identity)
-            return [self.public(value) for value in unit.artifacts.for_experiment(identity)]
+            source_artifact_id = unit.results.get(identity)["source_artifact_id"]
+            values = unit.artifacts.for_experiment(identity)
+        values = [
+            value
+            for value in values
+            if value["kind"] != "result" or value["id"] == source_artifact_id
+        ]
+        return [self.public(value) for value in values]
 
     def download(self, identity: str) -> tuple[Path, str]:
         with self.units() as unit:

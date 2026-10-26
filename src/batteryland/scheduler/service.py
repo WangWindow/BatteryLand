@@ -43,8 +43,6 @@ class LocalScheduler:
         self.last_action = "initialized"
         self.last_reason: str | None = None
         self.stop_stages: dict[str, tuple[str, float]] = {}
-        self.cursors: dict[str, dict[str, Any]] = {}
-        self.uploaded_artifacts: set[tuple[str, str, str]] = set()
 
     def _event(self, record: dict[str, Any], kind: str, data: dict[str, Any]) -> dict[str, Any]:
         return self.scheduler_state.event(
@@ -97,38 +95,16 @@ class LocalScheduler:
 
     def _outputs(self, record: dict[str, Any], *, include_final_result: bool = False) -> None:
         identity = record["experiment_id"]
-        cursor = self.cursors.setdefault(identity, {"console_cursor": None, "metrics_offset": 0})
-        output = self.training.outputs(identity, cursor["console_cursor"], cursor["metrics_offset"])
-        console = output["console"]
-        if console["text"]:
-            self.results.ingest_external_log(
-                identity, "console", output["console_start_offset"], console["text"]
-            )
-            cursor["console_cursor"] = console["next_cursor"]
-        if output["metrics_text"]:
-            self.results.ingest_external_metrics(
-                identity, cursor["metrics_offset"], output["metrics_text"]
-            )
-            cursor["metrics_offset"] = output["metrics_next_offset"]
-        if include_final_result and output["result"] is not None:
-            self.results.ingest_external_result(identity, output["result"])
+        output = self.training.outputs(identity)
         for artifact in output["artifacts"]:
-            digest = artifact.get("sha256")
-            if (
-                artifact.get("kind")
-                not in {"checkpoint", "config", "file", "status", "input_manifest"}
-                or not digest
-            ):
-                continue
-            key = (identity, artifact["relative_key"], digest)
-            if key in self.uploaded_artifacts:
-                continue
-            path = self.training.artifact(identity, artifact["relative_key"])
-            with path.open("rb") as content:
-                self.artifacts.upload_execution_artifact(
-                    identity, artifact["name"], artifact["kind"], digest, content
-                )
-            self.uploaded_artifacts.add(key)
+            kind = artifact.get("kind")
+            if kind == "metrics":
+                self.results.ingest_external_metrics(identity, artifact)
+            elif kind == "result" and include_final_result:
+                self.results.ingest_external_result(identity, artifact)
+            elif kind in {"checkpoint", "config", "file", "status", "input_manifest"}:
+                if artifact.get("sha256"):
+                    self.artifacts.register_execution_artifact(identity, artifact)
 
     def _observe(self, record: dict[str, Any], snapshot: dict[str, Any]) -> None:
         identity = record["experiment_id"]

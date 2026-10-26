@@ -1,6 +1,5 @@
 """DeepPlatform validation and once-only process control in an isolated interpreter."""
 
-import base64
 import fcntl
 import json
 from copy import deepcopy
@@ -9,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 from batteryland.common.errors import DomainError
-from batteryland.common.storage import contained_path
 from batteryland.config import Settings
 from batteryland.datasets.splits import SplitService
 from batteryland.experiments.receipt import issue_receipt, verify_receipt
@@ -17,6 +15,7 @@ from batteryland.experiments.validated import parse_inputs
 from batteryland.results.storage import LocalResultFiles
 from batteryland.training.gateway import DeeplatformGateway
 from batteryland.training.materializer import ExecutionMaterializer, publish_file
+from batteryland.training.paths import experiment_directory, storage_key
 from batteryland.training.resources import BatteryFileResolver
 from batteryland.training.split_support import (
     CUSTOM_BATTERY_FACTORY,
@@ -39,13 +38,23 @@ class StartCommand:
 
 class TrainingRunService:
     def __init__(
-        self, settings: Settings, gateway: DeeplatformGateway, splits: SplitService
+        self,
+        settings: Settings,
+        gateway: DeeplatformGateway,
+        splits: SplitService,
+        *,
+        experiment_root: Path | None = None,
+        storage_root: Path | None = None,
     ) -> None:
         self.settings = settings
         self.gateway = gateway
         self.splits = splits
-        self.materializer = ExecutionMaterializer(settings.data_dir)
-        self.files = LocalResultFiles(settings.data_dir)
+        self.storage_root = (storage_root or settings.data_dir).resolve()
+        self.experiment_root = (
+            experiment_root or self.storage_root / "experiments"
+        ).resolve()
+        self.materializer = ExecutionMaterializer(self.experiment_root, self.storage_root)
+        self.files = LocalResultFiles(self.storage_root)
         self.file_resolver = BatteryFileResolver(settings.source_roots)
 
     def validate(self, config_text: str, split_id: str, split_version: int) -> dict[str, Any]:
@@ -102,7 +111,7 @@ class TrainingRunService:
         resolved = self.file_resolver.resolve_members(binding["members"])
         data_pool: Path | None = None
         if experiment_id is not None:
-            data_pool = self.settings.data_dir / "data-pools" / experiment_id
+            data_pool = experiment_directory(self.experiment_root, experiment_id) / "data-pool"
             data_pool.mkdir(parents=True, exist_ok=True)
             if data_pool.is_symlink():
                 raise DomainError("integration_precondition_failed", "Training data pool is unsafe")
@@ -166,7 +175,7 @@ class TrainingRunService:
             raise DomainError("unsupported_device", "Explicit CUDA device cannot be remapped")
         identity = str(body.experiment_id)
         intent = str(body.intent_id)
-        directory = self.settings.data_dir / "inputs" / identity
+        directory = experiment_directory(self.experiment_root, identity) / "inputs"
         directory.mkdir(parents=True, exist_ok=True)
         with (directory / ".start.lock").open("ab") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
@@ -233,12 +242,25 @@ class TrainingRunService:
             return process
 
     def _receipt(self, experiment_id: str) -> dict[str, Any]:
-        path = self.settings.data_dir / "inputs" / experiment_id / "process-receipt.json"
+        path = (
+            experiment_directory(self.experiment_root, experiment_id)
+            / "inputs"
+            / "process-receipt.json"
+        )
+        legacy = False
+        if not path.is_file():
+            # Existing executions keep their original receipt location; new executions use the
+            # experiment-scoped directory above.
+            path = self.settings.data_dir / "inputs" / experiment_id / "process-receipt.json"
+            legacy = True
         if not path.is_file():
             raise DomainError("needs_reconciliation", "No process receipt is available")
         value = json.loads(path.read_text())
         if value.get("experiment_id") != experiment_id:
             raise DomainError("needs_reconciliation", "Process receipt identity differs")
+        if legacy and isinstance(value.get("directory_ref"), str):
+            old_directory = self.settings.data_dir / value["directory_ref"]
+            value["directory_ref"] = storage_key(self.storage_root, old_directory)
         return value
 
     def status(self, experiment_id: str) -> dict[str, Any]:
@@ -255,50 +277,10 @@ class TrainingRunService:
         receipt = self._receipt(experiment_id)
         return {"experiment_id": experiment_id, "observation": self.gateway.signal(receipt, stage)}
 
-    def outputs(
-        self, experiment_id: str, console_cursor: str | None, metrics_offset: int
-    ) -> dict[str, Any]:
+    def outputs(self, experiment_id: str) -> dict[str, Any]:
         receipt = self._receipt(experiment_id)
         directory = receipt["directory_ref"]
-        log = self.files.log_chunk(experiment_id, directory, "console", console_cursor, 65536)
-        base = self.settings.data_dir / directory
-        result_path = base / "best_result.json"
-        result = (
-            json.loads(self.files.read_result(str(result_path.relative_to(self.settings.data_dir))))
-            if result_path.is_file()
-            else None
-        )
-        metrics_path = base / "metrics.jsonl"
-        metric_text = ""
-        next_offset = metrics_offset
-        if metrics_path.is_file():
-            with metrics_path.open("rb") as source:
-                source.seek(metrics_offset)
-                chunk = source.read(256 * 1024)
-            complete = chunk.rfind(b"\n") + 1
-            metric_text = chunk[:complete].decode("utf-8")
-            next_offset += complete
         return {
             "experiment_id": experiment_id,
-            "console": log,
-            "console_start_offset": (
-                json.loads(base64.urlsafe_b64decode(console_cursor))["offset"]
-                if console_cursor
-                else 0
-            ),
-            "metrics_text": metric_text,
-            "metrics_next_offset": next_offset,
-            "result": result,
             "artifacts": self.files.scan(directory, not self.gateway.observe(receipt)["alive"]),
         }
-
-    def artifact(self, experiment_id: str, relative_key: str) -> Path:
-        receipt = self._receipt(experiment_id)
-        directory = receipt["directory_ref"]
-        allowed = {item["relative_key"] for item in self.files.scan(directory, terminal=True)}
-        if relative_key not in allowed:
-            raise DomainError("not_found", "Execution artifact not found")
-        path = contained_path(self.settings.data_dir, relative_key)
-        if not path.is_file() or path.is_symlink():
-            raise DomainError("not_found", "Execution artifact is unavailable")
-        return path

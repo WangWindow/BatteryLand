@@ -75,8 +75,8 @@ def test_training_environment_does_not_inherit_api_activation(isolated_gateway, 
 def prepared(python, root):
     return {
         "provider_commit": PROVIDER_COMMIT,
-        "directory": str(root / "runs" / "test"),
-        "directory_ref": "runs/test",
+        "directory": str(root / "experiments" / "test" / "runs" / "run"),
+        "directory_ref": "experiments/test/runs/run",
         "experiment_id": "test",
         "intent_id": "intent",
         "input_manifest_sha256": "manifest",
@@ -220,7 +220,9 @@ def test_preparation_rejects_an_inconsistent_inner_runtime(isolated_gateway, mon
             operation = json.loads(kwargs["input"])["operation"]
             if operation == "prepare":
                 data = {
-                    "directory": str(gateway.settings.data_dir / "runs/test"),
+                    "directory": str(
+                        gateway.experiment_root / "test" / "runs" / "run"
+                    ),
                     "config_sha256": "config",
                     "experiment_id": "test",
                     "runtime": runtime | {"prefix": "/wrong-environment"},

@@ -1,6 +1,7 @@
 """Transactional scheduler protocol, including serial queue reservation."""
 
 from datetime import UTC, datetime, timedelta
+from pathlib import PurePosixPath
 from uuid import uuid4
 
 from sqlalchemy import delete, select, update
@@ -185,10 +186,20 @@ class SqlWorkerRepository:
                 raise DomainError(
                     "integration_precondition_failed", "Process receipt identity differs"
                 )
+            directory_ref = receipt.get("directory_ref")
+            if (
+                not isinstance(directory_ref, str)
+                or not directory_ref
+                or PurePosixPath(directory_ref).is_absolute()
+                or ".." in PurePosixPath(directory_ref).parts
+            ):
+                raise DomainError(
+                    "integration_precondition_failed", "Process output directory is invalid"
+                )
             fields = {
                 "receipt": receipt,
                 "started_at": receipt.get("started_at", utc_now()),
-                "prepared": {"directory_ref": f"worker-output/{identity}"},
+                "prepared": {"directory_ref": directory_ref},
             }
             target = "running" if state == "starting" else "stopping"
         elif kind == "finished":

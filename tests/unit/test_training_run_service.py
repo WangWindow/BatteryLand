@@ -53,7 +53,13 @@ class GatewayStub:
         assert path.read_text(encoding="utf-8") == (
             '{"dataset": "custom", "train": ["a.pkl"], "val": ["b.pkl"], "test": ["c.pkl"]}'
         )
-        directory = self.settings.data_dir / "runs" / materialized["experiment_id"]
+        directory = (
+            self.settings.data_dir
+            / "experiments"
+            / materialized["experiment_id"]
+            / "runs"
+            / materialized["experiment_id"]
+        )
         return {
             "experiment_id": materialized["experiment_id"],
             "intent_id": materialized["intent_id"],
@@ -148,7 +154,7 @@ def test_start_materializes_the_custom_split_path_for_one_experiment(tmp_path: P
         )
     )
 
-    split_path = service.settings.data_dir / "inputs/experiment-1/split.json"
+    split_path = service.experiment_root / "experiment-1/inputs/split.json"
     assert gateway.prepared_config is not None
     assert gateway.prepared_config["datafactory"]["params"]["split_file"] == str(split_path)
     assert split_path.stat().st_mode & 0o222 == 0

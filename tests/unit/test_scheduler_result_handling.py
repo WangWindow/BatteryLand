@@ -28,16 +28,17 @@ class TrainingStub:
             },
         }
 
-    def outputs(
-        self, experiment_id: str, console_cursor: str | None, metrics_offset: int
-    ) -> dict[str, Any]:
+    def outputs(self, experiment_id: str) -> dict[str, Any]:
         return {
-            "console": {"text": "", "next_cursor": console_cursor},
-            "console_start_offset": 0,
-            "metrics_text": "",
-            "metrics_next_offset": metrics_offset,
-            "result": {"epoch": 1 if self.alive else 2},
-            "artifacts": [],
+            "artifacts": [
+                {
+                    "kind": "result",
+                    "name": "best_result.json",
+                    "relative_key": f"experiments/{experiment_id}/runs/best_result.json",
+                    "sha256": "0" * 64,
+                    "epoch": 1 if self.alive else 2,
+                }
+            ],
         }
 
 
@@ -49,7 +50,7 @@ class ResultsStub:
     def ingest_external_result(self, experiment_id: str, result: dict[str, int]) -> None:
         if self.fail_result:
             raise RuntimeError("result import failed")
-        self.results.append(result)
+        self.results.append({"epoch": result["epoch"]})
 
 
 def running_scheduler(
@@ -60,8 +61,6 @@ def running_scheduler(
     scheduler.training = TrainingStub()
     scheduler.results = ResultsStub(fail_result)
     scheduler.artifacts = object()
-    scheduler.cursors = {}
-    scheduler.uploaded_artifacts = set()
     scheduler.stop_stages = {}
     scheduler.last_action = "initialized"
 

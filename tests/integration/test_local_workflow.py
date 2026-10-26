@@ -1,6 +1,6 @@
 """Single-port client flow through the local scheduler boundary."""
 
-import hashlib
+import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from batteryland.api.app import create_app
+from batteryland.results.storage import LocalResultFiles
 from batteryland.scheduler.service import LocalScheduler
 from tests.support import register_split
 
@@ -50,24 +51,35 @@ class GpuSampler:
 
 
 class TrainingStub:
-    def __init__(self, path: Path) -> None:
-        self.path = path
-        self.path.write_bytes(b"artifact")
+    def __init__(self, storage_root: Path) -> None:
+        self.storage_root = storage_root
         self.starts = 0
         self.alive = True
         self.terminal_code = 0
         self.identity = ""
         self.intent = ""
+        self.directory = None
+        self.directory_ref = ""
+        self.files = LocalResultFiles(storage_root)
 
     def start(self, body):
         self.starts += 1
         self.identity = str(body.experiment_id)
         self.intent = str(body.intent_id)
         assert body.resolved_device == "cuda:0"
+        self.directory = self.storage_root / "experiments" / self.identity / "runs" / "run"
+        self.directory.mkdir(parents=True, exist_ok=True)
+        self.directory_ref = self.directory.relative_to(self.storage_root).as_posix()
         return self.receipt()
 
     def receipt(self):
-        return {"experiment_id": self.identity, "intent_id": self.intent, "pid": 123}
+        return {
+            "experiment_id": self.identity,
+            "intent_id": self.intent,
+            "pid": 123,
+            "directory": str(self.directory),
+            "directory_ref": self.directory_ref,
+        }
 
     def status(self, identity):
         assert identity == self.identity
@@ -83,35 +95,30 @@ class TrainingStub:
             },
         }
 
-    def outputs(self, identity, console_cursor, metrics_offset):
+    def outputs(self, identity):
         assert identity == self.identity
-        metric = '{"epoch":1,"test":{"ABC":0.5}}\n'
-        return {
-            "console": {
-                "text": "done\n" if console_cursor is None else "",
-                "next_cursor": "cursor-1",
-            },
-            "console_start_offset": 0,
-            "metrics_text": metric if metrics_offset == 0 else "",
-            "metrics_next_offset": len(metric),
-            "result": {
-                "epoch": 1 if self.alive else 2,
-                "test": {"ABC": 0.5},
-                "test_predictions": [{"file_name": "c.pkl", "prediction": 9, "target": 10}],
-            },
-            "artifacts": [
+        assert self.directory is not None
+        epoch = 1 if self.alive else 2
+        (self.directory / "metrics.jsonl").write_text(
+            '{"epoch":1,"test":{"ABC":0.5}}\n', encoding="utf-8"
+        )
+        (self.directory / "best_result.json").write_text(
+            json.dumps(
                 {
-                    "kind": "file",
-                    "name": "report.txt",
-                    "relative_key": "report.txt",
-                    "sha256": hashlib.sha256(self.path.read_bytes()).hexdigest(),
+                    "epoch": epoch,
+                    "test": {"ABC": 0.5},
+                    "test_predictions": [
+                        {"file_name": "c.pkl", "prediction": 9, "target": 10}
+                    ],
                 }
-            ],
+            ),
+            encoding="utf-8",
+        )
+        (self.directory / "report.txt").write_text("artifact", encoding="utf-8")
+        (self.directory / "console.log").write_text("done\n", encoding="utf-8")
+        return {
+            "artifacts": self.files.scan(self.directory_ref, terminal=not self.alive),
         }
-
-    def artifact(self, identity, relative_key):
-        assert identity == self.identity and relative_key == "report.txt"
-        return self.path
 
     def stop(self, identity, stage):
         assert identity == self.identity and stage == "interrupt"
@@ -121,7 +128,7 @@ class TrainingStub:
 
 
 @pytest.mark.parametrize("case", range(3))
-def test_one_backend_port_validates_and_runs_once_with_local_coordinator(settings, tmp_path, case):
+def test_one_backend_port_validates_and_runs_once_with_local_coordinator(settings, case):
     configured = replace(settings, validation_secret="local-secret", auto_index_catalog=False)
     registered = register_split(
         configured,
@@ -163,7 +170,7 @@ def test_one_backend_port_validates_and_runs_once_with_local_coordinator(setting
         identity = created.json()["data"]["id"]
         assert client.post(f"/api/v1/validated-experiments/{identity}/submit").status_code == 202
         sampler = GpuSampler()
-        training = TrainingStub(tmp_path / "report.txt")
+        training = TrainingStub(configured.data_dir)
         scheduler = LocalScheduler(
             container.scheduler_state,
             container.validated_experiments,
@@ -190,7 +197,7 @@ def test_one_backend_port_validates_and_runs_once_with_local_coordinator(setting
         assert result.status_code == 200, result.text
         assert result.json()["data"]["metrics"][0]["name"] == "ABC"
         assert result.json()["data"]["best_epoch"] == 2
-        assert result.json()["data"]["version"] == 2
+        assert result.json()["data"]["version"] == 1
         assert (
             client.get(f"/api/v1/validated-experiments/{identity}").json()["data"]["state"]
             == "succeeded"
@@ -198,9 +205,30 @@ def test_one_backend_port_validates_and_runs_once_with_local_coordinator(setting
         assert client.post(f"/api/v1/validated-experiments/{identity}/submit").status_code == 409
         artifacts = client.get(f"/api/v1/experiments/{identity}/artifacts").json()["data"]
         assert any(item["name"] == "report.txt" for item in artifacts)
+        assert sum(item["name"] == "best_result.json" for item in artifacts) == 1
+        log = container.results.logs(identity, "console", None, 65536)
+        assert log["text"] == "done\n"
+        assert (
+            configured.data_dir / "experiments" / identity / "runs" / "run" / "best_result.json"
+        ).is_file()
+        assert not (configured.data_dir / "archives" / identity).exists()
+        assert not (configured.data_dir / "worker-output" / identity).exists()
+        assert not (configured.data_dir / "worker-artifacts" / identity).exists()
+        with container.database.unit_of_work() as unit:
+            best_result = next(
+                item
+                for item in unit.artifacts.for_experiment(identity)
+                if item["name"] == "best_result.json"
+            )
+            experiment_artifacts = unit.artifacts.for_experiment(identity)
+        assert all(
+            item["relative_key"].startswith(f"experiments/{identity}/")
+            for item in experiment_artifacts
+        )
+        assert best_result["relative_key"].startswith(f"experiments/{identity}/")
 
 
-def test_local_stop_never_restarts_an_experiment(settings, tmp_path):
+def test_local_stop_never_restarts_an_experiment(settings):
     configured = replace(settings, validation_secret="local-secret", auto_index_catalog=False)
     registered = register_split(
         configured,
@@ -238,7 +266,7 @@ def test_local_stop_never_restarts_an_experiment(settings, tmp_path):
         client.post(f"/api/v1/validated-experiments/{identity}/submit").raise_for_status()
         sampler = GpuSampler()
         sampler.available = True
-        training = TrainingStub(tmp_path / "stopped-report.txt")
+        training = TrainingStub(configured.data_dir)
         scheduler = LocalScheduler(
             container.scheduler_state,
             container.validated_experiments,

@@ -10,6 +10,7 @@ import yaml
 from batteryland.common.errors import DomainError
 from batteryland.common.serialization import load_json
 from batteryland.db.contracts import Record
+from batteryland.training.paths import experiment_directory, storage_key
 
 
 def publish_file(path: Path, content: bytes) -> str:
@@ -33,14 +34,17 @@ def publish_file(path: Path, content: bytes) -> str:
 
 
 class ExecutionMaterializer:
-    def __init__(self, root: Path) -> None:
-        self.root = root.resolve()
+    def __init__(self, experiments_root: Path, storage_root: Path | None = None) -> None:
+        self.experiments_root = experiments_root.resolve()
+        self.storage_root = (storage_root or experiments_root).resolve()
 
     def materialize(self, experiment_id: str, intent_id: str, snapshot: Record) -> Record:
-        directory = self.root / "inputs" / experiment_id
+        experiment_root = experiment_directory(self.experiments_root, experiment_id)
+        directory = experiment_root / "inputs"
+        directory.mkdir(parents=True, exist_ok=True)
         config = deepcopy(snapshot["native_config"])
         config["mate"]["experiment"] = experiment_id
-        config["mate"]["experiment_root"] = str(self.root / "runs")
+        config["mate"]["experiment_root"] = str(experiment_root / "runs")
         splits: Record = {}
         for name, binding in snapshot.get("resources", {}).get("splits", {}).items():
             path = directory / f"{name}.json"
@@ -76,12 +80,15 @@ class ExecutionMaterializer:
 
     def record_receipt(self, experiment_id: str, stage: str, receipt: Record) -> None:
         publish_file(
-            self.root / "inputs" / experiment_id / f"{stage}-receipt.json",
+            experiment_directory(self.experiments_root, experiment_id)
+            / "inputs"
+            / f"{stage}-receipt.json",
             json.dumps(receipt, sort_keys=True, allow_nan=False).encode(),
         )
 
     def recover_receipts(self, experiment_id: str, intent_id: str) -> Record:
-        directory = self.root / "inputs" / experiment_id
+        experiment_root = experiment_directory(self.experiments_root, experiment_id)
+        directory = experiment_root / "inputs"
         try:
             content = (directory / "manifest.json").read_bytes()
             manifest = load_json(content)
@@ -104,9 +111,9 @@ class ExecutionMaterializer:
                         "needs_reconciliation", "Receipt input manifest checksum differs"
                     )
                 output = Path(value["directory"]).resolve()
-                if not output.is_relative_to(self.root / "runs") or value.get(
-                    "directory_ref"
-                ) != str(output.relative_to(self.root)):
+                if not output.is_relative_to(experiment_root) or value.get("directory_ref") != (
+                    storage_key(self.storage_root, output)
+                ):
                     raise DomainError("needs_reconciliation", "Receipt output directory differs")
                 if hashlib.sha256((output / "config.yaml").read_bytes()).hexdigest() != value.get(
                     "provider_config_sha256"

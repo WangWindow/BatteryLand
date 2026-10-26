@@ -16,8 +16,15 @@ class ResultService:
     ) -> None:
         self.units, self.documents, self.files = units, documents, files
 
-    def ingest_external_result(self, identity: str, raw: Record) -> Record:
-        """Import a provider result delivered by the scheduler."""
+    def ingest_external_result(self, identity: str, source: Record) -> Record:
+        """Publish the final result file already stored in this experiment's run directory."""
+        if source.get("kind") != "result" or source.get("name") != "best_result.json":
+            raise DomainError("invalid_input", "The final result file is missing")
+        relative_key = source.get("relative_key")
+        if not isinstance(relative_key, str):
+            raise DomainError("invalid_input", "The final result path is invalid")
+        raw_content = self.files.read_result(relative_key)
+        raw = load_json(raw_content)
         try:
             content = json.dumps(raw, ensure_ascii=False, allow_nan=False).encode("utf-8")
         except (TypeError, ValueError) as exc:
@@ -25,55 +32,63 @@ class ResultService:
         if len(content) > 16 * 1024 * 1024:
             raise DomainError("invalid_input", "Result exceeds 16 MiB")
         checksum = hashlib.sha256(content).hexdigest()
+        file_checksum = hashlib.sha256(raw_content).hexdigest()
+        if source.get("sha256") not in (None, file_checksum):
+            raise DomainError("conflict", "The final result file changed while being collected")
+        artifact_value = self._execution_artifact_value(identity, source)
+        artifact_value["sha256"] = file_checksum
+        artifact_value["size"] = len(raw_content)
+        metrics = []
+        predictions: list[Record] = []
         duplicate = False
         version = 1
         with self.units() as unit:
             experiment = unit.experiments.get(identity)
             original = unit.validated_inputs.get(identity)
+            split = original["split"]
+            metrics = normalize_metrics(raw, original["config"])
+            allowed = {
+                name for group in ("train", "val", "test") for name in split.get(group, [])
+            }
+            values = raw.get("test_predictions") or []
+            if not isinstance(values, list):
+                raise DomainError("invalid_input", "Predictions must be a list")
+            seen: set[str] = set()
+            for value in values:
+                if (
+                    not isinstance(value, dict)
+                    or not isinstance(value.get("file_name"), str)
+                    or not value["file_name"]
+                    or value["file_name"] in seen
+                ):
+                    raise DomainError(
+                        "invalid_input", "Predictions require unique battery file names"
+                    )
+                name = value["file_name"]
+                seen.add(name)
+                predictions.append(
+                    {
+                        "battery_id": f"unresolved:{identity}:{name}",
+                        "file_name": name,
+                        "prediction": number(value.get("prediction")),
+                        "target": number(value.get("target")),
+                        "granularity": raw.get("test_predictions_aggregation", "unknown"),
+                    }
+                )
             current = unit.results.get(identity)
             if current["head_document_id"]:
                 reference = unit.documents.get(current["head_document_id"])
                 previous = unit.documents.read(reference)["payload"]
                 if previous.get("source_hash") == checksum:
                     duplicate = True
+                    version = reference.version
                 elif experiment["state"] not in ACTIVE_STATES:
                     raise DomainError(
                         "conflict", "A final result already exists for this experiment"
                     )
                 else:
                     version = reference.version + 1
-        if duplicate:
-            return self.get(identity)
-        config = original["config"]
-        metrics = normalize_metrics(raw, config)
-        allowed = {
-            name for group in ("train", "val", "test") for name in original["split"].get(group, [])
-        }
-        values = raw.get("test_predictions") or []
-        if not isinstance(values, list):
-            raise DomainError("invalid_input", "Predictions must be a list")
-        predictions: list[Record] = []
-        seen: set[str] = set()
-        for value in values:
-            if (
-                not isinstance(value, dict)
-                or not isinstance(value.get("file_name"), str)
-                or not value["file_name"]
-                or value["file_name"] in seen
-            ):
-                raise DomainError("invalid_input", "Predictions require unique battery file names")
-            name = value["file_name"]
-            seen.add(name)
-            predictions.append(
-                {
-                    "battery_id": f"unresolved:{identity}:{name}",
-                    "file_name": name,
-                    "prediction": number(value.get("prediction")),
-                    "target": number(value.get("target")),
-                    "granularity": raw.get("test_predictions_aggregation", "unknown"),
-                }
-            )
-        archived = self.files.archive(identity, content)
+
         payload = {
             "metrics": metrics,
             "predictions": predictions,
@@ -82,43 +97,46 @@ class ResultService:
                 if any(value["file_name"] not in allowed for value in predictions)
                 else []
             ),
-            "source_hash": archived["sha256"],
+            "source_hash": checksum,
             "original": raw,
         }
         with self.units() as unit:
-            document = unit.documents.publish("result", identity, version, payload)
-            artifact = unit.artifacts.upsert(archived | {"experiment_id": identity})
-            unit.results.publish(identity, document.id, artifact["id"], version, metrics)
+            artifact = unit.artifacts.upsert(artifact_value)
+            if duplicate:
+                unit.results.set_source_artifact(identity, artifact["id"])
+            else:
+                document = unit.documents.publish("result", identity, version, payload)
+                unit.results.publish(identity, document.id, artifact["id"], version, metrics)
         return self.get(identity)
 
-    def ingest_external_log(self, identity: str, stream: str, offset: int, text: str) -> Record:
-        if stream not in {"console", "train"}:
-            raise DomainError("invalid_input", "Unknown log stream")
-        with self.units() as unit:
-            unit.experiments.get(identity)
-        return self.files.append_report(identity, stream, offset, text.encode("utf-8"))
-
-    def ingest_external_metrics(self, identity: str, offset: int, text: str) -> Record:
+    def ingest_external_metrics(self, identity: str, source: Record) -> None:
+        if source.get("kind") != "metrics" or source.get("name") != "metrics.jsonl":
+            raise DomainError("invalid_input", "The epoch metrics file is invalid")
+        relative_key = source.get("relative_key")
+        if not isinstance(relative_key, str):
+            raise DomainError("invalid_input", "The epoch metrics path is invalid")
+        artifact_value = self._execution_artifact_value(identity, source)
         with self.units() as unit:
             unit.experiments.get(identity)
             original = unit.validated_inputs.get(identity)
-        cursor = self.files.append_report(identity, "metrics", offset, text.encode("utf-8"))
-        artifact_value = {
-            "origin": "worker_report",
-            "kind": "metrics",
-            "name": "metrics.jsonl",
-            "relative_key": cursor["relative_key"],
-            "sha256": None,
-            "size": cursor["offset"],
-            "availability": "available",
-            "is_directory": False,
-            "experiment_id": identity,
-            "component_id": None,
-        }
-        with self.units() as unit:
             artifact = unit.artifacts.upsert(artifact_value)
         self._ingest(identity, artifact, {"native_config": original["config"]})
-        return cursor
+
+    @staticmethod
+    def _execution_artifact_value(identity: str, source: Record) -> Record:
+        """Build a database record that points at a file in the run directory."""
+        return {
+            "experiment_id": identity,
+            "component_id": None,
+            "origin": "deeplatform_process",
+            "kind": source["kind"],
+            "name": source["name"],
+            "relative_key": source["relative_key"],
+            "sha256": source.get("sha256"),
+            "size": source.get("size"),
+            "availability": source.get("availability", "available"),
+            "is_directory": False,
+        }
 
     def _ingest(self, identity: str, artifact: Record, snapshot: Record) -> None:
         with self.units() as unit:
