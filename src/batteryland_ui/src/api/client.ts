@@ -38,6 +38,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body.data as T
 }
 const get = <T>(path: string, signal?: AbortSignal) => request<T>(path, { signal })
+const getText = async (path: string, signal?: AbortSignal): Promise<string> => {
+  const response = await fetch(`${root}${path}`, { signal })
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.message ?? body?.detail ?? `请求失败（${response.status}）`)
+  }
+  return response.text()
+}
 const send = <T>(path: string, body?: unknown, method = "POST") =>
   request<T>(path, {
     method,
@@ -117,6 +125,8 @@ export const api = {
     get<Result>(`/experiments/${encodeURIComponent(id)}/results`, signal),
   artifacts: (id: string, signal?: AbortSignal) =>
     get<Artifact[]>(`/experiments/${encodeURIComponent(id)}/artifacts`, signal),
+  artifactText: (id: string, signal?: AbortSignal) =>
+    getText(`/artifacts/${encodeURIComponent(id)}/preview/text`, signal),
   logs: (id: string, stream = "console", cursor?: string, signal?: AbortSignal) =>
     get<Schema["LogChunk"]>(
       `/experiments/${encodeURIComponent(id)}/logs${qs({ stream, cursor, limit_bytes: 65536 })}`,

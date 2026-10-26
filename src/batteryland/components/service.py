@@ -7,6 +7,41 @@ from batteryland.common.file_contracts import ArtifactFiles
 from batteryland.db.contracts import Record, UnitOfWorkFactory
 from batteryland.training.contracts import ComponentGateway
 
+TEXT_PREVIEW_LIMIT = 1024 * 1024
+TEXT_PREVIEW_SUFFIXES = frozenset(
+    {
+        ".csv",
+        ".ini",
+        ".json",
+        ".jsonl",
+        ".log",
+        ".md",
+        ".py",
+        ".sh",
+        ".toml",
+        ".tsv",
+        ".txt",
+        ".xml",
+        ".yaml",
+        ".yml",
+    }
+)
+MODEL_PREVIEW_SUFFIXES = frozenset(
+    {
+        ".h5",
+        ".keras",
+        ".mlmodel",
+        ".npy",
+        ".npz",
+        ".onnx",
+        ".pb",
+        ".pth",
+        ".pt",
+        ".safetensors",
+        ".tflite",
+    }
+)
+
 
 class ArtifactService:
     def __init__(
@@ -123,3 +158,28 @@ class ArtifactService:
                 "invalid_input", "Select a registered file inside the artifact directory"
             )
         return self.files.resolve(value["relative_key"]), value["name"]
+
+    def text_preview(self, identity: str) -> tuple[str, str]:
+        path, name = self.download(identity)
+        if Path(name).suffix.casefold() not in TEXT_PREVIEW_SUFFIXES:
+            raise DomainError("invalid_input", "This artifact type does not support text preview")
+        try:
+            with path.open("rb") as source:
+                content = source.read(TEXT_PREVIEW_LIMIT + 1)
+        except OSError as exc:
+            raise DomainError("not_found", "Artifact file is unavailable") from exc
+        if len(content) > TEXT_PREVIEW_LIMIT:
+            raise DomainError("invalid_input", "Text preview is limited to 1 MiB")
+        try:
+            text = content.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise DomainError("invalid_input", "Artifact is not valid UTF-8 text") from exc
+        if "\x00" in text:
+            raise DomainError("invalid_input", "Binary artifacts cannot be previewed as text")
+        return name, text
+
+    def model_preview(self, identity: str) -> tuple[Path, str]:
+        path, name = self.download(identity)
+        if Path(name).suffix.casefold() not in MODEL_PREVIEW_SUFFIXES:
+            raise DomainError("invalid_input", "This artifact format is not supported by Netron")
+        return path, name

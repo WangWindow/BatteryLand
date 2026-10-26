@@ -6,6 +6,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { parse, stringify } from "yaml"
 import { api } from "../api/client"
 import type { Experiment, Schema, Validation } from "../api/types"
+import { CodeEditor } from "../components/code-editor"
 import { ErrorNotice, Loading, PageHeader } from "../components/common"
 import { ConfigEditor } from "../components/config-editor"
 import { date, partitions } from "../lib/format"
@@ -271,18 +272,14 @@ export default function ExperimentEditorPage() {
               </Button>
             </div>
           </div>
-          {(showYaml || yamlError) && (
-            <label className="sr-only" htmlFor="config-yaml">
-              YAML 配置
-            </label>
-          )}
           {showYaml || yamlError ? (
-            <textarea
-              id="config-yaml"
-              className="yaml-editor"
-              spellCheck={false}
+            <CodeEditor
+              ariaLabel="YAML 配置编辑器"
+              height="min(65vh, 680px)"
+              language="yaml"
+              minHeight="470px"
               value={configText}
-              onChange={(event) => updateConfig(event.target.value)}
+              onChange={updateConfig}
             />
           ) : configText ? (
             <ConfigEditor
@@ -319,7 +316,13 @@ export default function ExperimentEditorPage() {
               </div>
               <details>
                 <summary>查看校验后的数据划分 JSON</summary>
-                <pre className="code-block">{validation.split_text}</pre>
+                <CodeEditor
+                  ariaLabel="校验后的数据划分 JSON 只读预览"
+                  height="360px"
+                  language="json"
+                  readOnly
+                  value={validation.split_text}
+                />
               </details>
             </div>
           )}

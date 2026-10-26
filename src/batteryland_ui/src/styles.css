@@ -756,27 +756,6 @@ tbody tr:hover {
   font-size: 22px;
   margin-top: 3px;
 }
-.code-block {
-  background: var(--bgColor-muted);
-  padding: 14px;
-  border-radius: 5px;
-  max-height: 420px;
-  overflow: auto;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font:
-    12px / 1.65 ui-monospace,
-    monospace;
-}
-.inline-json {
-  max-height: 150px;
-  overflow: auto;
-  white-space: pre-wrap;
-  font:
-    12px ui-monospace,
-    monospace;
-  margin: 0;
-}
 .category-jumps {
   display: flex;
   flex-wrap: wrap;
@@ -1050,18 +1029,40 @@ input[type="range"] {
   margin-top: 20px;
   border-top: 1px solid var(--borderColor-muted);
 }
-.yaml-editor {
-  width: 100%;
-  min-height: 470px;
-  resize: vertical;
+.code-editor {
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--borderColor-default);
   border-radius: 6px;
-  padding: 18px;
-  color: var(--fgColor-default);
-  background: var(--bgColor-muted);
+}
+.code-editor:focus-within {
+  outline: 2px solid var(--focus-outlineColor, #0969da);
+  outline-offset: 1px;
+}
+.code-editor .cm-editor {
   font:
-    13px / 1.65 ui-monospace,
+    12px / 1.65 ui-monospace,
     monospace;
+}
+.code-editor .cm-scroller {
+  overflow: auto;
+}
+.code-editor.is-readonly .cm-content {
+  user-select: text;
+}
+.model-preview-frame {
+  display: block;
+  width: 100%;
+  height: min(72vh, 820px);
+  min-height: 540px;
+  border: 0;
+  background: #fff;
+}
+.preview-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 .log-view {
   max-height: 520px;
@@ -1450,19 +1451,6 @@ body {
   margin-top: 4px;
   font-size: 12px;
 }
-.property-json {
-  width: 100%;
-  min-height: 80px;
-  resize: vertical;
-  border: 1px solid var(--borderColor-default, #d1d9e0);
-  border-radius: 6px;
-  padding: 8px 10px;
-  color: var(--fgColor-default, #1f2328);
-  background: var(--bgColor-default, #fff);
-  font:
-    12px / 1.5 ui-monospace,
-    monospace;
-}
 .property-actions {
   margin-top: 22px;
   padding-top: 16px;
@@ -1648,6 +1636,9 @@ body {
 }
 .artifact-row .subtle {
   font-size: 11px;
+}
+.artifact-row .actions {
+  flex-shrink: 0;
 }
 .warning-list {
   margin: 10px 0;

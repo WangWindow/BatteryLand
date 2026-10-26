@@ -51,16 +51,22 @@ export function Modal({
   children,
   onClose,
   wide = false,
+  extraWide = false,
   footer,
 }: {
   title: string
   children: ReactNode
   onClose: () => void
   wide?: boolean
+  extraWide?: boolean
   footer?: ReactNode
 }) {
   return (
-    <Dialog title={title} onClose={onClose} width={wide ? "880px" : "640px"}>
+    <Dialog
+      title={title}
+      onClose={onClose}
+      width={extraWide ? "min(1400px, 96vw)" : wide ? "880px" : "640px"}
+    >
       <Dialog.Body>
         <div className="dialog-content">{children}</div>
       </Dialog.Body>

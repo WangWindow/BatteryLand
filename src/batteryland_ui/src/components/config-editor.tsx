@@ -6,6 +6,7 @@ import { parse, stringify } from "yaml"
 import { api } from "../api/client"
 import type { Component } from "../api/types"
 import { categories } from "../lib/format"
+import { CodeEditor } from "./code-editor"
 
 type Data = Record<string, unknown>
 type ConfigComponent = { type?: string; name?: string; params?: Data; [key: string]: unknown }
@@ -129,18 +130,7 @@ function FieldEditor({
           onChange={(event) => onChange(event.target.value === "" ? null : Number(event.target.value))}
         />
       ) : type === "json" ? (
-        <textarea
-          className="property-json"
-          aria-label={label}
-          value={JSON.stringify(value ?? (Array.isArray(value) ? [] : {}), null, 2)}
-          onChange={(event) => {
-            try {
-              onChange(JSON.parse(event.target.value))
-            } catch {
-              /* Keep the last valid value until JSON is complete. */
-            }
-          }}
-        />
+        <JsonFieldEditor label={label} value={value} onChange={onChange} />
       ) : (
         <TextInput
           aria-label={label}
@@ -149,6 +139,35 @@ function FieldEditor({
         />
       )}
     </div>
+  )
+}
+
+function JsonFieldEditor({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: unknown
+  onChange: (value: unknown) => void
+}) {
+  const [draft, setDraft] = useState(() => JSON.stringify(value ?? {}, null, 2))
+  useEffect(() => setDraft(JSON.stringify(value ?? {}, null, 2)), [value])
+  return (
+    <CodeEditor
+      ariaLabel={label}
+      height="180px"
+      language="json"
+      onChange={(text) => {
+        setDraft(text)
+        try {
+          onChange(JSON.parse(text))
+        } catch {
+          // Keep an incomplete JSON draft visible while the user edits it.
+        }
+      }}
+      value={draft}
+    />
   )
 }
 

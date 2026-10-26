@@ -6,7 +6,7 @@ from batteryland.common.file_contracts import ResultFiles
 from batteryland.common.serialization import load_json
 from batteryland.db.contracts import Record, UnitOfWorkFactory
 from batteryland.documents.contracts import DocumentStore
-from batteryland.experiments.states import TERMINAL_STATES
+from batteryland.experiments.states import ACTIVE_STATES, TERMINAL_STATES
 from batteryland.results.metrics import normalize_metrics, number
 
 
@@ -26,8 +26,9 @@ class ResultService:
             raise DomainError("invalid_input", "Result exceeds 16 MiB")
         checksum = hashlib.sha256(content).hexdigest()
         duplicate = False
+        version = 1
         with self.units() as unit:
-            unit.experiments.get(identity)
+            experiment = unit.experiments.get(identity)
             original = unit.validated_inputs.get(identity)
             current = unit.results.get(identity)
             if current["head_document_id"]:
@@ -35,10 +36,12 @@ class ResultService:
                 previous = unit.documents.read(reference)["payload"]
                 if previous.get("source_hash") == checksum:
                     duplicate = True
-                else:
+                elif experiment["state"] not in ACTIVE_STATES:
                     raise DomainError(
                         "conflict", "A final result already exists for this experiment"
                     )
+                else:
+                    version = reference.version + 1
         if duplicate:
             return self.get(identity)
         config = original["config"]
@@ -83,9 +86,9 @@ class ResultService:
             "original": raw,
         }
         with self.units() as unit:
-            document = unit.documents.publish("result", identity, 1, payload)
+            document = unit.documents.publish("result", identity, version, payload)
             artifact = unit.artifacts.upsert(archived | {"experiment_id": identity})
-            unit.results.publish(identity, document.id, artifact["id"], 1, metrics)
+            unit.results.publish(identity, document.id, artifact["id"], version, metrics)
         return self.get(identity)
 
     def ingest_external_log(self, identity: str, stream: str, offset: int, text: str) -> Record:

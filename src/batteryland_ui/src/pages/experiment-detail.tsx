@@ -1,13 +1,58 @@
-import { DownloadIcon, StopIcon } from "@primer/octicons-react"
+import { DownloadIcon, EyeIcon, StopIcon } from "@primer/octicons-react"
 import { Button } from "@primer/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useRef, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { api, download } from "../api/client"
-import { ErrorNotice, Loading, PageHeader, StateTag } from "../components/common"
+import type { Artifact } from "../api/types"
+import { CodeEditor } from "../components/code-editor"
+import { ErrorNotice, Loading, Modal, PageHeader, StateTag } from "../components/common"
 import { bytes, date, partitions } from "../lib/format"
 
 const terminal = new Set(["succeeded", "failed", "stopped", "needs_reconciliation"])
+const textExtensions = new Set([
+  ".csv",
+  ".ini",
+  ".json",
+  ".jsonl",
+  ".log",
+  ".md",
+  ".py",
+  ".sh",
+  ".toml",
+  ".tsv",
+  ".txt",
+  ".xml",
+  ".yaml",
+  ".yml",
+])
+const modelExtensions = new Set([
+  ".h5",
+  ".keras",
+  ".mlmodel",
+  ".npy",
+  ".npz",
+  ".onnx",
+  ".pb",
+  ".pth",
+  ".pt",
+  ".safetensors",
+  ".tflite",
+])
+
+function previewKind(name: string): "model" | "text" | null {
+  const suffix = `.${name.split(".").at(-1)?.toLowerCase() ?? ""}`
+  if (textExtensions.has(suffix)) return "text"
+  if (modelExtensions.has(suffix)) return "model"
+  return null
+}
+
+function previewLanguage(name: string): "json" | "text" | "yaml" {
+  const suffix = name.split(".").at(-1)?.toLowerCase()
+  if (suffix === "yaml" || suffix === "yml") return "yaml"
+  if (suffix === "json" || suffix === "jsonl") return "json"
+  return "text"
+}
 
 function displayLogText(text: string): string {
   return text
@@ -24,6 +69,7 @@ export default function ExperimentDetailPage() {
   const [stream, setStream] = useState<"train" | "console">("console")
   const [cursor, setCursor] = useState<string | undefined>()
   const [logText, setLogText] = useState("")
+  const [previewArtifact, setPreviewArtifact] = useState<Artifact | null>(null)
   const logRef = useRef<HTMLPreElement>(null)
   const experiment = useQuery({
     queryKey: ["experiment", id],
@@ -41,6 +87,12 @@ export default function ExperimentDetailPage() {
     queryKey: ["artifacts", id],
     queryFn: ({ signal }) => api.artifacts(id, signal),
     enabled: Boolean(experiment.data),
+  })
+  const artifactPreviewKind = previewArtifact ? previewKind(previewArtifact.name) : null
+  const artifactPreviewText = useQuery({
+    queryKey: ["artifact-preview", previewArtifact?.id],
+    queryFn: ({ signal }) => api.artifactText(previewArtifact?.id ?? "", signal),
+    enabled: artifactPreviewKind === "text" && Boolean(previewArtifact),
   })
   const logs = useQuery({
     queryKey: ["logs", id, stream, cursor],
@@ -328,14 +380,27 @@ export default function ExperimentDetailPage() {
                             {artifact.kind} · {bytes(artifact.size)} · {artifact.availability}
                           </span>
                         </div>
-                        <Button
-                          aria-label={`下载 ${artifact.name}`}
-                          size="small"
-                          leadingVisual={DownloadIcon}
-                          onClick={() => artifactDownload.mutate(artifact.id)}
-                        >
-                          下载
-                        </Button>
+                        <div className="actions">
+                          {artifact.availability === "available" &&
+                            !artifact.is_directory &&
+                            previewKind(artifact.name) && (
+                              <Button
+                                aria-label={`预览 ${artifact.name}`}
+                                title="预览"
+                                size="small"
+                                leadingVisual={EyeIcon}
+                                onClick={() => setPreviewArtifact(artifact)}
+                              />
+                            )}
+                          <Button
+                            aria-label={`下载 ${artifact.name}`}
+                            size="small"
+                            leadingVisual={DownloadIcon}
+                            onClick={() => artifactDownload.mutate(artifact.id)}
+                          >
+                            下载
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -345,11 +410,23 @@ export default function ExperimentDetailPage() {
               </section>
               <section className="detail-section">
                 <h2>配置摘要</h2>
-                <pre className="code-block">{JSON.stringify(row.config, null, 2)}</pre>
+                <CodeEditor
+                  ariaLabel="实验 YAML 配置只读预览"
+                  height="360px"
+                  language="yaml"
+                  readOnly
+                  value={row.config_text}
+                />
               </section>
               <section className="detail-section">
                 <h2>数据划分清单</h2>
-                <pre className="code-block">{JSON.stringify(row.split, null, 2)}</pre>
+                <CodeEditor
+                  ariaLabel="数据划分 JSON 只读预览"
+                  height="360px"
+                  language="json"
+                  readOnly
+                  value={row.split_text}
+                />
                 <p className="subtle">
                   {partitions.map((part) => `${part}: ${row.split_counts[part] ?? 0}`).join(" · ")}
                 </p>
@@ -357,6 +434,41 @@ export default function ExperimentDetailPage() {
             </aside>
           </div>
         )
+      )}
+      {previewArtifact && artifactPreviewKind && (
+        <Modal
+          extraWide={artifactPreviewKind === "model"}
+          title={previewArtifact.name}
+          onClose={() => setPreviewArtifact(null)}
+          footer={
+            <div className="preview-footer">
+              <span className="subtle">只读预览 · 不会修改产物</span>
+              <Button onClick={() => setPreviewArtifact(null)}>关闭</Button>
+            </div>
+          }
+        >
+          {artifactPreviewKind === "text" ? (
+            artifactPreviewText.isPending ? (
+              <Loading label="正在读取产物" />
+            ) : artifactPreviewText.error ? (
+              <ErrorNotice error={artifactPreviewText.error} />
+            ) : (
+              <CodeEditor
+                ariaLabel={`${previewArtifact.name} 只读预览`}
+                height="min(68vh, 760px)"
+                language={previewLanguage(previewArtifact.name)}
+                readOnly
+                value={artifactPreviewText.data ?? ""}
+              />
+            )
+          ) : (
+            <iframe
+              className="model-preview-frame"
+              title={`${previewArtifact.name} 模型结构预览`}
+              src={`/api/v1/artifacts/${encodeURIComponent(previewArtifact.id)}/preview/model`}
+            />
+          )}
+        </Modal>
       )}
     </>
   )

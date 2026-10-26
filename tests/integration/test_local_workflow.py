@@ -95,7 +95,7 @@ class TrainingStub:
             "metrics_text": metric if metrics_offset == 0 else "",
             "metrics_next_offset": len(metric),
             "result": {
-                "epoch": 1,
+                "epoch": 1 if self.alive else 2,
                 "test": {"ABC": 0.5},
                 "test_predictions": [{"file_name": "c.pkl", "prediction": 9, "target": 10}],
             },
@@ -189,6 +189,8 @@ def test_one_backend_port_validates_and_runs_once_with_local_coordinator(setting
         result = client.get(f"/api/v1/experiments/{identity}/results")
         assert result.status_code == 200, result.text
         assert result.json()["data"]["metrics"][0]["name"] == "ABC"
+        assert result.json()["data"]["best_epoch"] == 2
+        assert result.json()["data"]["version"] == 2
         assert (
             client.get(f"/api/v1/validated-experiments/{identity}").json()["data"]["state"]
             == "succeeded"
@@ -248,9 +250,7 @@ def test_local_stop_never_restarts_an_experiment(settings, tmp_path):
         )
         scheduler.tick()
         assert training.starts == 1
-        assert client.post(
-            f"/api/v1/validated-experiments/{identity}/stop"
-        ).status_code == 202
+        assert client.post(f"/api/v1/validated-experiments/{identity}/stop").status_code == 202
         scheduler.tick()
         scheduler.tick()
         assert (

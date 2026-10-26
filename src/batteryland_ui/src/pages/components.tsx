@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRef, useState } from "react"
 import { api, download } from "../api/client"
 import type { Component } from "../api/types"
+import { CodeEditor } from "../components/code-editor"
 import { Details, Empty, ErrorNotice, Loading, Modal, PageHeader } from "../components/common"
 import { categories } from "../lib/format"
 
@@ -281,9 +282,13 @@ function ComponentDetails({ item, onClose }: { item: Component; onClose: () => v
       )}
       <details>
         <summary>组件登记数据</summary>
-        <pre className="code-block">
-          {JSON.stringify({ ...item, schema: schema.data ?? item.schema }, null, 2)}
-        </pre>
+        <CodeEditor
+          ariaLabel="组件登记数据 JSON 只读预览"
+          height="420px"
+          language="json"
+          readOnly
+          value={JSON.stringify({ ...item, schema: schema.data ?? item.schema })}
+        />
       </details>
     </Modal>
   )

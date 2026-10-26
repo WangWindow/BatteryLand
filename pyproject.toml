@@ -5,6 +5,7 @@ requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.16,<2",
     "fastapi>=0.115,<1",
+    "netron>=9,<10",
     "nvidia-ml-py>=13,<14",
     "psutil>=7,<8",
     "pydantic>=2.10,<3",

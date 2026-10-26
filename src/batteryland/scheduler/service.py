@@ -95,7 +95,7 @@ class LocalScheduler:
         self._event(claim, "started", {"receipt": process})
         self.last_action = f"started:{identity}"
 
-    def _outputs(self, record: dict[str, Any]) -> None:
+    def _outputs(self, record: dict[str, Any], *, include_final_result: bool = False) -> None:
         identity = record["experiment_id"]
         cursor = self.cursors.setdefault(identity, {"console_cursor": None, "metrics_offset": 0})
         output = self.training.outputs(identity, cursor["console_cursor"], cursor["metrics_offset"])
@@ -110,7 +110,7 @@ class LocalScheduler:
                 identity, cursor["metrics_offset"], output["metrics_text"]
             )
             cursor["metrics_offset"] = output["metrics_next_offset"]
-        if output["result"] is not None:
+        if include_final_result and output["result"] is not None:
             self.results.ingest_external_result(identity, output["result"])
         for artifact in output["artifacts"]:
             digest = artifact.get("sha256")
@@ -150,8 +150,11 @@ class LocalScheduler:
             self._event(record, "started", {"receipt": current["receipt"]})
             self.last_action = f"observed-start:{identity}"
             return
-        self._outputs(record)
         if observation["alive"]:
+            try:
+                self._outputs(record)
+            except Exception:
+                logger.exception("Failed to collect live outputs for experiment %s", identity)
             if record.get("actual_device") is None:
                 pid = current["receipt"].get("pid")
                 gpu = next(
@@ -194,6 +197,10 @@ class LocalScheduler:
             self._event(record, "uncertain", {"reason": "No terminal process evidence"})
             self.last_action = f"uncertain:{identity}"
             return
+        try:
+            self._outputs(record, include_final_result=True)
+        except Exception:
+            logger.exception("Failed to collect final outputs for experiment %s", identity)
         self._event(record, "finished", {"result": result, "exit_code": code})
         self.stop_stages.pop(identity, None)
         self.last_action = f"{result}:{identity}"

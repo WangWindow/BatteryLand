@@ -5,6 +5,7 @@ import { useMemo, useState } from "react"
 import { api } from "../api/client"
 import type { Schema } from "../api/types"
 import { ChartView } from "../components/chart-view"
+import { CodeEditor } from "../components/code-editor"
 import { Empty, ErrorNotice, Loading, PageHeader } from "../components/common"
 import { partitions } from "../lib/format"
 
@@ -304,9 +305,13 @@ export default function DatasetAnalysisPage() {
                 ))}
                 <details className="result-data">
                   <summary>统计明细</summary>
-                  <pre className="code-block">
-                    {JSON.stringify(compare.data.difference.statistics, null, 2)}
-                  </pre>
+                  <CodeEditor
+                    ariaLabel="统计差异 JSON 只读预览"
+                    height="360px"
+                    language="json"
+                    readOnly
+                    value={JSON.stringify(compare.data.difference.statistics)}
+                  />
                 </details>
               </>
             )}
