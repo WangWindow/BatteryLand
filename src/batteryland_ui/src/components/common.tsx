@@ -131,6 +131,7 @@ export const stateName: Record<string, string> = {
   running: "运行中",
   stopping: "正在停止",
   stopped: "已停止",
+  cancelled: "已取消",
   succeeded: "已完成",
   failed: "失败",
   needs_reconciliation: "需要检查",

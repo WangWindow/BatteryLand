@@ -63,7 +63,7 @@ vi.mock("@primer/react", async () => {
       Label: ({ children }: { children?: ReactNode }) => React.createElement("label", null, children),
     },
   )
-  return { Button, Checkbox, FormControl, Select, TextInput }
+  return { Button, Checkbox, FormControl, Select, TextInput, useTheme: () => ({ colorMode: "day" }) }
 })
 
 const components: Component[] = [

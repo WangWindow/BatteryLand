@@ -237,6 +237,11 @@ class ValidatedExperimentService:
             **value,
         }
 
+    def delete(self, identity: str) -> Record:
+        with self.units() as unit:
+            unit.experiments.delete(identity)
+        return {"deleted": True}
+
     def list(self, filters: Record, page: int, page_size: int) -> Record:
         with self.units() as unit:
             result = unit.experiments.list_experiments(filters, page, page_size)

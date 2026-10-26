@@ -119,6 +119,10 @@ export const api = {
     send<Experiment>("/validated-experiments", body),
   updateExperiment: (id: string, body: Schema["ValidatedExperimentUpdate"]) =>
     send<Experiment>(`/validated-experiments/${encodeURIComponent(id)}`, body, "PUT"),
+  deleteExperiment: (id: string) =>
+    request<{ deleted: boolean }>(`/validated-experiments/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
   submit: (id: string) => send<Experiment>(`/validated-experiments/${encodeURIComponent(id)}/submit`),
   stop: (id: string) => send<Experiment>(`/validated-experiments/${encodeURIComponent(id)}/stop`),
   results: (id: string, signal?: AbortSignal) =>

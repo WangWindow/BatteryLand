@@ -108,6 +108,14 @@ def get(
     return {"data": workflow.get(str(experiment_id), version)}
 
 
+@router.delete("/{experiment_id}", response_model=Envelope[dict[str, bool]])
+def delete(
+    experiment_id: UUID,
+    workflow: Annotated[ValidatedExperimentService, Depends(service)],
+) -> dict[str, Any]:
+    return {"data": workflow.delete(str(experiment_id))}
+
+
 class SplitMember(RequestModel):
     partition: Literal["train", "val", "test"]
     ordinal: int

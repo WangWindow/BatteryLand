@@ -252,6 +252,17 @@ td {
 tr:last-child td {
   border-bottom: 0;
 }
+.experiment-actions-heading,
+.experiment-actions-cell {
+  width: 1%;
+  white-space: nowrap;
+}
+.experiment-actions-cell {
+  text-align: right;
+}
+.experiment-menu-button {
+  min-width: 32px;
+}
 tbody tr:hover {
   background: var(--bgColor-neutral-muted, #f6f8fa);
 }
@@ -1612,29 +1623,51 @@ body {
 .artifact-list {
   display: flex;
   flex-direction: column;
+  gap: 7px;
 }
 .artifact-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--borderColor-default, #d8dee4);
-}
-.artifact-row:last-child {
-  border-bottom: 0;
-}
-.artifact-row > div {
   min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--borderColor-default, #d8dee4);
+  border-radius: 6px;
+  background: var(--bgColor-muted, #f6f8fa);
+}
+.artifact-preview-trigger {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 4px;
+  color: var(--fgColor-default, #1f2328);
+  background: transparent;
+  font: inherit;
+  text-align: left;
 }
-.artifact-row strong,
-.artifact-row .subtle {
+button.artifact-preview-trigger {
+  cursor: pointer;
+}
+button.artifact-preview-trigger:hover {
+  background: var(--bgColor-neutral-muted, #eaeef2);
+}
+button.artifact-preview-trigger:focus-visible {
+  outline: 2px solid var(--focus-outlineColor, #0969da);
+  outline-offset: 1px;
+}
+.artifact-preview-unavailable {
+  cursor: default;
+}
+.artifact-preview-trigger strong,
+.artifact-preview-trigger .subtle {
   overflow-wrap: anywhere;
 }
-.artifact-row .subtle {
+.artifact-preview-trigger .subtle {
   font-size: 11px;
 }
 .artifact-row .actions {

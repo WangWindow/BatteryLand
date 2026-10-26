@@ -1,4 +1,4 @@
-import { DownloadIcon, EyeIcon, StopIcon } from "@primer/octicons-react"
+import { DownloadIcon, StopIcon } from "@primer/octicons-react"
 import { Button } from "@primer/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useRef, useState } from "react"
@@ -374,24 +374,29 @@ export default function ExperimentDetailPage() {
                   <div className="artifact-list">
                     {artifacts.data.map((artifact) => (
                       <div className="artifact-row" key={artifact.id}>
-                        <div>
-                          <strong>{artifact.name}</strong>
-                          <span className="subtle">
-                            {artifact.kind} · {bytes(artifact.size)} · {artifact.availability}
-                          </span>
-                        </div>
+                        {artifact.availability === "available" &&
+                        !artifact.is_directory &&
+                        previewKind(artifact.name) ? (
+                          <button
+                            type="button"
+                            className="artifact-preview-trigger"
+                            aria-label={`预览 ${artifact.name}`}
+                            onClick={() => setPreviewArtifact(artifact)}
+                          >
+                            <strong>{artifact.name}</strong>
+                            <span className="subtle">
+                              {artifact.kind} · {bytes(artifact.size)} · 点击预览
+                            </span>
+                          </button>
+                        ) : (
+                          <div className="artifact-preview-trigger artifact-preview-unavailable">
+                            <strong>{artifact.name}</strong>
+                            <span className="subtle">
+                              {artifact.kind} · {bytes(artifact.size)} · {artifact.availability}
+                            </span>
+                          </div>
+                        )}
                         <div className="actions">
-                          {artifact.availability === "available" &&
-                            !artifact.is_directory &&
-                            previewKind(artifact.name) && (
-                              <Button
-                                aria-label={`预览 ${artifact.name}`}
-                                title="预览"
-                                size="small"
-                                leadingVisual={EyeIcon}
-                                onClick={() => setPreviewArtifact(artifact)}
-                              />
-                            )}
                           <Button
                             aria-label={`下载 ${artifact.name}`}
                             size="small"
