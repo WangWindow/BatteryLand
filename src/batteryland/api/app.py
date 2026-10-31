@@ -19,6 +19,7 @@ from batteryland.datasets.catalog_status_routes import router as catalog_status_
 from batteryland.datasets.logical_routes import router as logical_datasets_router
 from batteryland.datasets.routes import router as resources_router
 from batteryland.datasets.split_routes import router as splits_router
+from batteryland.domain_shift.routes import router as domain_shift_router
 from batteryland.experiments.validated_routes import router as validated_experiments_router
 from batteryland.results.routes import router as results_router
 from batteryland.scheduler.routes import router as scheduler_router
@@ -119,6 +120,7 @@ def create_app(
     app.include_router(components_router)
     app.include_router(results_router)
     app.include_router(analysis_router)
+    app.include_router(domain_shift_router)
     app.include_router(validated_experiments_router)
     app.include_router(training_router)
 

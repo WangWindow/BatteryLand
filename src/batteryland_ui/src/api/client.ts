@@ -3,6 +3,11 @@ import type {
   Battery,
   Component,
   DataSource,
+  DomainShiftAnalysis,
+  DomainShiftCacheStatus,
+  DomainShiftConfig,
+  DomainShiftDistribution,
+  DomainShiftJob,
   Experiment,
   ExperimentSummary,
   NodeResources,
@@ -170,6 +175,21 @@ export const api = {
     send<Schema["LogicalDataset"]>("/logical-datasets", body),
   deleteLogicalDataset: (id: string) =>
     request<{ deleted: boolean }>(`/logical-datasets/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  domainShiftCacheStatus: (source_ids: string[], stride: number) =>
+    send<DomainShiftCacheStatus>("/domain-shift/cache/status", { source_ids, stride }),
+  startDomainShiftBuild: (source_ids: string[], stride: number, workers: number) =>
+    send<DomainShiftJob>("/domain-shift/jobs", { source_ids, stride, workers }),
+  domainShiftJob: (id: string, signal?: AbortSignal) =>
+    get<DomainShiftJob>(`/domain-shift/jobs/${encodeURIComponent(id)}`, signal),
+  domainShiftAnalysis: (body: DomainShiftConfig) => send<DomainShiftAnalysis>("/domain-shift/analysis", body),
+  domainShiftDistribution: (
+    body: DomainShiftConfig & {
+      feature: string
+      group_by: "dataset" | "domain"
+      bins: number
+      clip: boolean
+    },
+  ) => send<DomainShiftDistribution>("/domain-shift/distribution", body),
 }
 
 export async function download(path: string, name: string): Promise<void> {

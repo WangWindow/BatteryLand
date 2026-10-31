@@ -4977,6 +4977,513 @@
         }
       }
     },
+    "/api/v1/domain-shift/cache/status": {
+      "post": {
+        "tags": [
+          "domain-shift"
+        ],
+        "summary": "Cache Status",
+        "operationId": "cache_status_api_v1_domain_shift_cache_status_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CacheRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_dict_str__Any__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/domain-shift/jobs": {
+      "post": {
+        "tags": [
+          "domain-shift"
+        ],
+        "summary": "Build Features",
+        "operationId": "build_features_api_v1_domain_shift_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuildRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_dict_str__Any__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/domain-shift/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "domain-shift"
+        ],
+        "summary": "Get Job",
+        "operationId": "get_job_api_v1_domain_shift_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_dict_str__Any__"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Implemented"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/domain-shift/analysis": {
+      "post": {
+        "tags": [
+          "domain-shift"
+        ],
+        "summary": "Run Analysis",
+        "operationId": "run_analysis_api_v1_domain_shift_analysis_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_dict_str__Any__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/domain-shift/distribution": {
+      "post": {
+        "tags": [
+          "domain-shift"
+        ],
+        "summary": "Distribution",
+        "operationId": "distribution_api_v1_domain_shift_distribution_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DistributionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_dict_str__Any__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/validated-experiments": {
       "get": {
         "tags": [
@@ -6385,6 +6892,102 @@
   },
   "components": {
     "schemas": {
+      "AnalysisRequest": {
+        "properties": {
+          "source_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Source Ids"
+          },
+          "target_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Target Ids"
+          },
+          "stride": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Stride",
+            "default": 1
+          },
+          "max_cycles": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Max Cycles",
+            "default": 200
+          },
+          "minimum_coverage": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Minimum Coverage",
+            "default": 0.5
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "cycle",
+              "cell"
+            ],
+            "title": "Level",
+            "default": "cycle"
+          },
+          "feature_groups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Feature Groups"
+          },
+          "excluded_features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Excluded Features"
+          },
+          "seed": {
+            "type": "integer",
+            "maximum": 99999.0,
+            "minimum": 0.0,
+            "title": "Seed",
+            "default": 42
+          },
+          "points_per_dataset": {
+            "type": "integer",
+            "maximum": 50000.0,
+            "minimum": 200.0,
+            "title": "Points Per Dataset",
+            "default": 3000
+          },
+          "pca_fit": {
+            "type": "string",
+            "enum": [
+              "all",
+              "source"
+            ],
+            "title": "Pca Fit",
+            "default": "all"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_ids",
+          "target_ids"
+        ],
+        "title": "AnalysisRequest"
+      },
       "Artifact": {
         "properties": {
           "id": {
@@ -6764,6 +7367,65 @@
           "file"
         ],
         "title": "Body_upload_component_api_v1_components_uploads_post"
+      },
+      "BuildRequest": {
+        "properties": {
+          "source_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Source Ids"
+          },
+          "stride": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Stride",
+            "default": 1
+          },
+          "workers": {
+            "type": "integer",
+            "maximum": 32.0,
+            "minimum": 1.0,
+            "title": "Workers",
+            "default": 4
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_ids"
+        ],
+        "title": "BuildRequest"
+      },
+      "CacheRequest": {
+        "properties": {
+          "source_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Source Ids"
+          },
+          "stride": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Stride",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_ids"
+        ],
+        "title": "CacheRequest"
       },
       "CatalogStatus": {
         "properties": {
@@ -7451,6 +8113,130 @@
           "reason"
         ],
         "title": "DiscoveredBatteryFile"
+      },
+      "DistributionRequest": {
+        "properties": {
+          "source_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Source Ids"
+          },
+          "target_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Target Ids"
+          },
+          "stride": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Stride",
+            "default": 1
+          },
+          "max_cycles": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Max Cycles",
+            "default": 200
+          },
+          "minimum_coverage": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Minimum Coverage",
+            "default": 0.5
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "cycle",
+              "cell"
+            ],
+            "title": "Level",
+            "default": "cycle"
+          },
+          "feature_groups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Feature Groups"
+          },
+          "excluded_features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Excluded Features"
+          },
+          "seed": {
+            "type": "integer",
+            "maximum": 99999.0,
+            "minimum": 0.0,
+            "title": "Seed",
+            "default": 42
+          },
+          "points_per_dataset": {
+            "type": "integer",
+            "maximum": 50000.0,
+            "minimum": 200.0,
+            "title": "Points Per Dataset",
+            "default": 3000
+          },
+          "pca_fit": {
+            "type": "string",
+            "enum": [
+              "all",
+              "source"
+            ],
+            "title": "Pca Fit",
+            "default": "all"
+          },
+          "feature": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Feature"
+          },
+          "group_by": {
+            "type": "string",
+            "enum": [
+              "dataset",
+              "domain"
+            ],
+            "title": "Group By",
+            "default": "dataset"
+          },
+          "bins": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 10.0,
+            "title": "Bins",
+            "default": 40
+          },
+          "clip": {
+            "type": "boolean",
+            "title": "Clip",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_ids",
+          "target_ids",
+          "feature"
+        ],
+        "title": "DistributionRequest"
       },
       "Envelope_Artifact_": {
         "properties": {
