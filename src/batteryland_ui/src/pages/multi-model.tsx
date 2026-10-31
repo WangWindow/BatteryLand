@@ -1,0 +1,1 @@
+export default function MultiModelPage() { return <div><header className="page-header"><h1>多模型结果对比</h1></header><section className="panel" role="status"><h2>功能开发中</h2><p>此处预留多模型预测结果与评估指标的对比页面。</p></section></div> }

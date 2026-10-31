@@ -21,6 +21,7 @@ const router = createBrowserRouter([
       </div>
     ),
     children: [
+      { path: "analysis/multi-model", lazy: async () => ({ Component: (await import("./pages/multi-model")).default }) },
       { index: true, element: <Navigate to="/batteries" replace /> },
       { path: "batteries", lazy: async () => ({ Component: (await import("./pages/batteries")).default }) },
       { path: "splits", lazy: async () => ({ Component: (await import("./pages/splits")).default }) },
@@ -41,6 +42,10 @@ const router = createBrowserRouter([
       {
         path: "analysis/datasets",
         lazy: async () => ({ Component: (await import("./pages/dataset-analysis")).default }),
+      },
+      {
+        path: "analysis/single-model",
+        lazy: async () => ({ Component: (await import("./pages/single-model")).default }),
       },
       {
         path: "analysis/experiments",
