@@ -43,20 +43,12 @@ const router = createBrowserRouter([
       },
       { path: "scheduler", lazy: async () => ({ Component: (await import("./pages/scheduler")).default }) },
       {
-        path: "analysis/datasets",
-        lazy: async () => ({ Component: (await import("./pages/dataset-analysis")).default }),
-      },
-      {
         path: "analysis/domain-shift",
         lazy: async () => ({ Component: (await import("./pages/domain-shift")).default }),
       },
       {
         path: "analysis/single-model",
         lazy: async () => ({ Component: (await import("./pages/single-model")).default }),
-      },
-      {
-        path: "analysis/experiments",
-        lazy: async () => ({ Component: (await import("./pages/result-analysis")).default }),
       },
     ],
   },

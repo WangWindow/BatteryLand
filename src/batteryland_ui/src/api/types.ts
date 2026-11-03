@@ -133,6 +133,16 @@ export type DomainShiftAnalysis = {
 export type DomainShiftDistribution = {
   feature: string
   series: { key: string; label: string; points: { x: number; y: number }[] }[]
+  trend_series: { key: string; label: string; points: { x: number; y: number }[] }[]
+  box_statistics: {
+    key: string
+    label: string
+    min: number
+    q1: number
+    median: number
+    q3: number
+    max: number
+  }[]
   statistics: {
     source_id: string
     name: string
@@ -140,7 +150,20 @@ export type DomainShiftDistribution = {
     mean: number
     std: number
     min: number
+    q1: number
     median: number
+    q3: number
     max: number
   }[]
+}
+
+export type SohCurvesResult = {
+  source_name: string
+  items: {
+    battery_id: string
+    file_name: string
+    cell_id: string
+    points: { cycle: number; soh: number }[]
+  }[]
+  warnings: string[]
 }

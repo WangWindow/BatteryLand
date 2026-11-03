@@ -14,6 +14,7 @@ import type {
   Page,
   Result,
   Schema,
+  SohCurvesResult,
   Split,
   SplitWrite,
   Validation,
@@ -190,6 +191,8 @@ export const api = {
       clip: boolean
     },
   ) => send<DomainShiftDistribution>("/domain-shift/distribution", body),
+  sohCurves: (body: { dataset_name: string; file_names: string[]; max_points?: number }) =>
+    send<SohCurvesResult>("/single-model/soh-curves", body),
 }
 
 export async function download(path: string, name: string): Promise<void> {

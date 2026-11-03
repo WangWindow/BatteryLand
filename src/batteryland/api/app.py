@@ -24,6 +24,7 @@ from batteryland.experiments.validated_routes import router as validated_experim
 from batteryland.results.routes import router as results_router
 from batteryland.scheduler.routes import router as scheduler_router
 from batteryland.scheduler.service import LocalScheduler
+from batteryland.single_model.routes import router as single_model_router
 from batteryland.training.routes import router as training_router
 
 ERRORS = {
@@ -121,6 +122,7 @@ def create_app(
     app.include_router(results_router)
     app.include_router(analysis_router)
     app.include_router(domain_shift_router)
+    app.include_router(single_model_router)
     app.include_router(validated_experiments_router)
     app.include_router(training_router)
 

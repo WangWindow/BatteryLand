@@ -344,7 +344,10 @@ class DomainShiftService:
         feature = request["feature"]
         if feature not in features:
             raise DomainError("invalid_input", "所选特征当前不可用")
-        clean = frame[["dataset", "domain", feature]].replace([np.inf, -np.inf], np.nan)
+        columns = ["dataset", "domain", feature]
+        if "cycle_number" in frame.columns:
+            columns.insert(2, "cycle_number")
+        clean = frame[columns].replace([np.inf, -np.inf], np.nan)
         clean = clean.dropna(subset=[feature])
         if request["clip"] and not clean.empty:
             lower, upper = clean[feature].quantile([0.005, 0.995])
@@ -378,8 +381,53 @@ class DomainShiftService:
                     "mean": values.mean(),
                     "std": values.std(),
                     "min": values.min(),
+                    "q1": values.quantile(0.25),
                     "median": values.median(),
+                    "q3": values.quantile(0.75),
                     "max": values.max(),
                 }
             )
-        return _finite({"feature": feature, "series": series, "statistics": statistics})
+        box_statistics = []
+        for group_name, group in clean.groupby(group_column, sort=False):
+            values = group[feature]
+            box_statistics.append(
+                {
+                    "key": str(group_name),
+                    "label": names.get(str(group_name), str(group_name)),
+                    "min": values.min(),
+                    "q1": values.quantile(0.25),
+                    "median": values.median(),
+                    "q3": values.quantile(0.75),
+                    "max": values.max(),
+                }
+            )
+        trend_series = []
+        if "cycle_number" in clean.columns:
+            trend = analysis.sample_per_group(
+                clean,
+                "dataset",
+                request["points_per_dataset"],
+                request["seed"],
+            ).sort_values("cycle_number")
+            for group_name, group in trend.groupby(group_column, sort=False):
+                trend_series.append(
+                    {
+                        "key": str(group_name),
+                        "label": names.get(str(group_name), str(group_name)),
+                        "points": [
+                            {"x": row.cycle_number, "y": getattr(row, feature)}
+                            for row in group[["cycle_number", feature]].itertuples(
+                                index=False
+                            )
+                        ],
+                    }
+                )
+        return _finite(
+            {
+                "feature": feature,
+                "series": series,
+                "trend_series": trend_series,
+                "box_statistics": box_statistics,
+                "statistics": statistics,
+            }
+        )

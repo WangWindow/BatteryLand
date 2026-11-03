@@ -19,6 +19,7 @@ from batteryland.results.service import ResultService
 from batteryland.results.storage import LocalResultFiles
 from batteryland.scheduler.processes import RuntimeLease
 from batteryland.scheduler.state import SchedulerStateService
+from batteryland.single_model.service import SingleModelService
 from batteryland.training.gateway import DeeplatformGateway
 from batteryland.training.runs import TrainingRunService
 
@@ -86,6 +87,7 @@ class Container:
             BasicChartBuilder(),
         )
         self.domain_shift = DomainShiftService(settings, self.database.unit_of_work)
+        self.single_model = SingleModelService(settings, self.database.unit_of_work)
 
     def close(self) -> None:
         self.domain_shift.close()

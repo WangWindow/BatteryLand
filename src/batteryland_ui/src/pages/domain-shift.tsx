@@ -2,8 +2,8 @@ import { Button, FormControl, Select } from "@primer/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useMemo, useState } from "react"
 import { api } from "../api/client"
-import type { Chart, DomainShiftAnalysis, DomainShiftConfig, DomainShiftDistribution } from "../api/types"
-import { ChartView } from "../components/chart-view"
+import type { DomainShiftAnalysis, DomainShiftConfig, DomainShiftDistribution } from "../api/types"
+import { ChartView, type ViewChart } from "../components/chart-view"
 import { Empty, ErrorNotice, Loading, PageHeader } from "../components/common"
 
 type Tab = "overview" | "space" | "shift" | "distribution"
@@ -12,12 +12,56 @@ type SourceOption = { id: string; name: string; available_battery_count: number 
 const number = (value: number | null | undefined, digits = 3) =>
   value === null || value === undefined || !Number.isFinite(value) ? "—" : value.toFixed(digits)
 
-function pcaChart(result: DomainShiftAnalysis): Chart {
+function downloadShiftCsv(rows: DomainShiftAnalysis["shift"]) {
+  const header = [
+    "特征名称",
+    "特征分组",
+    "源域均值",
+    "目标域均值",
+    "源域标准差",
+    "目标域标准差",
+    "归一化Wasserstein距离",
+    "标准化均值差(SMD)",
+    "源域样本数",
+    "目标域样本数",
+  ]
+  const csvCell = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`
+  const lines = rows.map((row) =>
+    [
+      row.feature,
+      row.group,
+      row.source_mean,
+      row.target_mean,
+      row.source_std,
+      row.target_std,
+      row.wd_norm,
+      row.smd,
+      row.n_source,
+      row.n_target,
+    ]
+      .map(csvCell)
+      .join(","),
+  )
+  const blob = new Blob(["\ufeff", [header.map(csvCell).join(","), ...lines].join("\n")], {
+    type: "text/csv;charset=utf-8",
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = `电池域差异表-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.append(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+function pcaChart(result: DomainShiftAnalysis, colorBy: "dataset" | "domain"): ViewChart {
   const datasets = new Map<string, DomainShiftAnalysis["pca"]["points"]>()
   for (const point of result.pca.points) {
-    const values = datasets.get(point.dataset_name) ?? []
+    const key = colorBy === "dataset" ? point.dataset_name : point.domain
+    const values = datasets.get(key) ?? []
     values.push(point)
-    datasets.set(point.dataset_name, values)
+    datasets.set(key, values)
   }
   const variance = result.pca.explained_variance
   return {
@@ -31,33 +75,47 @@ function pcaChart(result: DomainShiftAnalysis): Chart {
       label,
       points: values.map((point) => ({ x: point.pc1, y: point.pc2 })),
     })),
+    legendRight: true,
+    pointSize: 5,
     warnings: [],
-  } as Chart
+  }
 }
 
-function shiftChart(result: DomainShiftAnalysis): Chart {
+function shiftChart(result: DomainShiftAnalysis, topN: number): ViewChart {
+  const rows = result.shift.slice(0, topN)
+  const colors: Record<string, string> = {
+    电压统计: "#0969da",
+    温度: "#79c0ff",
+    "倍率(C-rate)": "#ff3333",
+    电压曲线形状: "#ff9da4",
+    内阻: "#2cb1a1",
+  }
+  const groups = [...new Set(rows.map((row) => row.group))]
   return {
     id: "domain-shift-ranking",
     title: "整体：全部源域 vs 全部目标域",
     kind: "bar",
-    x_axis: { label: "特征", value_type: "category", unit: null },
+    x_axis: { label: "", value_type: "category", unit: null },
     y_axis: { label: "归一化 Wasserstein 距离", value_type: "number", unit: null },
-    series: [
-      {
-        id: "wd_norm",
-        label: "wd_norm",
-        points: result.shift.slice(0, 15).map((row) => ({ x: row.feature, y: row.wd_norm })),
-      },
-    ],
+    series: groups.map((group) => ({
+      id: group,
+      label: group,
+      color: colors[group],
+      points: rows.filter((row) => row.group === group).map((row) => ({ x: row.feature, y: row.wd_norm })),
+    })),
+    categories: rows.map((row) => row.feature),
+    horizontal: true,
+    legendRight: true,
+    overlapBars: true,
     warnings: [],
-  } as Chart
+  }
 }
 
-function distributionChart(result: DomainShiftDistribution): Chart {
+function distributionChart(result: DomainShiftDistribution): ViewChart {
   return {
     id: `distribution-${result.feature}`,
     title: `${result.feature} 分布`,
-    kind: "line",
+    kind: "bar",
     x_axis: { label: result.feature, value_type: "number", unit: null },
     y_axis: { label: "样本数", value_type: "number", unit: null },
     series: result.series.map((series) => ({
@@ -65,8 +123,45 @@ function distributionChart(result: DomainShiftDistribution): Chart {
       label: series.label,
       points: series.points,
     })),
+    legendRight: true,
     warnings: [],
-  } as Chart
+  }
+}
+
+function distributionBoxChart(result: DomainShiftDistribution): ViewChart {
+  return {
+    id: `distribution-box-${result.feature}`,
+    title: `${result.feature} 箱线图`,
+    kind: "boxplot",
+    x_axis: { label: "数据集", value_type: "category", unit: null },
+    y_axis: { label: result.feature, value_type: "number", unit: null },
+    series: result.box_statistics.map((row) => ({
+      id: row.key,
+      label: row.label,
+      points: [],
+      box: [row.min, row.q1, row.median, row.q3, row.max],
+    })),
+    staticLegendTopRight: true,
+    warnings: [],
+  }
+}
+
+function distributionTrendChart(result: DomainShiftDistribution): ViewChart {
+  return {
+    id: `distribution-trend-${result.feature}`,
+    title: `${result.feature} 随循环次数的变化`,
+    kind: "scatter",
+    x_axis: { label: "循环次数", value_type: "number", unit: null },
+    y_axis: { label: "特征值", value_type: "number", unit: null },
+    series: result.trend_series.map((series) => ({
+      id: series.key,
+      label: series.label,
+      points: series.points,
+    })),
+    legendRight: true,
+    pointSize: 4,
+    warnings: [],
+  }
 }
 
 export default function DomainShiftPage() {
@@ -79,12 +174,17 @@ export default function DomainShiftPage() {
   const [minimumCoverage, setMinimumCoverage] = useState(0.5)
   const [level, setLevel] = useState<"cycle" | "cell">("cycle")
   const [pcaFit, setPcaFit] = useState<"all" | "source">("all")
+  const [colorBy, setColorBy] = useState<"dataset" | "domain">("dataset")
+  const [pointsPerDataset, setPointsPerDataset] = useState(3000)
   const [workers, setWorkers] = useState(4)
   const [seed, setSeed] = useState(42)
   const [jobId, setJobId] = useState("")
   const [tab, setTab] = useState<Tab>("overview")
   const [feature, setFeature] = useState("")
   const [groupBy, setGroupBy] = useState<"dataset" | "domain">("dataset")
+  const [distributionKind, setDistributionKind] = useState<"histogram" | "boxplot">("histogram")
+  const [bins, setBins] = useState(40)
+  const [clip, setClip] = useState(true)
   const selected = useMemo(() => [...new Set([...sourceIds, ...targetIds])], [sourceIds, targetIds])
   const config = useMemo<DomainShiftConfig>(
     () => ({
@@ -97,10 +197,10 @@ export default function DomainShiftPage() {
       feature_groups: [],
       excluded_features: [],
       seed,
-      points_per_dataset: 3000,
+      points_per_dataset: pointsPerDataset,
       pca_fit: pcaFit,
     }),
-    [sourceIds, targetIds, stride, maxCycles, minimumCoverage, level, seed, pcaFit],
+    [sourceIds, targetIds, stride, maxCycles, minimumCoverage, level, seed, pointsPerDataset, pcaFit],
   )
   const cache = useQuery({
     queryKey: ["domain-shift-cache", selected, stride],
@@ -126,8 +226,7 @@ export default function DomainShiftPage() {
     }
   }, [job.data, queryClient])
   const analyze = useMutation({
-    mutationFn: (override?: DomainShiftConfig) =>
-      api.domainShiftAnalysis(override ?? config),
+    mutationFn: (override?: DomainShiftConfig) => api.domainShiftAnalysis(override ?? config),
   })
   useEffect(() => {
     if (analyze.data?.features.length && !analyze.data.features.some((item) => item.name === feature)) {
@@ -135,9 +234,8 @@ export default function DomainShiftPage() {
     }
   }, [analyze.data, feature])
   const distribution = useQuery({
-    queryKey: ["domain-shift-distribution", config, feature, groupBy],
-    queryFn: () =>
-      api.domainShiftDistribution({ ...config, feature, group_by: groupBy, bins: 40, clip: true }),
+    queryKey: ["domain-shift-distribution", config, feature, groupBy, bins, clip],
+    queryFn: () => api.domainShiftDistribution({ ...config, feature, group_by: groupBy, bins, clip }),
     enabled: Boolean(analyze.data && feature && tab === "distribution"),
   })
   const sourceOptions = sources.data?.items ?? []
@@ -308,12 +406,25 @@ export default function DomainShiftPage() {
                 setFeature={setFeature}
                 groupBy={groupBy}
                 setGroupBy={setGroupBy}
+                colorBy={colorBy}
+                setColorBy={setColorBy}
+                pointsPerDataset={pointsPerDataset}
+                setPointsPerDataset={(value) => {
+                  setPointsPerDataset(value)
+                  analyze.mutate({ ...config, points_per_dataset: value })
+                }}
                 pcaFit={pcaFit}
                 setPcaFit={(value) => {
                   setPcaFit(value)
                   analyze.mutate({ ...config, pca_fit: value })
                 }}
                 analyzing={analyze.isPending}
+                distributionKind={distributionKind}
+                setDistributionKind={setDistributionKind}
+                bins={bins}
+                setBins={setBins}
+                clip={clip}
+                setClip={setClip}
                 distribution={distribution.data}
                 distributionLoading={distribution.isPending}
               />
@@ -333,9 +444,19 @@ function DomainResults({
   setFeature,
   groupBy,
   setGroupBy,
+  colorBy,
+  setColorBy,
+  pointsPerDataset,
+  setPointsPerDataset,
   pcaFit,
   setPcaFit,
   analyzing,
+  distributionKind,
+  setDistributionKind,
+  bins,
+  setBins,
+  clip,
+  setClip,
   distribution,
   distributionLoading,
 }: {
@@ -346,9 +467,19 @@ function DomainResults({
   setFeature: (feature: string) => void
   groupBy: "dataset" | "domain"
   setGroupBy: (value: "dataset" | "domain") => void
+  colorBy: "dataset" | "domain"
+  setColorBy: (value: "dataset" | "domain") => void
+  pointsPerDataset: number
+  setPointsPerDataset: (value: number) => void
   pcaFit: "all" | "source"
   setPcaFit: (value: "all" | "source") => void
   analyzing: boolean
+  distributionKind: "histogram" | "boxplot"
+  setDistributionKind: (value: "histogram" | "boxplot") => void
+  bins: number
+  setBins: (value: number) => void
+  clip: boolean
+  setClip: (value: boolean) => void
   distribution?: DomainShiftDistribution
   distributionLoading: boolean
 }) {
@@ -358,6 +489,10 @@ function DomainResults({
     ["shift", "特征差异"],
     ["distribution", "单特征分布"],
   ]
+  const [topN, setTopN] = useState(15)
+  const rankedFeatures = result.shift
+    .map((row) => result.features.find((item) => item.name === row.feature))
+    .filter((item): item is DomainShiftAnalysis["features"][number] => Boolean(item))
   return (
     <>
       <div className="tabs domain-tabs" role="tablist">
@@ -413,6 +548,9 @@ function DomainResults({
               </tbody>
             </table>
           </div>
+          <p className="domain-overview-caption">
+            温度覆盖低 / 额定容量差异大 / 容量比异常多的数据集，更可能因测量方式而非电池本身产生分布差异。
+          </p>
           <details className="domain-details">
             <summary>被剔除的特征（{result.dropped_features.length}）</summary>
             <div className="table-wrap">
@@ -440,22 +578,40 @@ function DomainResults({
         <>
           <div className="domain-space-controls">
             <FormControl>
+              <FormControl.Label>着色</FormControl.Label>
+              <Select
+                value={colorBy}
+                onChange={(event) => setColorBy(event.target.value as "dataset" | "domain")}
+              >
+                <Select.Option value="dataset">按数据集</Select.Option>
+                <Select.Option value="domain">按域</Select.Option>
+              </Select>
+            </FormControl>
+            <FormControl>
+              <FormControl.Label>每个数据集最多绘制点数</FormControl.Label>
+              <input
+                type="number"
+                min={200}
+                max={50000}
+                step={500}
+                value={pointsPerDataset}
+                disabled={analyzing}
+                onChange={(event) => setPointsPerDataset(Number(event.target.value))}
+              />
+            </FormControl>
+            <FormControl>
               <FormControl.Label>PCA 拟合范围</FormControl.Label>
               <Select
                 value={pcaFit}
                 disabled={analyzing}
-                onChange={(event) =>
-                  setPcaFit(event.target.value as "all" | "source")
-                }
+                onChange={(event) => setPcaFit(event.target.value as "all" | "source")}
               >
                 <Select.Option value="all">全部数据</Select.Option>
-                <Select.Option value="source">
-                  仅源域（目标域投影进源域空间）
-                </Select.Option>
+                <Select.Option value="source">仅源域（目标域投影进源域空间）</Select.Option>
               </Select>
             </FormControl>
           </div>
-          <ChartView chart={pcaChart(result)} />
+          <ChartView chart={pcaChart(result, colorBy)} />
           <div className="domain-loading-grid">
             {Object.entries(result.pca.loadings).map(([component, rows]) => (
               <section key={component}>
@@ -485,17 +641,33 @@ function DomainResults({
       )}
       {tab === "shift" && (
         <>
-          <ChartView chart={shiftChart(result)} />
+          <div className="domain-top-n-control">
+            <label htmlFor="domain-top-n">显示前 N 个特征</label>
+            <strong>{topN}</strong>
+            <input
+              id="domain-top-n"
+              type="range"
+              min={Math.min(5, result.shift.length)}
+              max={Math.max(5, Math.min(40, result.shift.length))}
+              value={Math.min(topN, Math.max(5, result.shift.length))}
+              onChange={(event) => setTopN(Number(event.target.value))}
+            />
+          </div>
+          <ChartView chart={shiftChart(result, topN)} />
           <div className="table-wrap">
-            <table>
+            <table style={{ minWidth: 1180 }}>
               <thead>
                 <tr>
-                  <th>特征</th>
-                  <th>分组</th>
-                  <th>wd_norm</th>
-                  <th>smd</th>
+                  <th>特征名称</th>
+                  <th>特征分组</th>
                   <th>源域均值</th>
                   <th>目标域均值</th>
+                  <th>源域标准差</th>
+                  <th>目标域标准差</th>
+                  <th>归一化距离</th>
+                  <th>标准化均值差</th>
+                  <th>源域样本数</th>
+                  <th>目标域样本数</th>
                 </tr>
               </thead>
               <tbody>
@@ -503,14 +675,21 @@ function DomainResults({
                   <tr key={row.feature}>
                     <td>{row.feature}</td>
                     <td>{row.group}</td>
-                    <td>{number(row.wd_norm)}</td>
-                    <td>{number(row.smd)}</td>
-                    <td>{number(row.source_mean)}</td>
-                    <td>{number(row.target_mean)}</td>
+                    <td>{number(row.source_mean, 4)}</td>
+                    <td>{number(row.target_mean, 4)}</td>
+                    <td>{number(row.source_std, 4)}</td>
+                    <td>{number(row.target_std, 4)}</td>
+                    <td>{number(row.wd_norm, 4)}</td>
+                    <td>{number(row.smd, 4)}</td>
+                    <td>{row.n_source}</td>
+                    <td>{row.n_target}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <Button onClick={() => downloadShiftCsv(result.shift)}>下载差异表 CSV</Button>
           </div>
           <h3 className="domain-subheading">数据集两两比较</h3>
           <div className="table-wrap">
@@ -541,7 +720,7 @@ function DomainResults({
             <FormControl>
               <FormControl.Label>特征</FormControl.Label>
               <Select value={feature} onChange={(event) => setFeature(event.target.value)}>
-                {result.features.map((item) => (
+                {rankedFeatures.map((item) => (
                   <Select.Option key={item.name} value={item.name}>
                     {item.name} · {item.group}
                   </Select.Option>
@@ -558,12 +737,44 @@ function DomainResults({
                 <Select.Option value="domain">域</Select.Option>
               </Select>
             </FormControl>
+            <FormControl>
+              <FormControl.Label>图形</FormControl.Label>
+              <Select
+                value={distributionKind}
+                onChange={(event) => setDistributionKind(event.target.value as "histogram" | "boxplot")}
+              >
+                <Select.Option value="histogram">直方图</Select.Option>
+                <Select.Option value="boxplot">箱线图</Select.Option>
+              </Select>
+            </FormControl>
+            {distributionKind === "histogram" && (
+              <FormControl className="domain-bin-control">
+                <FormControl.Label>分箱数：{bins}</FormControl.Label>
+                <input
+                  type="range"
+                  min={10}
+                  max={100}
+                  value={bins}
+                  onChange={(event) => setBins(Number(event.target.value))}
+                />
+              </FormControl>
+            )}
+            <label className="domain-clip-control">
+              <input type="checkbox" checked={clip} onChange={(event) => setClip(event.target.checked)} />
+              <span>裁剪极端值（0.5–99.5 分位）</span>
+            </label>
           </div>
           {distributionLoading || !distribution ? (
             <Loading />
           ) : (
             <>
-              <ChartView chart={distributionChart(distribution)} />
+              <ChartView
+                chart={
+                  distributionKind === "boxplot"
+                    ? distributionBoxChart(distribution)
+                    : distributionChart(distribution)
+                }
+              />
               <div className="table-wrap">
                 <table>
                   <thead>
@@ -592,6 +803,14 @@ function DomainResults({
                   </tbody>
                 </table>
               </div>
+              <details className="domain-details">
+                <summary>该特征随循环次数的变化</summary>
+                {distribution.trend_series.length ? (
+                  <ChartView chart={distributionTrendChart(distribution)} />
+                ) : (
+                  <p className="subtle">电池级分析不包含循环次数，请切换为循环级分析。</p>
+                )}
+              </details>
             </>
           )}
         </>

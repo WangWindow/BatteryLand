@@ -1,7 +1,9 @@
 import {
+  AiModelIcon,
   BeakerIcon,
   DatabaseIcon,
   GearIcon,
+  GitCompareIcon,
   GraphIcon,
   MoonIcon,
   PackageIcon,
@@ -32,10 +34,8 @@ const nav = [
   {
     label: "分析",
     pages: [
-      { to: "/analysis/datasets", name: "数据集比较", icon: GraphIcon },
-      { to: "/analysis/domain-shift", name: "电池域差异分析", icon: GraphIcon },
-      { to: "/analysis/experiments", name: "实验结果比较", icon: GraphIcon },
-      { to: "/analysis/single-model", name: "单模型预测", icon: GraphIcon },
+      { to: "/analysis/domain-shift", name: "电池域差异分析", icon: GitCompareIcon },
+      { to: "/analysis/single-model", name: "单模型预测", icon: AiModelIcon },
       { to: "/analysis/multi-model", name: "多模型结果对比", icon: GraphIcon },
     ],
   },

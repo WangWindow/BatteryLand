@@ -190,7 +190,7 @@ def feature_group(name: str) -> str:
     if "capacity" in name:
         return "容量(归一化)"
     if "_time_" in name or name == "cycle_duration_s":
-        return "时间/时长"
+        return "充放电时长"
     if "resistance" in name:
         return "内阻"
     return "其他"
