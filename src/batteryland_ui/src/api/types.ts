@@ -14,6 +14,9 @@ export type Result = Schema["Result"]
 export type Metric = Schema["Metric"]
 export type Chart = Schema["ChartSpec"]
 export type Page<T> = { items: T[]; total: number; page: number; page_size: number }
+export type CapacityCycle = Schema["CapacityCycle"]
+export type BatteryAnalysis = Schema["BatteryAnalysis"]
+export type CycleSamples = Schema["CycleSamples"]
 export type Validation = {
   valid: boolean
   config: Record<string, unknown>

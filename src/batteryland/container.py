@@ -7,6 +7,7 @@ from batteryland.analytics.service import AnalysisService
 from batteryland.common.storage import LocalSourceFiles, ManagedArtifacts
 from batteryland.components.service import ArtifactService
 from batteryland.config import Settings
+from batteryland.datasets.battery_detail import BatteryDetailService
 from batteryland.datasets.catalog import FixedCatalogIndexer
 from batteryland.datasets.logical import LogicalDatasetService
 from batteryland.datasets.service import ResourceService
@@ -44,6 +45,7 @@ class Container:
         self.resources = ResourceService(
             self.database.unit_of_work, LocalSourceFiles(settings.source_roots)
         )
+        self.battery_detail = BatteryDetailService(settings, self.database.unit_of_work)
         self.splits = SplitService(self.database.unit_of_work, self.documents)
         self.logical_datasets = LogicalDatasetService(self.database.unit_of_work)
         self.catalog_indexer = FixedCatalogIndexer(

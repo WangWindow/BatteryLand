@@ -66,3 +66,5 @@ export BATTERYLAND_SOURCE_ROOTS='{"battery_life":"/绝对路径/数据目录"}'
 
 数据库、运行状态、日志和实验产物默认保存在项目的 `var/` 目录。更多启动选项可查看
 `./scripts/run.sh --help`。
+
+BatteryLife 单电池容量与逐圈采样的接入口径见 [电池详情接入说明](docs/integrations/batterylife-detail.md)。

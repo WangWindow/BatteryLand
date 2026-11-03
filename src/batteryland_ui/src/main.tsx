@@ -23,6 +23,10 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/batteries" replace /> },
       { path: "batteries", lazy: async () => ({ Component: (await import("./pages/batteries")).default }) },
+      {
+        path: "batteries/:id",
+        lazy: async () => ({ Component: (await import("./pages/battery-detail")).default }),
+      },
       { path: "splits", lazy: async () => ({ Component: (await import("./pages/splits")).default }) },
       { path: "components", lazy: async () => ({ Component: (await import("./pages/components")).default }) },
       {

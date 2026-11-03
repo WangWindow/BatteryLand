@@ -15,6 +15,7 @@ from batteryland.common.errors import DomainError
 from batteryland.components.routes import router as components_router
 from batteryland.config import Settings
 from batteryland.container import Container
+from batteryland.datasets.battery_detail_routes import router as battery_detail_router
 from batteryland.datasets.catalog_status_routes import router as catalog_status_router
 from batteryland.datasets.logical_routes import router as logical_datasets_router
 from batteryland.datasets.routes import router as resources_router
@@ -112,6 +113,7 @@ def create_app(
     )
     app.state.settings = configuration
     app.include_router(resources_router)
+    app.include_router(battery_detail_router)
     app.include_router(catalog_status_router)
     app.include_router(logical_datasets_router)
     app.include_router(splits_router)
