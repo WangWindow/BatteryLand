@@ -20,6 +20,7 @@ dist/
 *.egg-info/
 uv.lock
 .ruff_cache
+.playwright-cli/
 
 # Data & Logs
 temp/

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="green">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>多电池退化曲线 · BatteryLife</title>
+  <link rel="stylesheet" href="/data-layer/theme.css">
+  <link rel="stylesheet" href="/data-layer/overview.css">
+  <link rel="stylesheet" href="/data-layer/trends.css">
+  <script src="/data-layer/site-config.js" defer></script>
+  <script src="/data-layer/site-navigation.js" defer></script>
+  <script src="/data-layer/trends.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#" data-route="detail">BatteryLife <span>电池数据平台</span></a>
+      <nav data-site-navigation aria-label="页面导航"></nav>
+    </div>
+  </header>
+
+  <main class="page trends-page">
+    <div class="intro">
+      <div>
+        <h1>多电池退化曲线</h1>
+        <p>按需选择电池，观察放电容量随实际 cycle 编号的变化。</p>
+      </div>
+      <span id="indexedAt" class="index-time">正在读取目录…</span>
+    </div>
+    <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+
+    <div class="selection-grid">
+      <section class="panel" aria-labelledby="candidateTitle">
+        <div class="section-heading"><div><h2 id="candidateTitle">选择电池</h2><p>可按电池属性和已记录的测试条件缩小范围，再跨来源添加；候选列表可继续展开。</p></div></div>
+        <div class="candidate-filters">
+          <label>数据来源<select id="sourceFilter"><option value="">全部来源</option></select></label>
+          <label>正极体系<select id="cathodeFilter"><option value="">全部体系</option></select></label>
+          <label>电池形态<select id="formFilter"><option value="">全部形态</option></select></label>
+          <label>容量档位<select id="capacityBandFilter"><option value="">全部档位</option></select></label>
+          <label class="candidate-search">搜索编号<input id="cellSearch" type="search" placeholder="输入电池编号" autocomplete="off"></label>
+          <details class="protocol-filter-panel">
+            <summary>按测试条件筛选</summary>
+            <div class="protocol-filter-grid">
+              <label>充电阶段数<select id="chargeStageFilter"><option value="">全部阶段数</option></select></label>
+              <label>充电控制字段<select id="chargeControlFilter"><option value="">全部控制字段</option></select></label>
+              <label>放电阶段数<select id="dischargeStageFilter"><option value="">全部阶段数</option></select></label>
+              <label>SOC 区间类型<select id="socGroupFilter"><option value="">全部类型</option></select></label>
+              <label>单阶段充电倍率<select id="chargeRateFilter"><option value="">全部倍率</option></select></label>
+              <label>单阶段放电倍率<select id="dischargeRateFilter"><option value="">全部倍率</option></select></label>
+            </div>
+            <p>倍率只列出协议中恰有一个阶段、且记录了正数 C 值的电池。这里按原始字段筛选，不推断工况等价。</p>
+          </details>
+        </div>
+        <div class="candidate-filter-actions"><button id="clearCandidateFilters" class="plain-button" type="button">清空候选筛选</button></div>
+        <p id="candidateCount" class="filter-count">正在读取电池目录…</p>
+        <div id="candidateList" class="candidate-list" aria-label="可添加的电池"></div>
+        <button id="showMoreCandidates" class="plain-button candidate-more" type="button" hidden>显示更多候选</button>
+      </section>
+
+      <section class="panel" aria-labelledby="selectedTitle">
+        <div class="section-heading"><div><h2 id="selectedTitle">已选电池</h2><p>调整选择后，点击“绘制曲线”；较多电池需要更长的读取时间。</p></div></div>
+        <div class="selected-toolbar"><span id="selectedCount">已选 0 块</span><button id="clearSelected" class="plain-button" type="button" disabled>清空已选</button></div>
+        <div id="selectedList" class="selected-list"><p class="empty-copy">尚未选择电池。</p></div>
+        <div class="draw-actions"><button id="drawButton" class="primary-button" type="button" disabled>绘制曲线</button><button id="cancelDrawButton" class="plain-button" type="button" hidden>停止读取</button></div>
+        <details id="loadFailures" class="load-failures" hidden><summary id="loadFailuresTitle">读取失败</summary><ul id="loadFailuresList"></ul></details>
+      </section>
+    </div>
+
+    <section class="panel chart-panel" aria-labelledby="chartTitle">
+      <div class="section-heading">
+        <div><h2 id="chartTitle">放电容量轨迹</h2><p>按文件中的实际 cycle 编号绘制；每个点来自该 cycle 的最大放电容量。</p></div>
+      </div>
+      <form id="chartSettings" class="chart-settings-trends" novalidate>
+        <fieldset>
+          <legend>纵轴单位</legend>
+          <label><input type="radio" name="unit" value="relative" checked> 相对首个有效容量 %</label>
+          <label><input type="radio" name="unit" value="absolute"> 容量 Ah</label>
+        </fieldset>
+        <div class="range-presets" role="group" aria-label="快速观察范围">
+          <button type="button" data-limit="100">前 100</button>
+          <button type="button" data-limit="500">前 500</button>
+          <button type="button" data-limit="all" class="active">全程</button>
+        </div>
+        <label class="cycle-limit">显示到 Cycle <input id="maxCycleInput" type="number" min="1" step="1" inputmode="numeric" placeholder="留空显示全程"></label>
+        <button class="plain-button" type="submit">应用范围</button>
+      </form>
+      <div id="chartFrame" class="trends-chart-frame">
+        <canvas id="trendCanvas" aria-hidden="true"></canvas>
+        <svg id="trendChart" role="img" aria-label="多块电池放电容量随 cycle 变化的曲线"></svg>
+        <div id="chartTooltip" class="trends-tooltip" hidden></div>
+      </div>
+      <div class="legend-toolbar"><label>查找曲线 <input id="legendSearch" type="search" placeholder="输入来源或电池编号" autocomplete="off"></label><span id="legendCount"></span></div>
+      <div id="chartLegend" class="trends-legend"></div>
+      <p id="chartNote" class="chart-note">先选择电池，再绘制曲线。跨来源比较时，建议使用各自首个有效放电容量归一化。</p>
+    </section>
+
+    <section class="panel" aria-labelledby="protocolTitle">
+      <div class="section-heading"><div><h2 id="protocolTitle">已选电池的测试条件</h2><p>按目录中的原始阶段字段展示。不同来源的记录口径尚未统一；当前目录也没有统一的测试温度字段。</p></div></div>
+      <div id="conditionCards" class="condition-cards"><p class="empty-copy">添加电池后显示其测试条件。</p></div>
+    </section>
+
+    <section class="panel" aria-labelledby="detailsTitle">
+      <div class="section-heading"><div><h2 id="detailsTitle">所选电池的记录范围</h2><p>寿命标签按原文件显示，不按标签对齐曲线，也不把不同来源的标签视为同一阈值。记录链接在新标签页打开；切回本标签可继续对比。</p></div></div>
+      <div class="table-scroll"><table class="trends-table">
+        <thead><tr><th>数据来源</th><th>电池编号</th><th>正极体系</th><th>电池形态</th><th>标称容量</th><th>有效容量点</th><th>首个有效容量 (Ah)</th><th>最大详细 Cycle</th><th>原有寿命标签</th><th></th></tr></thead>
+        <tbody id="detailRows"><tr><td colspan="10">绘制曲线后显示记录信息。</td></tr></tbody>
+      </table></div>
+    </section>
+  </main>
+</body>
+</html>

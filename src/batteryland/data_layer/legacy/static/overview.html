@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="green">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>数据总览 · BatteryLife</title>
+  <link rel="stylesheet" href="/data-layer/theme.css">
+  <link rel="stylesheet" href="/data-layer/overview.css">
+  <script src="/data-layer/site-config.js" defer></script>
+  <script src="/data-layer/site-navigation.js" defer></script>
+  <script src="/data-layer/overview.js" defer></script>
+  <script src="/data-layer/trajectory.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#" data-route="detail">BatteryLife <span>电池数据平台</span></a>
+      <nav data-site-navigation aria-label="页面导航"></nav>
+    </div>
+  </header>
+
+  <main class="page">
+    <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+
+    <section class="panel" aria-labelledby="flowTitle">
+      <h2 id="flowTitle">电池数据组成</h2>
+      <div class="flow-scroll"><svg id="compositionFlow" role="img" aria-label="按所选维度统计的电池组成桑基图"></svg></div>
+      <div class="flow-filter-entry">
+        <span id="flowFilterStatus" role="status" aria-live="polite">正在读取电池目录…</span>
+        <button id="openFilters" type="button" class="plain-button" aria-haspopup="dialog" aria-controls="filterDialog">筛选电池</button>
+        <button id="undoFlowFilters" type="button" class="plain-button" disabled>撤销上一步</button>
+        <button id="clearFlowFilters" type="button" class="plain-button" disabled>清空筛选</button>
+      </div>
+      <div class="flow-controls">
+        <div class="flow-presets" role="group" aria-label="桑基图快捷视图">
+          <button id="flowMaterialPreset" type="button" class="flow-preset active" aria-pressed="true">材料与形态</button>
+          <button id="flowConditionPreset" type="button" class="flow-preset" aria-pressed="false">测试工况</button>
+        </div>
+        <button id="resetFlowAxes" type="button" class="plain-button">恢复默认维度</button>
+      </div>
+      <div id="flowDimensionControls" class="flow-dimensions" aria-label="桑基图维度和顺序"></div>
+      <p id="flowDescription" class="flow-description">选择视图或调整维度；每条连接的宽度表示电池数量。</p>
+      <p class="chart-note">选轴较多时，可在下方选轴区左右滚动；图表会按窗口宽度显示全部已选轴，悬停缩写的名称可查看全称。点击节点筛选该属性，点击连接筛选相邻两项；可在图下方撤销或清空筛选，也可在筛选面板逐项移除条件。每列按当前电池集合统计，每块电池只计一次；连线只表示相邻两项的组合，不能跨多列追踪同一组电池。</p>
+    </section>
+
+    <section class="panel trajectory-panel" aria-labelledby="trajectoryTitle">
+      <div class="section-heading">
+        <div><h2 id="trajectoryTitle">相对容量退化轨迹</h2><p>每圈最大有效放电容量 ÷ 本电池首个有效放电容量；横轴为实际 Cycle 编号。</p></div>
+      </div>
+      <div class="trajectory-toolbar">
+        <label>曲线颜色表示<select id="trajectoryGroup"><option value="source">数据来源</option><option value="cathode">正极体系</option><option value="form_factor">电池形态</option><option value="capacity_band">容量档位</option></select></label>
+        <div class="trajectory-range" role="group" aria-label="轨迹观察范围"><button type="button" data-trajectory-limit="500">前 500</button><button type="button" data-trajectory-limit="2000">前 2000</button><button type="button" data-trajectory-limit="all" class="active">全程</button></div>
+        <form id="trajectoryRangeForm"><label>显示到 Cycle <input id="trajectoryMaxCycle" type="number" min="1" step="1" placeholder="留空显示全程"></label><button type="submit" class="plain-button">应用范围</button></form>
+      </div>
+      <p id="trajectoryProgress" class="trajectory-progress" role="status" aria-live="polite">正在准备轨迹数据…</p>
+      <div id="trajectoryFrame" class="trajectory-frame"><canvas id="trajectoryCanvas" role="img" aria-label="当前筛选电池的相对容量退化轨迹"></canvas><div id="trajectoryTooltip" class="trajectory-tooltip" hidden></div></div>
+      <div id="trajectoryLegend" class="trajectory-legend" aria-label="轨迹颜色图例"></div>
+      <details id="trajectoryIssues" class="trajectory-issues" hidden><summary id="trajectoryIssuesTitle">未绘制的电池</summary><ul id="trajectoryIssueList"></ul></details>
+      <p class="chart-note">颜色深浅只表示同来源内原有寿命标签的排序；无标签曲线用虚线。不同来源的标签阈值未统一，标签超出详细记录时曲线仍只画已有容量点。本图不表示统一计算的 SOH。</p>
+    </section>
+
+    <section class="summary" aria-label="数据规模">
+      <div class="stat"><span>去重后电池</span><strong id="cellCount">—</strong><small>当前筛选范围</small></div>
+      <div class="stat"><span>数据来源</span><strong id="sourceCount">—</strong><small>当前筛选范围</small></div>
+      <div class="stat"><span>有寿命标签</span><strong id="labeledCount">—</strong><small>当前筛选范围</small></div>
+      <div class="stat"><span>标签超出详细曲线</span><strong id="beyondCount">—</strong><small>当前筛选范围</small></div>
+    </section>
+
+    <dialog id="filterDialog" class="filter-dialog" aria-labelledby="filterTitle">
+      <section class="filters">
+        <div class="section-heading">
+          <div><h2 id="filterTitle">筛选电池</h2><p>分类来自文件中的原始字段；同义写法已明确归并，原始值仍保留。</p></div>
+          <button id="closeFilters" type="button" class="plain-button" aria-label="关闭筛选面板">关闭</button>
+        </div>
+        <div class="filter-grid">
+          <label>数据来源<select id="sourceFilter"><option value="">全部来源</option></select></label>
+          <label>正极体系<select id="cathodeFilter"><option value="">全部体系</option></select></label>
+          <label>负极材料<select id="anodeFilter"><option value="">全部材料</option></select></label>
+          <label>电池形态<select id="formFilter"><option value="">全部形态</option></select></label>
+          <label>标称容量<select id="capacityFilter"><option value="">全部容量</option></select></label>
+          <label>容量档位<select id="capacityBandFilter"><option value="">全部档位</option></select></label>
+          <label>寿命标签<select id="labelFilter">
+            <option value="">全部电池</option>
+            <option value="with">有标签</option>
+            <option value="without">无标签</option>
+            <option value="beyond">标签超出详细曲线</option>
+          </select></label>
+          <label class="search-label">搜索编号<input id="cellSearch" type="search" placeholder="输入电池编号" autocomplete="off"></label>
+        </div>
+        <details id="conditionFilters" class="filter-details">
+          <summary>测试工况筛选</summary>
+          <div class="filter-grid condition-filter-grid">
+            <label>充电阶段数<select id="chargeStageFilter"><option value="">全部阶段数</option></select></label>
+            <label>充电控制方式<select id="chargeControlFilter"><option value="">全部方式</option></select></label>
+            <label>放电阶段数<select id="dischargeStageFilter"><option value="">全部阶段数</option></select></label>
+            <label>SOC 区间类型<select id="socGroupFilter"><option value="">全部类型</option></select></label>
+          </div>
+        </details>
+        <div id="activeFilters" class="active-filters" aria-label="当前筛选条件" hidden></div>
+        <p id="filterCount" class="filter-count">正在读取电池目录…</p>
+        <div class="filter-actions">
+          <button id="undoFilters" type="button" class="plain-button" disabled>撤销上一步</button>
+          <button id="clearFilters" type="button" class="plain-button" disabled>清空筛选</button>
+        </div>
+      </section>
+    </dialog>
+
+    <section class="panel" aria-labelledby="listTitle">
+      <div class="section-heading">
+        <div><h2 id="listTitle">电池目录</h2><p>逐块加入待对比电池，选好后统一打开曲线；筛选和翻页不会清空已选电池。</p></div>
+        <div class="directory-actions">
+          <label class="sort-label">排序<select id="sortBy">
+            <option value="source">按来源与编号</option>
+            <option value="eol-asc">寿命标签从小到大</option>
+            <option value="eol-desc">寿命标签从大到小</option>
+            <option value="cycles-desc">详细记录从多到少</option>
+          </select></label>
+          <button id="downloadFilteredCsv" type="button" class="plain-button" disabled>下载当前筛选目录 CSV</button>
+        </div>
+      </div>
+      <div class="compare-cart" aria-label="待对比电池">
+        <div class="compare-cart-toolbar">
+          <strong id="selectedCompareCount" aria-live="polite">待对比 0 块</strong>
+          <div class="compare-cart-actions">
+            <button id="clearCompare" type="button" class="plain-button" disabled>清空已选</button>
+            <a id="openCompare" class="compare-open-button" target="_blank" rel="noopener" hidden>对比所选电池 ↗</a>
+          </div>
+        </div>
+        <div id="selectedCompareList" class="compare-cart-list"><p class="compare-cart-empty">尚未选择电池。</p></div>
+        <p class="compare-cart-note">对比会在新标签页打开并自动绘图；切回本标签可继续筛选和选择。</p>
+      </div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>数据来源</th><th>电池编号</th><th>正极体系</th><th>标称容量 (Ah)</th><th>电池形态</th><th>详细 cycle</th><th>寿命标签</th><th></th></tr></thead>
+        <tbody id="cellRows"></tbody>
+      </table></div>
+      <div class="pagination"><span id="pageInfo"></span><div><button id="previousPage" type="button">上一页</button><button id="nextPage" type="button">下一页</button></div></div>
+      <p class="chart-note">下载的是当前筛选得到的全部电池，不限于本页显示的 30 块；包含目录与分类字段，不含采样曲线或质量核验结果。</p>
+    </section>
+
+    <section class="panel" aria-labelledby="deliveryTitle">
+      <div class="section-heading"><div><h2 id="deliveryTitle">统一数据清单</h2><p>把目录、质量核验和前 100 条记录核验合并成逐电池文件，供线下复核。</p></div>
+        <div class="delivery-actions"><a id="deliveryCsv" class="plain-button" href="#" data-download="deliveryCsv" download hidden>下载 CSV</a><a id="deliveryJson" class="plain-button" href="#" data-download="deliveryJson" download hidden>下载 JSON</a></div>
+      </div>
+      <p id="deliveryStatus" class="delivery-status" role="status" aria-live="polite">正在核对清单版本…</p>
+      <p class="chart-note">清单不含原始采样曲线；质量标记和记录计数只描述数据现状，不决定模型训练资格。</p>
+    </section>
+  </main>
+</body>
+</html>

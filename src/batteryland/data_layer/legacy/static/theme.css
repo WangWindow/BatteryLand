@@ -1,0 +1,266 @@
+:root {
+  /* Preserved candidate palette for a later design review; not active in current pages. */
+  --font-ui: system-ui, -apple-system, "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+
+  --neutral-50: #fffdf9;
+  --neutral-100: #f7f4ed;
+  --neutral-150: #f1ede5;
+  --neutral-200: #e5ded4;
+  --neutral-300: #d1c7ba;
+  --neutral-400: #aaa095;
+  --neutral-500: #7b7269;
+  --neutral-600: #625a52;
+  --neutral-700: #4a433d;
+  --neutral-800: #342f2b;
+  --neutral-900: #25221f;
+
+  --accent-50: #fbf0eb;
+  --accent-100: #f5dfd5;
+  --accent-200: #eabca9;
+  --accent-300: #df987c;
+  --accent-400: #d97757;
+  --accent-500: #c96848;
+  --accent-600: #b5573a;
+  --accent-700: #93462f;
+  --accent-800: #743829;
+
+  /* Shared page surfaces */
+  --color-page-bg: var(--neutral-100);
+  --color-detail-bg: var(--neutral-100);
+  --color-surface: var(--neutral-50);
+  --color-surface-soft: #fbf8f2;
+  --color-control-bg: #faf7f1;
+
+  /* Text */
+  --color-text: var(--neutral-800);
+  --color-detail-text: var(--neutral-900);
+  --color-heading: var(--neutral-800);
+  --color-muted: var(--neutral-600);
+  --color-subtle: var(--neutral-500);
+  --color-link: var(--accent-700);
+
+  /* Brand and interaction */
+  --color-brand: var(--accent-400);
+  --color-brand-hover: var(--accent-600);
+  --color-focus: var(--accent-300);
+  --color-focus-ring: #d9775740;
+  --color-accent-soft: var(--accent-50);
+  --color-accent-soft-hover: var(--accent-100);
+  --color-header: #2f2a26;
+  --color-sidebar: #2f2a26;
+  --color-header-active: #5b473d;
+  --color-sidebar-control: #403a35;
+  --color-sidebar-hover: #4a423c;
+  --color-sidebar-active: #60483d;
+  --color-sidebar-active-border: #a46b54;
+  --color-on-dark: #fffaf3;
+  --color-on-dark-muted: #d8cfc5;
+  --color-on-dark-subtle: #b8ada2;
+
+  /* Lines and controls */
+  --color-border: var(--neutral-200);
+  --color-border-soft: var(--neutral-150);
+  --color-border-strong: var(--neutral-300);
+  --color-control-border: var(--neutral-300);
+  --color-button-border: var(--neutral-300);
+  --color-disabled-bg: #eee9e1;
+  --color-disabled-text: #8c8379;
+
+  /* Status colors */
+  --color-info-bg: var(--accent-50);
+  --color-info-text: var(--accent-800);
+  --color-info-border: var(--accent-200);
+  --color-warning-bg: #f7ead4;
+  --color-warning-text: #785426;
+  --color-warning-border: #e3c493;
+  --color-success-bg: #e8efe4;
+  --color-success-text: #496245;
+  --color-success-border: #bfd0b8;
+  --color-danger-bg: #f8e7e3;
+  --color-danger-text: #98483b;
+  --color-danger-border: #e6b7ae;
+
+  /* Chart palette */
+  --chart-primary: #d97757;
+  --chart-primary-dark: #b5573a;
+  --chart-comparison: #d1a05d;
+  --chart-comparison-dark: #ae7840;
+  --chart-comparison-line: #dba96a;
+  --chart-purple: #8b6f91;
+  --chart-danger: #b65353;
+  --chart-cycle-selection: #c9372c;
+  --chart-axis: #675f57;
+  --chart-axis-soft: #847a70;
+  --chart-muted: #9a8f84;
+  --chart-grid: #e8e1d8;
+  --chart-selection: #d9775714;
+  --chart-reference: #9d9389;
+  --chart-nominal-reference: #9b7c86;
+  --chart-comparison-eol: #cb8b55;
+  --chart-voltage: #557b88;
+  --chart-current: #d19a52;
+  --chart-charge-capacity: #8b6f91;
+  --chart-discharge-capacity: #d97757;
+  --chart-series-four: #a95d69;
+  --chart-cycle-low: #2454a5;
+  --chart-cycle-mid: #875ba3;
+  --chart-cycle-high: #b4232f;
+  --chart-chemistry-nmc: #d97757;
+  --chart-chemistry-lfp: #667f8c;
+  --chart-chemistry-nca: #d1a05d;
+  --chart-chemistry-lco: #8b6f91;
+  --chart-chemistry-lco-nmc: #aa7481;
+  --chart-chemistry-nmc-nca: #9a7658;
+  --chart-chemistry-unknown: #8d867e;
+  --chart-composition-source: #6f7775;
+  --chart-composition-form: #b06b55;
+  --chart-intake-empty: #746b63;
+  --chart-intake-grid: #e4ddd4;
+  --chart-intake-text: #6b635b;
+  --chart-intake-axis: #8b8177;
+  --chart-intake-discharge: #bd6447;
+  --chart-intake-charge: #c9914d;
+  --chart-intake-label: #5e564f;
+  --chart-intake-eol: #a85151;
+  --chart-intake-eol-text: #8f3f3f;
+  --chart-intake-title: #5e564f;
+
+  /* Effects */
+  --color-tooltip: #2f2a26ee;
+  --shadow-panel: #5a46300d;
+  --shadow-menu: #3c302426;
+  --shadow-strong: #2f2a2638;
+  --overlay-white-09: #ffffff16;
+  --overlay-white-15: #ffffff25;
+}
+
+/* Shared display for ordered charge and discharge protocol stages. */
+.protocol-stages{list-style:none;margin:0;padding:0;min-width:0}
+.protocol-stage{display:grid;grid-template-columns:64px minmax(0,1fr);gap:8px;min-width:0;padding:5px 0;line-height:1.55}
+.protocol-stage+.protocol-stage{border-top:1px solid var(--color-border)}
+.protocol-stage-label{font-weight:700;color:var(--color-heading);white-space:nowrap}
+.protocol-stage-value{min-width:0;overflow-wrap:anywhere;color:var(--color-text)}
+@media(max-width:1050px){.protocol-stage{grid-template-columns:1fr;gap:1px}}
+
+/* Fixed production theme while page functions and requirements are being completed. */
+:root[data-theme="green"] {
+  --neutral-50: #ffffff;
+  --neutral-100: #f3f7f9;
+  --neutral-150: #edf3f6;
+  --neutral-200: #dce7ed;
+  --neutral-300: #afc2d0;
+  --neutral-400: #8999ac;
+  --neutral-500: #728a9b;
+  --neutral-600: #526b7e;
+  --neutral-700: #40566b;
+  --neutral-800: #20384d;
+  --neutral-900: #203047;
+
+  --accent-50: #eaf7f4;
+  --accent-100: #d6e9e8;
+  --accent-200: #b9dcd7;
+  --accent-300: #72aaa7;
+  --accent-400: #117e79;
+  --accent-500: #137e7a;
+  --accent-600: #0c6965;
+  --accent-700: #087c76;
+  --accent-800: #155e5b;
+
+  --color-page-bg: #f3f7f9;
+  --color-detail-bg: #f4f7fb;
+  --color-surface: #ffffff;
+  --color-surface-soft: #fbfdfe;
+  --color-control-bg: #f9fbfd;
+  --color-text: #20384d;
+  --color-detail-text: #203047;
+  --color-heading: #314e62;
+  --color-muted: #526b7e;
+  --color-subtle: #7a8a9b;
+  --color-link: #087c76;
+  --color-brand: #117e79;
+  --color-brand-hover: #0c6965;
+  --color-focus: #53aaa4;
+  --color-focus-ring: #64d9cc66;
+  --color-accent-soft: #eaf7f4;
+  --color-accent-soft-hover: #d6e9e8;
+  --color-header: #152b3c;
+  --color-sidebar: #142339;
+  --color-header-active: #285366;
+  --color-sidebar-control: #20334b;
+  --color-sidebar-hover: #263c53;
+  --color-sidebar-active: #1f4856;
+  --color-sidebar-active-border: #397c80;
+  --color-on-dark: #eef7fc;
+  --color-on-dark-muted: #c8d8e5;
+  --color-on-dark-subtle: #9eb2c4;
+  --color-border: #dce7ed;
+  --color-border-soft: #e7edf1;
+  --color-border-strong: #b8cbd9;
+  --color-control-border: #afc2d0;
+  --color-button-border: #aec9d2;
+  --color-disabled-bg: #e5ecf0;
+  --color-disabled-text: #7b8a99;
+  --color-info-bg: #eaf6f4;
+  --color-info-text: #155e5b;
+  --color-info-border: #b9dcd7;
+  --color-warning-bg: #fff1dd;
+  --color-warning-text: #805220;
+  --color-warning-border: #e9d8aa;
+  --color-success-bg: #eaf5ef;
+  --color-success-text: #23694d;
+  --color-success-border: #49d7b0;
+  --color-danger-bg: #fff0ee;
+  --color-danger-text: #a12e28;
+  --color-danger-border: #f3c5c0;
+
+  --chart-primary: #0c9b9a;
+  --chart-primary-dark: #087e7a;
+  --chart-comparison: #e69455;
+  --chart-comparison-dark: #c56f32;
+  --chart-comparison-line: #f1a064;
+  --chart-purple: #7257b1;
+  --chart-danger: #d86875;
+  --chart-cycle-selection: #c9372c;
+  --chart-axis: #50657b;
+  --chart-axis-soft: #657d8b;
+  --chart-muted: #8295aa;
+  --chart-grid: #e9eef2;
+  --chart-selection: #21a9990c;
+  --chart-reference: #95a5b4;
+  --chart-nominal-reference: #c3919a;
+  --chart-comparison-eol: #ef9d60;
+  --chart-voltage: #198fca;
+  --chart-current: #e69455;
+  --chart-charge-capacity: #8576ca;
+  --chart-discharge-capacity: #27a8a5;
+  --chart-series-four: #c64f69;
+  --chart-cycle-low: #2454a5;
+  --chart-cycle-mid: #875ba3;
+  --chart-cycle-high: #b4232f;
+  --chart-chemistry-nmc: #158c8b;
+  --chart-chemistry-lfp: #4b79b7;
+  --chart-chemistry-nca: #d58a45;
+  --chart-chemistry-lco: #896fbd;
+  --chart-chemistry-lco-nmc: #ad718f;
+  --chart-chemistry-nmc-nca: #a47c58;
+  --chart-chemistry-unknown: #8797a3;
+  --chart-composition-source: #54788a;
+  --chart-composition-form: #4d9d92;
+  --chart-intake-empty: #5a7183;
+  --chart-intake-grid: #dbe7ec;
+  --chart-intake-text: #516b7d;
+  --chart-intake-axis: #7993a2;
+  --chart-intake-discharge: #13857d;
+  --chart-intake-charge: #da8340;
+  --chart-intake-label: #36566b;
+  --chart-intake-eol: #b14f5a;
+  --chart-intake-eol-text: #a13f4d;
+  --chart-intake-title: #38586d;
+
+  --color-tooltip: #142339e9;
+  --shadow-panel: #233f5010;
+  --shadow-menu: #10293630;
+  --shadow-strong: #0d223344;
+  --overlay-white-09: #ffffff16;
+  --overlay-white-15: #ffffff25;
+}

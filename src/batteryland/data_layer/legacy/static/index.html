@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="green">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2f2a26">
+  <title>BatteryLife · 电池数据浏览器</title>
+  <link rel="stylesheet" href="/data-layer/theme.css">
+  <link rel="stylesheet" href="/data-layer/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><span></span><span></span><span></span></div>
+        <div><strong>BatteryLife</strong><small>本地数据浏览器</small></div>
+      </div>
+      <div class="sidebar-section">
+        <label for="sourceSelect">数据来源</label>
+        <select id="sourceSelect" aria-label="选择数据来源"></select>
+        <p id="sourceCount" class="section-hint">正在读取数据目录…</p>
+      </div>
+      <div class="sidebar-section cell-section">
+        <div class="row-between"><label for="cellSearch">电池列表</label><span id="visibleCount" class="count-pill">—</span></div>
+        <input id="cellSearch" type="search" placeholder="搜索电池编号" autocomplete="off">
+        <select id="cellSort" aria-label="电池排序">
+          <option value="name">按名称排序</option>
+          <option value="label-asc">按 EOL 从小到大</option>
+          <option value="label-desc">按 EOL 从大到小</option>
+        </select>
+        <div id="cellList" class="cell-list" role="listbox" aria-label="电池"></div>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="local-dot"></div>
+        <div><strong>服务器数据浏览</strong><span>原始数据只读</span></div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="page-header">
+        <div>
+          <h1>电池寿命与循环数据</h1>
+          <p>查看容量变化、寿命标签和单个 cycle 的充放电记录。</p>
+        </div>
+        <div class="page-header-links">
+          <nav class="page-navigation" data-site-navigation data-variant="detail" aria-label="页面导航"></nav>
+          <div id="datasetBadge" class="dataset-badge">本地数据集</div>
+        </div>
+      </header>
+
+      <div id="notice" class="notice" role="status" hidden></div>
+
+      <section class="selection-bar panel">
+        <div class="selection-primary">
+          <span class="overline">当前电池</span>
+          <h2 id="cellTitle">请选择电池</h2>
+          <div id="cellSubtitle" class="muted">从左侧列表开始浏览</div>
+        </div>
+      </section>
+
+      <section class="metrics" aria-label="电池概要">
+        <article class="metric-card"><span id="metricEolLabel">数据集 EOL 标签</span><strong id="metricEol">—</strong><small>cycle</small></article>
+        <article class="metric-card"><span>详细曲线记录</span><strong id="metricCycles">—</strong><small>个 cycle</small></article>
+        <article class="metric-card"><span>首个有效放电容量</span><strong id="metricFirst">—</strong><small>Ah</small></article>
+        <article class="metric-card"><span>标称容量</span><strong id="metricNominal">—</strong><small>Ah</small></article>
+      </section>
+
+      <section class="panel chart-panel">
+        <div class="panel-heading">
+          <div><h2>容量轨迹</h2><p>每个点为该 cycle 记录的最大放电容量</p></div>
+          <div class="segmented" role="group" aria-label="容量单位">
+            <button id="unitRelative" type="button" class="active" data-unit="relative">相对首个有效放电容量 %</button>
+            <button id="unitAbsolute" type="button" data-unit="absolute">容量 Ah</button>
+          </div>
+        </div>
+        <div class="compare-control">
+          <label for="compareSourceSelect">对照电池 · 可选任意数据来源</label>
+          <div class="compare-row">
+            <select id="compareSourceSelect" aria-label="对照电池的数据来源"></select>
+            <select id="compareSelect" aria-label="选择对照电池"><option value="">不对照</option></select>
+          </div>
+        </div>
+        <div class="legend">
+          <span><i class="swatch primary"></i>当前电池</span>
+          <span id="compareLegend" hidden><i class="swatch compare"></i><span id="compareLegendName">对照电池</span></span>
+          <span id="capacitySelectionLegend" hidden><i class="swatch cycle-selection"></i>当前选中 Cycle（红点）</span>
+          <span id="eolLegend"><i class="swatch eol"></i>当前电池 EOL 标签（绿色虚线）</span>
+          <span id="compareEolLegend" hidden><i class="swatch compare-eol"></i>对照电池 EOL 标签（黄色系虚线）</span>
+        </div>
+        <div class="capacity-controls">
+          <div class="view-controls" role="group" aria-label="容量轨迹观察范围">
+            <span>观察范围</span>
+            <button type="button" data-window="all" class="active">全程</button>
+            <button type="button" data-window="early">前 100 cycle</button>
+            <button type="button" data-window="eol">EOL 前后 200</button>
+          </div>
+          <form id="chartSettings" class="chart-settings" novalidate>
+            <label for="visibleCyclesInput">可见 cycle 数 <input id="visibleCyclesInput" type="number" min="1" max="1000000" step="1" value="100" inputmode="numeric" aria-label="前多少个 cycle 可见"></label>
+            <button type="submit">应用</button>
+          </form>
+        </div>
+        <p id="chartSettingsMessage" class="settings-message" role="status" aria-live="polite"></p>
+        <div class="capacity-zoom-controls">
+          <span id="capacityZoomStatus">鼠标置于容量图内，滚轮向上放大、向下缩小 Cycle 范围。</span>
+          <button id="capacityZoomReset" type="button" hidden>重置缩放</button>
+        </div>
+        <p id="capacitySelectionStatus" class="capacity-selection-status" role="status" aria-live="polite">在当前电池曲线附近悬停预览实际 Cycle，点击或拖动选圈；聚焦图表后可用左右方向键逐圈查看。</p>
+        <div class="chart-frame main-chart">
+          <canvas id="capacityChart" tabindex="0" role="slider" aria-label="在当前电池容量轨迹上选择实际 Cycle" aria-orientation="horizontal" aria-keyshortcuts="ArrowLeft ArrowRight" aria-describedby="capacitySelectionStatus capacityNote" aria-disabled="true"></canvas>
+          <div class="chart-crosshair" hidden></div><div class="chart-tooltip" hidden></div>
+        </div>
+        <div id="capacityNote" class="chart-note">容量曲线只使用详细记录；EOL 虚线标注数据集原有标签编号。</div>
+      </section>
+
+      <section class="panel cycle-panel">
+        <div class="panel-heading">
+          <h2>Cycle 采样曲线</h2>
+          <div class="cycle-mode-switch" role="group" aria-label="Cycle 查看模式">
+            <button type="button" data-cycle-mode="multi" class="active" aria-pressed="true">多圈观察</button>
+            <button type="button" data-cycle-mode="single" aria-pressed="false">单圈查看</button>
+          </div>
+        </div>
+        <div id="multiCycleControls" class="cycle-controls">
+          <form id="multiCycleForm" class="multi-cycle-form" novalidate>
+            <label>起始 Cycle <input id="multiStartInput" type="number" min="1" step="1" inputmode="numeric" aria-label="多圈起始 Cycle"></label>
+            <label>结束 Cycle <input id="multiEndInput" type="number" min="1" step="1" inputmode="numeric" aria-label="多圈结束 Cycle"></label>
+            <button type="submit">显示曲线</button>
+            <button id="multiRangeReset" type="button" class="multi-range-reset" disabled>恢复默认范围</button>
+            <label>容量信号 <select id="multiCapacitySignal" aria-label="多圈容量信号"><option value="discharge">放电容量</option><option value="charge">充电容量</option></select></label>
+          </form>
+          <div class="multi-cycle-summary">
+            <p id="multiCycleMessage" class="multi-cycle-message" role="status" aria-live="polite">正在读取采样记录…</p>
+            <p id="multiFullRange" class="multi-full-range" aria-live="polite"></p>
+            <details id="multiCycleDetails" class="multi-cycle-details" hidden>
+              <summary>查看选中的 Cycle 编号</summary>
+              <p id="multiCycleNumbers"></p>
+            </details>
+          </div>
+        </div>
+        <div id="singleCycleControls" class="cycle-controls" hidden>
+          <div class="single-cycle-top">
+            <div class="cycle-badge">当前 Cycle <strong id="selectedCycle">—</strong></div>
+            <input id="cycleSlider" type="range" min="0" max="0" value="0" aria-label="选择 cycle" disabled>
+          </div>
+          <div class="single-cycle-jump-row">
+            <form id="cycleJumpForm" class="cycle-jump" novalidate>
+              <label for="cycleNumberInput">跳转到 Cycle</label>
+              <input id="cycleNumberInput" type="number" min="1" step="1" inputmode="numeric" placeholder="输入 cycle 数" aria-label="输入实际 cycle 编号">
+              <button type="submit">显示该 cycle</button>
+              <span id="cycleJumpMessage" role="status" aria-live="polite"></span>
+            </form>
+            <div class="jump-buttons">
+              <button type="button" data-jump="1">1</button>
+              <button type="button" data-jump="5">5</button>
+              <button type="button" data-jump="20">20</button>
+              <button type="button" data-jump="100">100</button>
+              <button type="button" data-jump="eol">EOL 附近</button>
+            </div>
+          </div>
+          <form id="cycleCompareForm" class="cycle-jump cycle-compare-form" novalidate>
+            <label for="cycleCompareInput">对照 Cycle</label>
+            <input id="cycleCompareInput" type="number" min="1" step="1" inputmode="numeric" placeholder="输入实际 Cycle 编号" aria-label="输入对照 Cycle 的实际编号">
+            <button type="submit">加入对照</button>
+            <button id="cycleCompareClear" type="button" class="cycle-compare-clear" disabled>清除对照</button>
+            <span id="cycleCompareMessage" class="cycle-jump-message" role="status" aria-live="polite"></span>
+          </form>
+        </div>
+        <div id="cycleCompareLegend" class="cycle-compare-legend" hidden>
+          <span><i class="cycle-line-symbol"></i><span id="cycleCurrentLegendText">当前 Cycle</span></span>
+          <span><i class="cycle-line-symbol dashed"></i><span id="cycleReferenceLegendText">对照 Cycle</span></span>
+          <span>容量图：紫色为充电，青绿色为放电</span>
+        </div>
+        <div id="cycleDetailGrid" class="detail-grid multi-view">
+          <aside id="multiCycleColorbar" class="cycle-colorbar" aria-label="实际 Cycle 编号色条" hidden>
+            <strong>Cycle 编号</strong>
+            <div class="cycle-colorbar-body">
+              <div class="cycle-colorbar-gradient" aria-hidden="true"></div>
+              <div class="cycle-colorbar-ticks"><span id="multiColorbarMax">—</span><span id="multiColorbarMid">—</span><span id="multiColorbarMin">—</span></div>
+            </div>
+          </aside>
+          <div class="mini-chart"><h3><i class="mini-dot voltage"></i>电压 <span>V</span></h3><div class="chart-frame"><canvas id="voltageChart" aria-label="Cycle 电压曲线"></canvas><div class="chart-crosshair" hidden></div><div class="chart-tooltip" hidden></div></div><p class="mini-axis-label">时间 / 分钟</p></div>
+          <div class="mini-chart"><h3><i class="mini-dot current"></i>电流 <span>A</span></h3><div class="chart-frame"><canvas id="currentChart" aria-label="Cycle 电流曲线"></canvas><div class="chart-crosshair" hidden></div><div class="chart-tooltip" hidden></div></div><p class="mini-axis-label">时间 / 分钟</p></div>
+          <div class="mini-chart"><h3><i class="mini-dot capacity"></i><span id="cycleCapacityHeading">放电容量</span> <span>Ah</span></h3><div class="chart-frame"><canvas id="cycleCapacityChart" aria-label="Cycle 容量曲线"></canvas><div class="chart-crosshair" hidden></div><div class="chart-tooltip" hidden></div></div><p class="mini-axis-label">时间 / 分钟</p></div>
+        </div>
+        <details id="incrementalPanel" class="incremental-panel" hidden>
+          <summary>可选衍生特征：增量容量 dQ/dV</summary>
+          <div class="incremental-content">
+            <div class="incremental-toolbar">
+              <div class="incremental-phase-switch" role="group" aria-label="增量容量阶段">
+                <button type="button" data-incremental-phase="charge" class="active" aria-pressed="true">充电</button>
+                <button type="button" data-incremental-phase="discharge" aria-pressed="false">放电</button>
+              </div>
+              <span id="incrementalFormula">充电 dQ/dV（Ah/V）</span>
+            </div>
+            <div class="incremental-legend">
+              <span><i class="incremental-line current"></i><span id="incrementalCurrentLegend">当前 Cycle</span></span>
+              <span id="incrementalReferenceLegend" hidden><i class="incremental-line reference"></i><span id="incrementalReferenceText">对照 Cycle</span></span>
+            </div>
+            <div class="mini-chart incremental-chart">
+              <div class="chart-frame"><canvas id="incrementalChart" aria-label="单圈增量容量曲线"></canvas><div class="chart-crosshair" hidden></div><div class="chart-tooltip" hidden></div></div>
+              <p class="mini-axis-label">电压 / V</p>
+            </div>
+            <div id="incrementalStatus" class="incremental-status" role="status" aria-live="polite">展开后按完整采样记录计算。</div>
+            <p class="incremental-method">实线为当前 Cycle，虚线为对照 Cycle。按单一近恒流段计算，5 mV 电压分箱、相邻五箱平滑；不跨缺失区间补点。仅用于观察，不自动判定 SOH 或退化机理。</p>
+          </div>
+        </details>
+        <p id="cycleNote" class="chart-note">选择电池后显示采样记录。</p>
+      </section>
+
+      <section class="panel metadata-panel">
+        <div class="panel-heading metadata-heading"><h2>电池与测试条件</h2><p>协议按原始阶段展示；缺失值显示“未提供”。</p></div>
+        <dl id="metadataGrid" class="metadata-grid"></dl>
+      </section>
+      <footer class="page-footer">数据直接来自本地 BatteryLife 处理文件。图中的参考线不代表重新定义寿命标签。</footer>
+    </main>
+  </div>
+  <script src="/data-layer/site-config.js" defer></script>
+  <script src="/data-layer/site-navigation.js" defer></script>
+  <script src="/data-layer/app.js" defer></script>
+</body>
+</html>

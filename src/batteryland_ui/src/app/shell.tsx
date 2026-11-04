@@ -3,7 +3,6 @@ import {
   DatabaseIcon,
   GearIcon,
   GraphIcon,
-  HeartIcon,
   MoonIcon,
   PackageIcon,
   PulseIcon,
@@ -20,11 +19,10 @@ const nav = [
     pages: [
       { to: "/batteries", name: "电池目录", icon: DatabaseIcon },
       { to: "/splits", name: "数据划分", icon: WorkflowIcon },
+      { to: "/data-layer/", name: "电池详情", icon: DatabaseIcon },
+      { to: "/data-layer/overview", name: "数据概览", icon: GraphIcon },
+      { to: "/data-layer/trends", name: "多曲线对比", icon: GraphIcon },
     ],
-  },
-  {
-    label: "数据层",
-    pages: [{ to: "/data-layer/batteries", name: "电池详情", icon: HeartIcon }],
   },
   {
     label: "实验",
@@ -72,19 +70,24 @@ export function Shell() {
             {nav.map((group) => (
               <NavList.Group key={group.label}>
                 <NavList.GroupHeading>{group.label}</NavList.GroupHeading>
-                {group.pages.map((page) => (
-                  <NavList.Item
-                    key={page.to}
-                    as={NavLink}
-                    to={page.to}
-                    aria-current={location.pathname.startsWith(page.to) ? "page" : undefined}
-                  >
-                    <NavList.LeadingVisual>
-                      <page.icon />
-                    </NavList.LeadingVisual>
-                    {page.name}
-                  </NavList.Item>
-                ))}
+                {group.pages.map((page) =>
+                  page.to.startsWith("/data-layer/") ? (
+                    <NavList.Item key={page.to} as="a" href={page.to}>
+                      <NavList.LeadingVisual><page.icon /></NavList.LeadingVisual>
+                      {page.name}
+                    </NavList.Item>
+                  ) : (
+                    <NavList.Item
+                      key={page.to}
+                      as={NavLink}
+                      to={page.to}
+                      aria-current={location.pathname.startsWith(page.to) ? "page" : undefined}
+                    >
+                      <NavList.LeadingVisual><page.icon /></NavList.LeadingVisual>
+                      {page.name}
+                    </NavList.Item>
+                  ),
+                )}
               </NavList.Group>
             ))}
           </NavList>

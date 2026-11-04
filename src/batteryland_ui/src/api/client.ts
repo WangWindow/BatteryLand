@@ -1,9 +1,7 @@
 import type {
   Artifact,
   Battery,
-  BatteryAnalysis,
   Component,
-  CycleSamples,
   DataSource,
   Experiment,
   ExperimentSummary,
@@ -69,10 +67,6 @@ export const api = {
     signal?: AbortSignal,
   ) => get<Page<Battery>>(`/batteries${qs({ page_size: 120, ...params })}`, signal),
   battery: (id: string, signal?: AbortSignal) => get<Battery>(`/batteries/${encodeURIComponent(id)}`, signal),
-  batteryAnalysis: (id: string, signal?: AbortSignal) =>
-    get<BatteryAnalysis>(`/batteries/${encodeURIComponent(id)}/analysis`, signal),
-  batteryCycle: (id: string, index: number, signal?: AbortSignal) =>
-    get<CycleSamples>(`/batteries/${encodeURIComponent(id)}/cycles/${index}`, signal),
   splits: (params: { page?: number; page_size?: number; q?: string } = {}, signal?: AbortSignal) =>
     get<Page<Split>>(`/splits${qs({ page_size: 50, ...params })}`, signal),
   split: (id: string, signal?: AbortSignal) => get<Split>(`/splits/${encodeURIComponent(id)}`, signal),
