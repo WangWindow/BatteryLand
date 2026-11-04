@@ -634,7 +634,7 @@ async function init() {
     allCells = data.cells;
     window.TrajectoryOverview?.init(allCells);
     const notices = [];
-    if (data.needs_refresh) notices.push("数据目录在上次核查后发生变化。当前页面仍显示上次结果，请关闭当前服务，再双击 start_web.cmd 重新启动。");
+    if (data.needs_refresh) notices.push("数据目录在上次核查后发生变化。当前页面仍显示上次结果，请联系管理员更新数据层目录索引。");
     if (data.errors) notices.push(`有 ${fmt(data.errors)} 个文件未能解析，未纳入总览。请查看审计报告。`);
     showStatus(notices.join(" "));
     addOptions($("sourceFilter"), allCells.map((cell) => cell.source));

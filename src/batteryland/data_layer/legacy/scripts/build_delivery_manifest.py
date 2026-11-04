@@ -197,7 +197,7 @@ def render_report(document):
         "`first_window_is_1_to_100` 仅描述文件顺序中前 100 条实际编号；核心信号计数仅描述有限数值和长度。",
         "温度字段的未提供记录与字段存在但无有限值的记录分别计数。"
         "需要查看具体编号跳跃和字段状态时，以前 100 条核验报告和网页逐电池依据为准。", "",
-        "添加或修改电池文件后，关闭网页服务并运行 `start_web_full_audit.cmd`，再生成本清单。"
+        "添加或修改电池文件后，在 BatteryLand 项目根目录运行 `.venv/bin/python -m batteryland.data_layer.prepare` 更新本清单。"
         "只有目录、质量和逐圈核验报告属于同一快照时才写出结果。", "",
     ]
     return "\n".join(lines)
@@ -216,7 +216,7 @@ def main():
     parser.add_argument("--check", action="store_true", help="只检查并打印汇总，不写入文件")
     args = parser.parse_args()
     if not INDEX.is_file():
-        raise SystemExit("目录索引不存在，请先运行 start_web_full_audit.cmd。")
+        raise SystemExit("目录索引不存在，请先运行 python -m batteryland.data_layer.prepare。")
     import sqlite3
     with closing(sqlite3.connect(INDEX.as_uri() + "?mode=ro", uri=True)) as connection:
         state = dict(connection.execute("SELECT key, value FROM catalog_state"))

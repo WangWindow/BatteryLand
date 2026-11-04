@@ -115,7 +115,7 @@ class TrajectoryCache:
         overview = read_overview(self.index_path, self.dataset.root)
         if not overview["ready"] or overview.get("needs_refresh"):
             self.message = (overview.get("message") or
-                            "目录已变化，请先关闭服务并刷新目录索引，再查看退化轨迹。")
+                            "目录已变化，请联系管理员刷新目录索引，再查看退化轨迹。")
             return
         self.revision = overview["inventory_fingerprint"]
         with closing(sqlite3.connect(self.index_path.as_uri() + "?mode=ro", uri=True)) as index:

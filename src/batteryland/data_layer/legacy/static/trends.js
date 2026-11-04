@@ -576,7 +576,7 @@ async function init() {
     const data = await response.json();
     if (!data.ready) { showStatus(data.message, "warning"); $("indexedAt").textContent = "目录未就绪"; return; }
     state.cells = data.cells;
-    if (data.needs_refresh) state.staleMessage = "目录文件已变化。当前仍显示上次索引；请关闭服务并重新运行 start_web.cmd。";
+    if (data.needs_refresh) state.staleMessage = "目录文件已变化。当前仍显示上次索引；请联系管理员更新数据层目录索引。";
     $("indexedAt").textContent = `目录核查时间：${new Date(data.indexed_at).toLocaleString("zh-CN")}`;
     for (const source of [...new Set(state.cells.map((cell) => cell.source))].sort((a, b) => a.localeCompare(b))) {
       const option = element("option", "", source); option.value = source; $("sourceFilter").append(option);

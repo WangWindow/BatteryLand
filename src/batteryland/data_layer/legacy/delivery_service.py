@@ -13,7 +13,7 @@ from .quality_service import read_quality
 
 def read_delivery_status(index_path: Path, quality_path: Path, integrity_path: Path,
                          manifest_path: Path, csv_path: Path, dataset_root: Path):
-    guidance = "统一数据清单尚未建立或已过期。请关闭服务，双击 start_web_full_audit.cmd 更新并重新打开网页。"
+    guidance = "统一数据清单尚未建立或已过期。请联系管理员更新数据层核验结果。"
     if not manifest_path.is_file() or not csv_path.is_file():
         return {"ready": False, "message": guidance}
     try:

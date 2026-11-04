@@ -14,7 +14,7 @@ from .scripts.quality_labels import FLAG_LABELS
 
 def read_quality(index_path: Path, report_path: Path, dataset_root: Path):
     if not index_path.is_file() or not report_path.is_file():
-        return {"ready": False, "message": "数据质量核验尚未建立，请关闭服务并运行 start_web.cmd。"}
+        return {"ready": False, "message": "数据质量核验尚未建立，请联系管理员更新数据层核验结果。"}
     try:
         with closing(sqlite3.connect(index_path.as_uri() + "?mode=ro", uri=True)) as connection:
             state = dict(connection.execute("SELECT key, value FROM catalog_state"))
@@ -27,7 +27,7 @@ def read_quality(index_path: Path, report_path: Path, dataset_root: Path):
             or Path(state.get("dataset_root", "")).resolve() != dataset_root.resolve()
             or not isinstance(report.get("cells"), list)
         ):
-            return {"ready": False, "message": "核验结果与当前目录索引不一致，请关闭服务并运行 start_web.cmd。"}
+            return {"ready": False, "message": "核验结果与当前目录索引不一致，请联系管理员更新数据层核验结果。"}
         cells = report["cells"]
         flags = Counter(flag for cell in cells for flag in cell["flags"])
         protocol_count = sum(any(flag.startswith(("charge_protocol_", "discharge_protocol_", "cell_soc_interval_"))

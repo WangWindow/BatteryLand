@@ -11,7 +11,7 @@ from .scripts.build_catalog import inventory_fingerprint
 
 
 def read_integrity(index_path: Path, report_path: Path, dataset_root: Path):
-    guidance = "逐圈核验结果尚未建立或已过期。请关闭服务，双击 start_web_full_audit.cmd 更新并重新打开网页。"
+    guidance = "逐圈核验结果尚未建立或已过期。请联系管理员更新数据层核验结果。"
     if not index_path.is_file() or not report_path.is_file():
         return {"ready": False, "message": guidance}
     try:
