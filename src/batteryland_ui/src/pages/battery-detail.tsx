@@ -2,7 +2,7 @@ import { ArrowLeftIcon } from "@primer/octicons-react"
 import { Button, SegmentedControl, TextInput } from "@primer/react"
 import { useQuery } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
-import { Link, useParams } from "react-router-dom"
+import { Link, useLocation, useParams } from "react-router-dom"
 import { api } from "../api/client"
 import type { BatteryAnalysis, Chart, CycleSamples } from "../api/types"
 import { BatteryCapacityChart } from "../components/battery-capacity-chart"
@@ -122,6 +122,7 @@ function nextRecorded(analysis: BatteryAnalysis, index: number, direction: -1 | 
 
 export default function BatteryDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const { search } = useLocation()
   const [unit, setUnit] = useState<Unit>("relative")
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [cycleInput, setCycleInput] = useState("")
@@ -194,8 +195,8 @@ export default function BatteryDetailPage() {
         title={analysis?.file_name ?? "电池详情"}
         description="BatteryLife 原始记录 · 只读浏览"
         actions={
-          <Link className="battery-back-link" to="/batteries">
-            <ArrowLeftIcon /> 返回电池目录
+          <Link className="battery-back-link" to={`/data-layer/batteries${search}`}>
+            <ArrowLeftIcon /> 返回数据层电池列表
           </Link>
         }
       />

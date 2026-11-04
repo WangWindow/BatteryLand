@@ -3,6 +3,7 @@ import {
   DatabaseIcon,
   GearIcon,
   GraphIcon,
+  HeartIcon,
   MoonIcon,
   PackageIcon,
   PulseIcon,
@@ -20,6 +21,10 @@ const nav = [
       { to: "/batteries", name: "电池目录", icon: DatabaseIcon },
       { to: "/splits", name: "数据划分", icon: WorkflowIcon },
     ],
+  },
+  {
+    label: "数据层",
+    pages: [{ to: "/data-layer/batteries", name: "电池详情", icon: HeartIcon }],
   },
   {
     label: "实验",

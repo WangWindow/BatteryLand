@@ -542,24 +542,47 @@ tbody tr:hover {
   border-color: var(--fgColor-accent);
   color: var(--fgColor-accent);
 }
-.battery-file-curve {
-  flex: 0 0 auto;
-  margin-right: 8px;
-  color: var(--fgColor-accent, #0969da);
-  font-size: 12px;
-  font-weight: 600;
-}
-.battery-table-curve {
-  display: inline-block;
-  margin-left: 10px;
-  white-space: nowrap;
-}
 .battery-back-link {
   display: inline-flex;
   gap: 6px;
   align-items: center;
   color: var(--fgColor-accent, #0969da);
   font-weight: 600;
+}
+.data-layer-picker {
+  margin-top: 20px;
+  padding: 22px;
+  border: 1px solid var(--borderColor-default);
+  border-radius: 8px;
+  background: var(--bgColor-default);
+}
+.data-layer-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.data-layer-filters select {
+  min-width: 160px;
+  padding: 6px 10px;
+  border: 1px solid var(--borderColor-default);
+  border-radius: 6px;
+  background: var(--bgColor-default);
+  color: var(--fgColor-default);
+}
+.data-layer-filters form {
+  display: flex;
+  flex: 1 1 280px;
+  gap: 8px;
+}
+.data-layer-search-input {
+  flex: 1 1 320px;
+  max-width: 460px;
+}
+.data-layer-filters form input {
+  width: 100%;
+  min-width: 0;
 }
 .battery-detail-panel {
   min-width: 0;

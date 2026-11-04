@@ -20,7 +20,7 @@ import {
   useRef,
   useState,
 } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { api } from "../api/client"
 import type { Battery, DataSource, Schema } from "../api/types"
 import { date, display, metadataNames, number, sourceColor } from "../lib/format"
@@ -395,16 +395,6 @@ export function BatteryExplorer({
                           >
                             i
                           </button>
-                          <Link
-                            className="battery-file-curve"
-                            to={`/batteries/${battery.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={`在新标签查看 ${battery.file_name} 的容量和 Cycle 曲线`}
-                            title="在新标签查看曲线"
-                          >
-                            曲线
-                          </Link>
                         </div>
                       ))}
                     </section>
@@ -439,14 +429,6 @@ export function BatteryExplorer({
                                 <Button size="small" onClick={() => setDetail(battery.id)}>
                                   统计特征
                                 </Button>
-                                <Link
-                                  className="battery-table-curve"
-                                  to={`/batteries/${battery.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  查看曲线（新标签）
-                                </Link>
                               </td>
                             </tr>
                           ))}
@@ -916,11 +898,6 @@ function BatteryDetails({
                 登记时间: date(battery.created_at),
               }}
             />
-            <p>
-              <Link to={`/batteries/${battery.id}`} target="_blank" rel="noopener noreferrer">
-                查看容量与 Cycle 曲线（新标签）
-              </Link>
-            </p>
             <h3>统计特征</h3>
             {numbers.length ? (
               <div className="stat-strip">

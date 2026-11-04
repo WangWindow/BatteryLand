@@ -4,7 +4,7 @@ import { ThemeProvider } from "@primer/react/next"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
-import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom"
+import { createBrowserRouter, Navigate, RouterProvider, useLocation, useParams } from "react-router-dom"
 import { SelectionProvider } from "./app/context"
 import { Shell } from "./app/shell"
 import "./styles.css"
@@ -12,6 +12,13 @@ import "./styles.css"
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },
 })
+
+function LegacyBatteryDetailRedirect() {
+  const { id } = useParams<{ id: string }>()
+  const { search } = useLocation()
+  return <Navigate to={`/data-layer/batteries/${encodeURIComponent(id ?? "")}${search}`} replace />
+}
+
 const router = createBrowserRouter([
   {
     Component: Shell,
@@ -25,6 +32,14 @@ const router = createBrowserRouter([
       { path: "batteries", lazy: async () => ({ Component: (await import("./pages/batteries")).default }) },
       {
         path: "batteries/:id",
+        Component: LegacyBatteryDetailRedirect,
+      },
+      {
+        path: "data-layer/batteries",
+        lazy: async () => ({ Component: (await import("./pages/data-layer-batteries")).default }),
+      },
+      {
+        path: "data-layer/batteries/:id",
         lazy: async () => ({ Component: (await import("./pages/battery-detail")).default }),
       },
       { path: "splits", lazy: async () => ({ Component: (await import("./pages/splits")).default }) },
