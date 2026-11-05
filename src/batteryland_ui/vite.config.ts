@@ -7,6 +7,7 @@ export default defineConfig({
     host: "0.0.0.0",
     proxy: {
       "/api": { target: process.env.VITE_PROXY_TARGET ?? "http://127.0.0.1:8000" },
+      "/data-layer": { target: process.env.VITE_PROXY_TARGET ?? "http://127.0.0.1:8000" },
     },
   },
   test: {

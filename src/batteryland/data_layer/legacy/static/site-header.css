@@ -1,0 +1,76 @@
+:root {
+  --data-layer-header-height: 82px;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--color-header);
+  color: var(--color-surface);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.site-header .header-inner {
+  box-sizing: border-box;
+  max-width: 1440px;
+  min-height: var(--data-layer-header-height);
+  margin: auto;
+  padding: 18px 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 25px;
+}
+
+.site-header .site-brand {
+  color: var(--color-surface);
+  text-decoration: none;
+  font-size: 22px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.site-header .site-brand span {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--color-border);
+  margin-left: 10px;
+}
+
+.site-header nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.site-header nav > a {
+  color: var(--color-border);
+  text-decoration: none;
+  font-weight: 650;
+  padding: 9px 15px;
+  border-radius: 8px;
+}
+
+.site-header nav > a[aria-current="page"],
+.site-header nav > a:hover {
+  background: var(--color-header-active);
+  color: var(--color-surface);
+}
+
+.site-header a:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 700px) {
+  .site-header .header-inner {
+    padding: 16px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+}

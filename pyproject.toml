@@ -7,6 +7,7 @@ dependencies = [
     "fastapi>=0.115,<1",
     "netron>=9,<10",
     "nvidia-ml-py>=13,<14",
+    "numpy>=2.3.3,<3",
     "psutil>=7,<8",
     "pydantic>=2.10,<3",
     "python-multipart>=0.0.20,<1",

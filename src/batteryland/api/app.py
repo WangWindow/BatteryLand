@@ -15,6 +15,7 @@ from batteryland.common.errors import DomainError
 from batteryland.components.routes import router as components_router
 from batteryland.config import Settings
 from batteryland.container import Container
+from batteryland.data_layer.web import create_data_layer_app
 from batteryland.datasets.catalog_status_routes import router as catalog_status_router
 from batteryland.datasets.logical_routes import router as logical_datasets_router
 from batteryland.datasets.routes import router as resources_router
@@ -121,6 +122,7 @@ def create_app(
     app.include_router(analysis_router)
     app.include_router(validated_experiments_router)
     app.include_router(training_router)
+    app.mount("/data-layer", create_data_layer_app(configuration))
 
     @app.get("/api/v1/health", response_model=Envelope[dict[str, str]], tags=["service"])
     def health() -> dict[str, object]:
