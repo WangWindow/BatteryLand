@@ -122,6 +122,21 @@ svg {
   width: 100%;
   justify-content: flex-start;
 }
+.data-layer-external-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  border-radius: 5px;
+  background: var(--bgColor-success-muted, #dafbe1);
+  color: var(--fgColor-success, #1a7f37);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+}
 .workspace {
   min-width: 0;
 }

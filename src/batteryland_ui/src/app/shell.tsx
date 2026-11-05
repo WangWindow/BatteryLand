@@ -72,9 +72,18 @@ export function Shell() {
                 <NavList.GroupHeading>{group.label}</NavList.GroupHeading>
                 {group.pages.map((page) =>
                   page.to.startsWith("/data-layer/") ? (
-                    <NavList.Item key={page.to} as="a" href={page.to}>
+                    <NavList.Item
+                      key={page.to}
+                      as="a"
+                      href={page.to}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="在新标签页打开数据层"
+                      aria-label={`${page.name}（数据层，在新标签页打开）`}
+                    >
                       <NavList.LeadingVisual><page.icon /></NavList.LeadingVisual>
                       {page.name}
+                      <span className="data-layer-external-mark" aria-hidden="true">↗</span>
                     </NavList.Item>
                   ) : (
                     <NavList.Item
