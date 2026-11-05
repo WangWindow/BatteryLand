@@ -28,7 +28,7 @@ ls -lh var/data-layer/catalog.sqlite3 var/data-layer/quality_flags.json \
 
 ## 启动与验证
 
-按 BatteryLand 原有方式启动后，从侧栏“数据”组进入三个页面，也可直接访问上述路径。开发服务器已代理 `/data-layer` 到同一后端，无须启动第二个公开站点。建议检查：
+在服务器项目根目录运行 `./scripts/run-batterylife-data-layer.sh`。这个演示入口固定使用已准备索引的 `var/data-layer/`、原始数据目录 `/data/BatteryLife_Processed`、网页端口 `15173` 和后端端口 `18000`，不受终端里旧的 `BATTERYLAND_DATA_DIR` 设置影响；按 Ctrl+C 关闭。启动前若索引缺失，会直接提示需要准备索引。浏览器访问 `http://222.195.7.189:15173`，从侧栏“数据”组进入三个页面；开发服务器已代理 `/data-layer` 到同一后端，无须启动第二个公开站点。建议检查：
 
 1. 详情页选择 `MATR_b4c0`，确认容量轨迹、Cycle 采样、选圈联动；用 `CALB_0_B183` 区分寿命标签与详细记录终点。
 2. 概览页确认桑基图、筛选与退化轨迹能读取当前索引。
