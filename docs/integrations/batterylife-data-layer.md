@@ -4,7 +4,7 @@
 
 BatteryLand 侧栏“数据”下的“电池详情”“数据概览”“多曲线对比”分别打开 `/data-layer/`、`/data-layer/overview`、`/data-layer/trends`。三页沿用 BatteryLife_Web 提交 `fa7c0ae` 的 HTML、CSS、图表和数据口径，页面资源和只读 API 通过 BatteryLand 同一站点提供。页面之间仍使用原 Web 导航；浏览器“返回”可回到 BatteryLand。
 
-本阶段没有数据导入页面，也没有注册导入接口。原有“电池目录”“数据划分”和实验流程保持原样。原始 `.pkl` 文件只读；索引、核验报告、交付清单和轨迹缓存写在 `BATTERYLAND_DATA_DIR/data-layer/`，默认 `var/data-layer/`。
+本阶段没有数据导入页面，也没有注册导入接口。原有“电池目录”“数据划分”和实验流程保持原样。原始 `.pkl` 文件只读；索引、核验报告、交付清单和轨迹缓存默认写在 `BATTERYLAND_DATA_DIR/data-layer/`。专用演示脚本通过 `BATTERYLAND_DATA_LAYER_CACHE_DIR` 使用已准备的 `var/data-layer/`，不改变平台其他状态文件的位置。
 
 ## 数据目录与首次准备
 
@@ -28,7 +28,7 @@ ls -lh var/data-layer/catalog.sqlite3 var/data-layer/quality_flags.json \
 
 ## 启动与验证
 
-在服务器项目根目录运行 `./scripts/run-batterylife-data-layer.sh`。这个演示入口固定使用已准备索引的 `var/data-layer/`、原始数据目录 `/data/BatteryLife_Processed`、网页端口 `15173` 和后端端口 `18000`，不受终端里旧的 `BATTERYLAND_DATA_DIR` 设置影响；按 Ctrl+C 关闭。启动前若索引缺失，会直接提示需要准备索引。浏览器访问 `http://222.195.7.189:15173`，从侧栏“数据”组进入三个页面；开发服务器已代理 `/data-layer` 到同一后端，无须启动第二个公开站点。建议检查：
+在服务器项目根目录运行 `./scripts/run-batterylife-data-layer.sh`。这个演示入口让数据层读取已准备的 `var/data-layer/` 索引，并把 `/data/BatteryLife_Processed` 加入现有数据来源；保留 BatteryLand 的 `BATTERYLAND_DATA_DIR` 和其他来源设置。默认网页端口为 `15173`、后端端口为 `18000`，可用原有环境变量覆盖；按 Ctrl+C 关闭。启动前若索引缺失，会直接提示需要准备索引。浏览器访问 `http://222.195.7.189:15173`（若修改了网页端口，则使用新端口），从侧栏“数据”组进入三个页面；开发服务器已代理 `/data-layer` 到同一后端，无须启动第二个公开站点。建议检查：
 
 1. 详情页选择 `MATR_b4c0`，确认容量轨迹、Cycle 采样、选圈联动；用 `CALB_0_B183` 区分寿命标签与详细记录终点。
 2. 概览页确认桑基图、筛选与退化轨迹能读取当前索引。

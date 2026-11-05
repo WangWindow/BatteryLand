@@ -21,9 +21,22 @@ if ! command -v bun >/dev/null 2>&1 && [[ -x "$local_bun/bun" ]]; then
   export PATH="$local_bun:$PATH"
 fi
 
-export BATTERYLAND_SOURCE_ROOTS='{"battery_life":"/data/BatteryLife_Processed"}'
-export BATTERYLAND_DATA_DIR="$project_root/var"
-export BATTERYLAND_BACKEND_PORT=18000
-export BATTERYLAND_UI_PORT=15173
+merged_source_roots="$(python3 -c '
+import json
+import os
+from pathlib import Path
+roots = json.loads(os.environ.get("BATTERYLAND_SOURCE_ROOTS", "{}"))
+if not isinstance(roots, dict):
+    raise SystemExit("BATTERYLAND_SOURCE_ROOTS must be a JSON object")
+source = "/data/BatteryLife_Processed"
+if "battery_life" in roots and Path(roots["battery_life"]).resolve() != Path(source).resolve():
+    raise SystemExit("battery_life source differs from the prepared data-layer catalog")
+roots.setdefault("battery_life", source)
+print(json.dumps(roots, ensure_ascii=False))
+')"
+export BATTERYLAND_SOURCE_ROOTS="$merged_source_roots"
+export BATTERYLAND_DATA_LAYER_CACHE_DIR="$project_root/var/data-layer"
+export BATTERYLAND_BACKEND_PORT="${BATTERYLAND_BACKEND_PORT:-18000}"
+export BATTERYLAND_UI_PORT="${BATTERYLAND_UI_PORT:-15173}"
 
 exec "$project_root/scripts/run.sh"

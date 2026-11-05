@@ -1,12 +1,13 @@
 """Serve the original BatteryLife browser on BatteryLand's own origin.
 
 Only the three read-only pages and their APIs are mounted. The processed data
-directory is read-only; generated catalog and audit files live under var.
+directory is read-only; generated catalog and audit files live in a separate cache.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -35,7 +36,8 @@ def create_data_layer_app(settings: Settings) -> FastAPI:
     """Mount a separate app so the legacy page keeps its API response format."""
     app = FastAPI(title="BatteryLife data layer", docs_url=None, redoc_url=None, openapi_url=None)
     root = settings.source_roots.get("battery_life")
-    cache = settings.data_dir / "data-layer"
+    configured_cache = os.environ.get("BATTERYLAND_DATA_LAYER_CACHE_DIR")
+    cache = Path(configured_cache).resolve() if configured_cache else settings.data_dir / "data-layer"
     index = cache / "catalog.sqlite3"
     quality = cache / "quality_flags.json"
     integrity = cache / "early_cycle_integrity.json"

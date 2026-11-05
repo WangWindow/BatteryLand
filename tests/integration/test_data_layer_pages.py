@@ -14,7 +14,7 @@ from batteryland.config import Settings
 from batteryland.data_layer.web import create_data_layer_app
 
 
-def test_data_layer_routes_and_catalog(tmp_path: Path) -> None:
+def test_data_layer_routes_and_catalog(tmp_path: Path, monkeypatch) -> None:
     source = tmp_path / "source"
     (source / "Life labels").mkdir(parents=True)
     (source / "MATR").mkdir()
@@ -74,3 +74,13 @@ def test_data_layer_routes_and_catalog(tmp_path: Path) -> None:
         assert client.post("/data-layer/api/intake/save", json={}).status_code == 404
     assert before == {path: path.stat().st_mtime_ns for path in source.rglob("*") if path.is_file()}
     assert (output / "data-layer" / "catalog.sqlite3").is_file()
+
+    # The platform may use a separate state directory while the data layer reuses its prepared cache.
+    monkeypatch.setenv("BATTERYLAND_DATA_LAYER_CACHE_DIR", str(output / "data-layer"))
+    separate_settings = Settings(
+        data_dir=tmp_path / "separate-platform-state",
+        source_roots={"battery_life": source},
+        auto_index_catalog=False,
+    )
+    with TestClient(create_data_layer_app(separate_settings)) as client:
+        assert client.get("/api/overview").json()["unique_cells"] == 1
