@@ -31,7 +31,7 @@
 
     <div class="selection-grid">
       <section class="panel" aria-labelledby="candidateTitle">
-        <div class="section-heading"><div><h2 id="candidateTitle">选择电池</h2><p>可按电池属性和已记录的测试条件缩小范围，再跨来源添加；候选列表可继续展开。</p></div></div>
+        <div class="section-heading"><div><h2 id="candidateTitle">选择电池</h2><p>可按电池属性和已记录的测试条件缩小范围，再跨来源添加；列表内可滚动查看全部匹配电池。</p></div></div>
         <div class="candidate-filters">
           <label>数据来源<select id="sourceFilter"><option value="">全部来源</option></select></label>
           <label>正极体系<select id="cathodeFilter"><option value="">全部体系</option></select></label>
@@ -54,7 +54,6 @@
         <div class="candidate-filter-actions"><button id="clearCandidateFilters" class="plain-button" type="button">清空候选筛选</button></div>
         <p id="candidateCount" class="filter-count">正在读取电池目录…</p>
         <div id="candidateList" class="candidate-list" aria-label="可添加的电池"></div>
-        <button id="showMoreCandidates" class="plain-button candidate-more" type="button" hidden>显示更多候选</button>
       </section>
 
       <section class="panel" aria-labelledby="selectedTitle">

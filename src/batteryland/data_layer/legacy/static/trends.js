@@ -12,7 +12,7 @@ const CANDIDATE_FILTER_IDS = ["sourceFilter", "cathodeFilter", "formFilter", "ca
 const state = {
   cells: [], selected: [], drawn: [], loading: false, unit: "relative", maxCycle: null,
   cache: new Map(), colors: new Map(), nextColor: 0, staleMessage: "", chart: null,
-  controller: null, highlightKey: null, candidateLimit: 40, importWarning: "",
+  controller: null, highlightKey: null, importWarning: "",
   catalogUnavailable: false,
 };
 
@@ -140,13 +140,12 @@ function renderCandidates() {
     (!chargeRate || String(singleStageRate(cell.charge_protocol)) === chargeRate) &&
     (!dischargeRate || String(singleStageRate(cell.discharge_protocol)) === dischargeRate) &&
     (!query || `${cell.source} ${cell.name}`.toLocaleLowerCase().includes(query)));
-  const visibleCount = Math.min(state.candidateLimit, matches.length);
-  $("candidateCount").textContent = `匹配 ${fmt(matches.length, 0)} 块电池，已显示 ${fmt(visibleCount, 0)} 块。`;
-  $("showMoreCandidates").hidden = visibleCount >= matches.length;
+  $("candidateCount").textContent = `当前筛选显示全部 ${fmt(matches.length, 0)} 块电池。`;
   const list = $("candidateList"), previousScroll = list.scrollTop; list.replaceChildren();
   if (!matches.length) { list.append(element("p", "empty-copy", "没有符合条件的电池。")); return; }
   const selectedKeys = new Set(state.selected.map(keyOf));
-  for (const cell of matches.slice(0, visibleCount)) {
+  const items = document.createDocumentFragment();
+  for (const cell of matches) {
     const item = element("div", "candidate-item");
     const copy = element("div", "candidate-copy");
     copy.append(element("strong", "", `${cell.source} / ${cellName(cell)}`));
@@ -156,8 +155,9 @@ function renderCandidates() {
     button.type = "button";
     button.disabled = state.loading || selectedKeys.has(keyOf(cell));
     button.addEventListener("click", () => addCell(cell));
-    item.append(copy, button); list.append(item);
+    item.append(copy, button); items.append(item);
   }
+  list.append(items);
   list.scrollTop = previousScroll;
 }
 
@@ -528,18 +528,12 @@ function applySettings(event) {
 async function init() {
   for (const id of CANDIDATE_FILTER_IDS)
     $(id).addEventListener(id === "cellSearch" ? "input" : "change", () => {
-      state.candidateLimit = 40;
       $("candidateList").scrollTop = 0;
       renderCandidates();
     });
   $("clearCandidateFilters").addEventListener("click", () => {
     for (const id of CANDIDATE_FILTER_IDS) $(id).value = "";
-    state.candidateLimit = 40;
     $("candidateList").scrollTop = 0;
-    renderCandidates();
-  });
-  $("showMoreCandidates").addEventListener("click", () => {
-    state.candidateLimit += 40;
     renderCandidates();
   });
   $("drawButton").addEventListener("click", drawSelected);

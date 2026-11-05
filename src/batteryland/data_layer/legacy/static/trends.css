@@ -11,7 +11,6 @@
 .candidate-filters label,.cycle-limit{display:flex;flex-direction:column;gap:7px;font-size:15px;font-weight:650;color:var(--color-heading)}
 .candidate-filters select,.candidate-filters input,.cycle-limit input{width:100%;min-width:0;border:1px solid var(--color-control-border);border-radius:8px;background:var(--color-surface);color:var(--color-text);padding:10px 12px}
 .candidate-list{max-height:370px;overflow:auto;border:1px solid var(--color-border);border-radius:10px}
-.candidate-more{margin-top:10px}
 .candidate-item,.selected-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 13px;border-bottom:1px solid var(--color-surface-soft)}
 .candidate-item:last-child,.selected-item:last-child{border-bottom:0}
 .candidate-item:hover{background:var(--color-surface-soft)}
