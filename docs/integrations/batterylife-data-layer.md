@@ -6,6 +6,12 @@ BatteryLand 侧栏“数据”下的“电池详情”“数据概览”“多�
 
 本阶段没有数据导入页面，也没有注册导入接口。原有“电池目录”“数据划分”和实验流程保持原样。原始 `.pkl` 文件只读；索引、核验报告、交付清单和轨迹缓存默认写在 `BATTERYLAND_DATA_DIR/data-layer/`。专用演示脚本通过 `BATTERYLAND_DATA_LAYER_CACHE_DIR` 使用已准备的 `var/data-layer/`，不改变平台其他状态文件的位置。
 
+## 页面样式
+
+三个数据层页面保留原有板块、布局、交互和曲线颜色。当前浅色样式只将共用顶栏改为白底，并将电池详情的选电池侧栏改为浅灰白底 `#f6f8fa`，同时调整这些区域内的文字、输入框和选中状态。其余内容区仍沿用原页面样式；数据层页面尚不随 BatteryLand 的浅色／深色主题切换。
+
+数据层样式集中在 `src/batteryland/data_layer/legacy/static/` 下的 `theme.css`、`site-header.css` 和 `styles.css`。这些修改不影响 BatteryLand 其他页面，也不改变图表数据或 `--chart-*` 配色变量。
+
 ## 数据目录与首次准备
 
 默认读取 `/data/BatteryLife_Processed`。若数据目录不同，启动前设置 `BATTERYLAND_SOURCE_ROOTS`，其中 `battery_life` 指向包含 `Life labels` 的原始数据目录。首次开放三页之前，在项目根目录运行：
@@ -29,6 +35,8 @@ ls -lh var/data-layer/catalog.sqlite3 var/data-layer/quality_flags.json \
 ## 启动与验证
 
 在服务器项目根目录运行 `./scripts/run-batterylife-data-layer.sh`。这个演示入口让数据层读取已准备的 `var/data-layer/` 索引，并把 `/data/BatteryLife_Processed` 加入现有数据来源；保留 BatteryLand 的 `BATTERYLAND_DATA_DIR` 和其他来源设置。默认网页端口为 `15173`、后端端口为 `18000`，可用原有环境变量覆盖；按 Ctrl+C 关闭。启动前若索引缺失，会直接提示需要准备索引。浏览器访问 `http://222.195.7.189:15173`（若修改了网页端口，则使用新端口），从侧栏“数据”组进入三个页面；开发服务器已代理 `/data-layer` 到同一后端，无须启动第二个公开站点。建议检查：
+
+如需同时保留旧版并预览新样式，应在不同代码目录分别启动，并为两套服务设置不同的网页和后端端口。页面版本由启动命令所在的代码目录决定；仅更换端口不会切换到另一版本。开发完成后关闭预览服务，再由验收人员按需启动。
 
 更新数据层页面或服务代码后重启服务。三页 HTML 不使用浏览器缓存，静态资源在使用前重新验证；从旧版本升级时，已有标签页仍需按 Ctrl+F5 强制刷新一次。
 
