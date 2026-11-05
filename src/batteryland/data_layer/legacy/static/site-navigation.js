@@ -8,7 +8,7 @@
 
   function makeLink(item) {
     const link = document.createElement("a");
-    link.href = config.routeUrl(item.key);
+    link.href = config.routes[item.key];
     link.textContent = item.label;
     if (currentPath === config.routes[item.key].replace(/\/$/, "")) link.setAttribute("aria-current", "page");
     return link;
@@ -24,7 +24,7 @@
 
   for (const target of document.querySelectorAll("[data-route]")) {
     const route = config.routes[target.dataset.route];
-    if (route) target.href = config.routeUrl(target.dataset.route);
+    if (route) target.href = route;
   }
   for (const target of document.querySelectorAll("[data-download]")) {
     const path = config.downloads[target.dataset.download];

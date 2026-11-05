@@ -13,9 +13,6 @@ import { ActionList, ActionMenu, BaseStyles, NavList } from "@primer/react"
 import { useTheme } from "@primer/react/next"
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
 
-// A new URL bypasses HTML cached before the data layer sent no-store headers.
-const dataLayerPageRevision = "20261105-1"
-
 const nav = [
   {
     label: "数据",
@@ -78,7 +75,7 @@ export function Shell() {
                     <NavList.Item
                       key={page.to}
                       as="a"
-                      href={`${page.to}?v=${dataLayerPageRevision}`}
+                      href={page.to}
                       target="_blank"
                       rel="noopener noreferrer"
                       title="在新标签页打开数据层"
