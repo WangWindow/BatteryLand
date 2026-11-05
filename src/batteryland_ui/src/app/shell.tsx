@@ -79,11 +79,11 @@ export function Shell() {
                       target="_blank"
                       rel="noopener noreferrer"
                       title="在新标签页打开数据层"
-                      aria-label={`${page.name}（数据层，在新标签页打开）`}
                     >
                       <NavList.LeadingVisual><page.icon /></NavList.LeadingVisual>
                       {page.name}
                       <span className="data-layer-external-mark" aria-hidden="true">↗</span>
+                      <span className="sr-only">（数据层，在新标签页打开）</span>
                     </NavList.Item>
                   ) : (
                     <NavList.Item
