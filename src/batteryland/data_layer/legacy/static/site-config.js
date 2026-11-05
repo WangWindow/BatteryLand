@@ -10,6 +10,8 @@
     overview: "/data-layer/overview",
     trends: "/data-layer/trends",
   });
+  // Existing browsers may still hold HTML cached before the no-store policy.
+  const pageRevision = "20261105-1";
 
   const api = freeze({
     catalog: "/data-layer/api/catalog",
@@ -96,7 +98,9 @@
     chartColors,
     routeUrl(name, params = {}) {
       if (!routes[name]) throw new Error(`未知页面地址：${name}`);
-      return appendQuery(routes[name], params);
+      const query = new URLSearchParams(params);
+      query.set("v", pageRevision);
+      return appendQuery(routes[name], query);
     },
     downloadUrl(name, params = {}) {
       if (!downloads[name]) throw new Error(`未知下载地址：${name}`);
