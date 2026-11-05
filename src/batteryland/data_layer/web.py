@@ -26,6 +26,8 @@ from .legacy.trajectory_service import TrajectoryCache
 LOGGER = logging.getLogger(__name__)
 STATIC = Path(__file__).resolve().parent / "legacy" / "static"
 PAGES = {"": "index.html", "overview": "overview.html", "trends": "trends.html"}
+PAGE_HEADERS = {"Cache-Control": "no-store"}
+ASSET_HEADERS = {"Cache-Control": "no-cache"}
 ASSETS = {
     "styles.css", "theme.css", "site-header.css", "site-config.js", "site-navigation.js", "app.js",
     "overview.css", "overview.js", "trajectory.js", "trends.css", "trends.js",
@@ -73,21 +75,21 @@ def create_data_layer_app(settings: Settings) -> FastAPI:
 
     @app.get("/")
     async def detail_page() -> FileResponse:
-        return FileResponse(STATIC / PAGES[""])
+        return FileResponse(STATIC / PAGES[""], headers=PAGE_HEADERS)
 
     @app.get("/overview")
     async def overview_page() -> FileResponse:
-        return FileResponse(STATIC / PAGES["overview"])
+        return FileResponse(STATIC / PAGES["overview"], headers=PAGE_HEADERS)
 
     @app.get("/trends")
     async def trends_page() -> FileResponse:
-        return FileResponse(STATIC / PAGES["trends"])
+        return FileResponse(STATIC / PAGES["trends"], headers=PAGE_HEADERS)
 
     @app.get("/{asset_name}")
     async def asset(asset_name: str) -> FileResponse:
         if asset_name not in ASSETS:
             raise HTTPException(404, "页面不存在")
-        return FileResponse(STATIC / asset_name)
+        return FileResponse(STATIC / asset_name, headers=ASSET_HEADERS)
 
     @app.get("/api/catalog")
     async def catalog() -> dict:
