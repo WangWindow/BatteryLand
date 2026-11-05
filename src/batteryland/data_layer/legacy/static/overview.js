@@ -32,6 +32,7 @@ let lastAppliedFilters = null;
 let searchBurst = false;
 let flowControlsRenderToken = 0;
 let selectedCompare = [];
+let catalogUnavailable = false;
 const FILTER_HISTORY_LIMIT = 30;
 const compareKey = (cell) => `${cell.source}\u0000${cell.name}`;
 
@@ -40,6 +41,15 @@ const fmt = (value) => Number(value).toLocaleString("zh-CN", { maximumFractionDi
 function showStatus(message) {
   $("status").textContent = message;
   $("status").hidden = !message;
+}
+
+function showCatalogFailure(message) {
+  catalogUnavailable = true;
+  showStatus(`${message} 请联系管理员核对数据层目录索引；索引就绪后刷新页面。`);
+  $("flowFilterStatus").textContent = "电池目录未就绪";
+  $("filterCount").textContent = "电池目录未就绪，暂无法筛选。";
+  $("trajectoryProgress").textContent = "电池目录未就绪，暂无法绘制轨迹。";
+  renderFlow();
 }
 
 function addOptions(select, values) {
@@ -459,11 +469,13 @@ function renderFlow() {
   const margin = Math.min(150, Math.max(70, width * .105));
   const step = (width - margin * 2) / (dimensions.length - 1);
   svg.setAttribute("aria-label", `${dimensions.map((dimension) => dimension.label).join("、")}的电池组成桑基图`);
-  $("flowDescription").textContent = `${dimensions.map((dimension) => dimension.label).join(" → ")}；当前统计 ${fmt(filtered.length)} 块电池。`;
+  $("flowDescription").textContent = catalogUnavailable ? "目录索引就绪后显示电池数据组成。" :
+    `${dimensions.map((dimension) => dimension.label).join(" → ")}；当前统计 ${fmt(filtered.length)} 块电池。`;
   if (!filtered.length) {
     svg.setAttribute("viewBox", `0 0 ${width} 150`);
     svg.style.height = "150px";
-    svg.append(svgElement("text", { x: width / 2, y: 80, "text-anchor": "middle", class: "flow-label" }, "没有符合条件的电池"));
+    svg.append(svgElement("text", { x: width / 2, y: 80, "text-anchor": "middle", class: "flow-label" },
+      catalogUnavailable ? "电池目录未就绪" : "没有符合条件的电池"));
     return;
   }
   const valueOf = (cell, field) => String(cell[field] ?? "未提供");
@@ -630,7 +642,7 @@ async function init() {
     const response = await fetch(SITE.api.overview);
     if (!response.ok) throw new Error(`请求失败：${response.status}`);
     const data = await response.json();
-    if (!data.ready) { showStatus(data.message); return; }
+    if (!data.ready) { showCatalogFailure(data.message); return; }
     allCells = data.cells;
     window.TrajectoryOverview?.init(allCells);
     const notices = [];
@@ -653,7 +665,7 @@ async function init() {
       ["0～100%", "20～80%", "其他固定区间", "百分制待核对", "未提供", "其他/待核对"]);
     update();
     loadDeliveryStatus();
-  } catch (error) { showStatus(`读取数据总览失败：${error.message}`); }
+  } catch (error) { showCatalogFailure(`读取数据总览失败：${error.message}`); }
 }
 
 init();

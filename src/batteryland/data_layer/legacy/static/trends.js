@@ -13,6 +13,7 @@ const state = {
   cells: [], selected: [], drawn: [], loading: false, unit: "relative", maxCycle: null,
   cache: new Map(), colors: new Map(), nextColor: 0, staleMessage: "", chart: null,
   controller: null, highlightKey: null, candidateLimit: 40, importWarning: "",
+  catalogUnavailable: false,
 };
 
 const keyOf = (cell) => `${cell.source}\u0000${cell.name}`;
@@ -368,7 +369,7 @@ function renderChart() {
   svg.replaceChildren(); $("chartTooltip").hidden = true; state.chart = null;
   prepareCanvas(width, height);
   if (!state.drawn.length) {
-    chartText(svg, width, height, "选择电池并点击“绘制曲线”");
+    chartText(svg, width, height, state.catalogUnavailable ? "电池目录未就绪" : "选择电池并点击“绘制曲线”");
     renderLegend([]);
     $("chartNote").textContent = "跨来源比较时，建议使用各自首个有效放电容量归一化；原有寿命标签不会用于对齐曲线。";
     return;
@@ -574,7 +575,14 @@ async function init() {
     const response = await fetch(SITE.api.overview);
     if (!response.ok) throw new Error(`目录请求失败：${response.status}`);
     const data = await response.json();
-    if (!data.ready) { showStatus(data.message, "warning"); $("indexedAt").textContent = "目录未就绪"; return; }
+    if (!data.ready) {
+      state.catalogUnavailable = true;
+      showStatus(`${data.message} 请联系管理员核对数据层目录索引；索引就绪后刷新页面。`, "warning");
+      $("indexedAt").textContent = "目录未就绪";
+      $("candidateCount").textContent = "电池目录未就绪，暂无法选择电池。";
+      renderChart();
+      return;
+    }
     state.cells = data.cells;
     if (data.needs_refresh) state.staleMessage = "目录文件已变化。当前仍显示上次索引；请联系管理员更新数据层目录索引。";
     $("indexedAt").textContent = `目录核查时间：${new Date(data.indexed_at).toLocaleString("zh-CN")}`;
@@ -606,7 +614,13 @@ async function init() {
     showStatus(imported ? state.selected.length ? `已从数据总览加入 ${state.selected.length} 块电池，正在绘图。` : "没有可绘制的电池。" :
       initial ? "已加入一块电池，可继续添加后绘制。" : "");
     if (imported && state.selected.length) drawSelected();
-  } catch (error) { showStatus(`读取电池目录失败：${error.message}`, "warning"); }
+  } catch (error) {
+    state.catalogUnavailable = true;
+    showStatus(`读取电池目录失败：${error.message} 请联系管理员检查服务，恢复后刷新页面。`, "warning");
+    $("indexedAt").textContent = "目录读取失败";
+    $("candidateCount").textContent = "电池目录读取失败，暂无法选择电池。";
+    renderChart();
+  }
 }
 
 init();

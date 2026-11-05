@@ -22,6 +22,8 @@ ls -lh var/data-layer/catalog.sqlite3 var/data-layer/quality_flags.json \
   var/data-layer/early_cycle_integrity.json var/data-layer/delivery_manifest.json
 ```
 
+`scripts/run.sh` 不会自动执行上述数据层准备命令；BatteryLand 原有的电池目录自动扫描也不会生成这里的 `catalog.sqlite3`。若页面提示“数据目录索引尚未建立”，先确认启动服务和运行准备命令时使用相同的 `BATTERYLAND_DATA_DIR` 与 `BATTERYLAND_SOURCE_ROOTS`。例如服务使用 `BATTERYLAND_DATA_DIR=/srv/batteryland-var` 时，准备命令也应带上相同环境变量；索引应位于 `/srv/batteryland-var/data-layer/catalog.sqlite3`。若提示“索引对应另一份数据目录”，还需核对 `battery_life` 指向的原始数据根目录。索引就绪后刷新数据概览或多曲线对比页即可。
+
 轨迹缓存 `trajectory_cache.sqlite3` 在首次打开数据概览后于后台逐块生成；完成的结果可在下次启动复用。准备和轨迹生成都不会向原始数据目录写入文件。
 
 ## 启动与验证
