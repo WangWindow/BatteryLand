@@ -6,20 +6,18 @@
 
   const currentPath = location.pathname.replace(/\/$/, "") || "/";
 
-  function makeLink(item, variant) {
+  function makeLink(item) {
     const link = document.createElement("a");
     link.href = config.routes[item.key];
     link.textContent = item.label;
-    if (variant === "detail") link.className = `overview-link${item.key === "detail" ? "" : " secondary"}`;
     if (currentPath === config.routes[item.key].replace(/\/$/, "")) link.setAttribute("aria-current", "page");
     return link;
   }
 
   function renderNavigation(target) {
-    const variant = target.dataset.variant === "detail" ? "detail" : "standard";
     target.replaceChildren();
 
-    for (const item of config.navigation.primary) target.append(makeLink(item, variant));
+    for (const item of config.navigation.primary) target.append(makeLink(item));
   }
 
   for (const target of document.querySelectorAll("[data-site-navigation]")) renderNavigation(target);

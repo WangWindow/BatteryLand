@@ -4,13 +4,6 @@ body{margin:0}
 button,input,select{font:inherit}
 button,a,select,input{outline-offset:3px}
 button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--color-focus)}
-.site-header{background:var(--color-header);color:var(--color-surface)}
-.header-inner{max-width:1440px;margin:auto;padding:18px 30px;display:flex;align-items:center;justify-content:space-between;gap:25px}
-.brand{color:var(--color-surface);text-decoration:none;font-size:22px;font-weight:750;white-space:nowrap}
-.brand span{font-size:16px;font-weight:500;color:var(--color-border);margin-left:10px}
-nav{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-nav>a{color:var(--color-border);text-decoration:none;font-weight:650;padding:9px 15px;border-radius:8px}
-nav>a[aria-current=page],nav>a:hover{background:var(--color-header-active);color:var(--color-surface)}
 .page{max-width:1440px;margin:auto;padding:30px 30px 60px}
 h2,p{margin-top:0}
 .status{background:var(--color-warning-bg);color:var(--color-warning-text);border:1px solid var(--color-warning-border);padding:13px 16px;border-radius:10px;margin:0 0 18px;font-size:16px}
@@ -129,5 +122,5 @@ td a:hover{text-decoration:underline}
 .delivery-actions .plain-button[hidden]{display:none}
 .delivery-status{font-size:16px;color:var(--color-muted);margin:0}
 @media(max-width:1100px){.filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:700px){.header-inner{padding:16px;align-items:flex-start;flex-direction:column;gap:10px}.page{padding:22px 14px 40px}.panel{padding:18px 15px}.section-heading{flex-wrap:wrap}.filter-dialog{padding:20px}.filter-dialog .filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.search-label{grid-column:1/-1}.stat{padding:15px;min-height:118px}.stat strong{font-size:27px}.pagination{flex-wrap:wrap}}
+@media(max-width:700px){.page{padding:22px 14px 40px}.panel{padding:18px 15px}.section-heading{flex-wrap:wrap}.filter-dialog{padding:20px}.filter-dialog .filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.search-label{grid-column:1/-1}.stat{padding:15px;min-height:118px}.stat strong{font-size:27px}.pagination{flex-wrap:wrap}}
 @media(max-width:420px){.filter-dialog .filter-grid{grid-template-columns:1fr}}

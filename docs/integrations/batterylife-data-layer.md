@@ -2,7 +2,7 @@
 
 ## 范围
 
-BatteryLand 侧栏“数据”下的“电池详情”“数据概览”“多曲线对比”分别打开 `/data-layer/`、`/data-layer/overview`、`/data-layer/trends`。三页沿用 BatteryLife_Web 提交 `fa7c0ae` 的 HTML、CSS、图表和数据口径，页面资源和只读 API 通过 BatteryLand 同一站点提供。页面之间仍使用原 Web 导航；浏览器“返回”可回到 BatteryLand。
+BatteryLand 侧栏“数据”下的“电池详情”“数据概览”“多曲线对比”分别打开 `/data-layer/`、`/data-layer/overview`、`/data-layer/trends`。三页沿用 BatteryLife_Web 提交 `fa7c0ae` 的图表和数据口径，页面资源和只读 API 通过 BatteryLand 同一站点提供。三个数据层页面使用统一的 BatteryLand 顶栏与页面导航；点击顶栏品牌返回 BatteryLand 电池目录 `/batteries`。详情页的选电池侧栏和图表内容均从顶栏下方开始。
 
 本阶段没有数据导入页面，也没有注册导入接口。原有“电池目录”“数据划分”和实验流程保持原样。原始 `.pkl` 文件只读；索引、核验报告、交付清单和轨迹缓存默认写在 `BATTERYLAND_DATA_DIR/data-layer/`。专用演示脚本通过 `BATTERYLAND_DATA_LAYER_CACHE_DIR` 使用已准备的 `var/data-layer/`，不改变平台其他状态文件的位置。
 

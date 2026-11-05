@@ -27,7 +27,7 @@ LOGGER = logging.getLogger(__name__)
 STATIC = Path(__file__).resolve().parent / "legacy" / "static"
 PAGES = {"": "index.html", "overview": "overview.html", "trends": "trends.html"}
 ASSETS = {
-    "styles.css", "theme.css", "site-config.js", "site-navigation.js", "app.js",
+    "styles.css", "theme.css", "site-header.css", "site-config.js", "site-navigation.js", "app.js",
     "overview.css", "overview.js", "trajectory.js", "trends.css", "trends.js",
 }
 

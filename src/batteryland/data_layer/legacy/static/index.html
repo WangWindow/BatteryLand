@@ -4,17 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#2f2a26">
-  <title>BatteryLife · 电池数据浏览器</title>
+  <title>电池详情 · BatteryLand</title>
   <link rel="stylesheet" href="/data-layer/theme.css">
+  <link rel="stylesheet" href="/data-layer/site-header.css">
   <link rel="stylesheet" href="/data-layer/styles.css">
 </head>
 <body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="site-brand" href="/batteries">BatteryLand <span>电池数据平台</span></a>
+      <nav data-site-navigation aria-label="页面导航"></nav>
+    </div>
+  </header>
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark"><span></span><span></span><span></span></div>
-        <div><strong>BatteryLife</strong><small>电池数据浏览器</small></div>
-      </div>
       <div class="sidebar-section">
         <label for="sourceSelect">数据来源</label>
         <select id="sourceSelect" aria-label="选择数据来源"></select>
@@ -42,10 +45,7 @@
           <h1>电池寿命与循环数据</h1>
           <p>查看容量变化、寿命标签和单个 cycle 的充放电记录。</p>
         </div>
-        <div class="page-header-links">
-          <nav class="page-navigation" data-site-navigation data-variant="detail" aria-label="页面导航"></nav>
-          <div id="datasetBadge" class="dataset-badge">服务器数据集</div>
-        </div>
+        <div id="datasetBadge" class="dataset-badge">服务器数据集</div>
       </header>
 
       <div id="notice" class="notice" role="status" hidden></div>
