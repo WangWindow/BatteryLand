@@ -7,7 +7,8 @@
   top: 0;
   z-index: 20;
   background: var(--color-header);
-  color: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: inset 0 -1px 0 var(--color-border);
   font-family: var(--font-ui);
   font-size: 16px;
   line-height: 1.55;
@@ -26,7 +27,7 @@
 }
 
 .site-header .site-brand {
-  color: var(--color-surface);
+  color: var(--color-text);
   text-decoration: none;
   font-size: 22px;
   font-weight: 750;
@@ -36,7 +37,7 @@
 .site-header .site-brand span {
   font-size: 16px;
   font-weight: 500;
-  color: var(--color-border);
+  color: var(--color-muted);
   margin-left: 10px;
 }
 
@@ -48,7 +49,7 @@
 }
 
 .site-header nav > a {
-  color: var(--color-border);
+  color: var(--color-muted);
   text-decoration: none;
   font-weight: 650;
   padding: 9px 15px;
@@ -58,7 +59,7 @@
 .site-header nav > a[aria-current="page"],
 .site-header nav > a:hover {
   background: var(--color-header-active);
-  color: var(--color-surface);
+  color: var(--color-link);
 }
 
 .site-header a:focus-visible {
