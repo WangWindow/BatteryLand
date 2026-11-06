@@ -2,9 +2,15 @@ import { Button, FormControl, Select } from "@primer/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useMemo, useState } from "react"
 import { api } from "../api/client"
-import type { DomainShiftAnalysis, DomainShiftConfig, DomainShiftDistribution } from "../api/types"
+import type {
+  DomainShiftAnalysis,
+  DomainShiftConfig,
+  DomainShiftDistribution,
+  DomainShiftFeatureSource,
+} from "../api/types"
 import { ChartView, type ViewChart } from "../components/chart-view"
 import { Empty, ErrorNotice, Loading, PageHeader } from "../components/common"
+import { ModelEmbeddingResults } from "../features/domain-shift/model-embedding"
 
 type Tab = "overview" | "space" | "shift" | "distribution"
 type SourceOption = { id: string; name: string; available_battery_count: number }
@@ -146,29 +152,69 @@ function distributionBoxChart(result: DomainShiftDistribution): ViewChart {
   }
 }
 
-function distributionTrendChart(result: DomainShiftDistribution): ViewChart {
-  return {
-    id: `distribution-trend-${result.feature}`,
-    title: `${result.feature} 随循环次数的变化`,
-    kind: "scatter",
-    x_axis: { label: "循环次数", value_type: "number", unit: null },
-    y_axis: { label: "特征值", value_type: "number", unit: null },
-    series: result.trend_series.map((series) => ({
-      id: series.key,
-      label: series.label,
-      points: series.points,
-    })),
-    legendRight: true,
-    pointSize: 4,
-    warnings: [],
-  }
-}
-
 export default function DomainShiftPage() {
   const queryClient = useQueryClient()
   const sources = useQuery({ queryKey: ["sources"], queryFn: ({ signal }) => api.sources(signal) })
   const [sourceIds, setSourceIds] = useState<string[]>([])
   const [targetIds, setTargetIds] = useState<string[]>([])
+  const [featureSpace, setFeatureSpace] = useState<"physical" | "model">("physical")
+  const [modelSource, setModelSource] = useState<"direct" | "experiment">("experiment")
+  const [modelType, setModelType] = useState("")
+  const [parametersText, setParametersText] = useState("{}")
+  const [initializationSeed, setInitializationSeed] = useState(42)
+  const [experimentId, setExperimentId] = useState("")
+  const [checkpointId, setCheckpointId] = useState("")
+  const [batchSize, setBatchSize] = useState(32)
+  const [device, setDevice] = useState("cpu")
+  const models = useQuery({
+    queryKey: ["domain-shift-models"],
+    queryFn: ({ signal }) => api.domainShiftModels(signal),
+    enabled: featureSpace === "model" && modelSource === "experiment",
+  })
+  const architectures = useQuery({
+    queryKey: ["domain-shift-architectures"],
+    queryFn: ({ signal }) => api.domainShiftArchitectures(signal),
+    enabled: featureSpace === "model" && modelSource === "direct",
+  })
+  const parsedParameters = useMemo(() => {
+    try {
+      const value: unknown = JSON.parse(parametersText)
+      if (!value || typeof value !== "object" || Array.isArray(value)) return null
+      return value as Record<string, unknown>
+    } catch {
+      return null
+    }
+  }, [parametersText])
+  const selectedArchitecture = architectures.data?.find((item) => item.model_type === modelType)
+  const missingParameters = (selectedArchitecture?.required_parameters ?? []).filter(
+    (key) => parsedParameters?.[key] === undefined || parsedParameters?.[key] === null,
+  )
+  const selectedModel = models.data?.find((item) => item.experiment_id === experimentId)
+  const selectedCheckpoint = selectedModel?.checkpoints.find((item) => item.id === checkpointId)
+  const seedValid =
+    Number.isInteger(initializationSeed) && initializationSeed >= 0 && initializationSeed <= 99999
+  const modelReady =
+    featureSpace === "physical" ||
+    (modelSource === "direct"
+      ? Boolean(selectedArchitecture?.supported && parsedParameters && !missingParameters.length && seedValid)
+      : Boolean(selectedCheckpoint?.supported))
+  const context = useMemo<DomainShiftFeatureSource>(
+    () => ({
+      feature_space: featureSpace,
+      model:
+        featureSpace === "model"
+          ? modelSource === "direct"
+            ? {
+                model_type: modelType,
+                parameters: parsedParameters ?? {},
+                initialization_seed: initializationSeed,
+                layer: "embedding",
+              }
+            : { experiment_id: experimentId, checkpoint_id: checkpointId, layer: "embedding" }
+          : null,
+    }),
+    [featureSpace, modelSource, modelType, parsedParameters, initializationSeed, experimentId, checkpointId],
+  )
   const [stride, setStride] = useState(1)
   const [maxCycles, setMaxCycles] = useState(200)
   const [minimumCoverage, setMinimumCoverage] = useState(0.5)
@@ -178,7 +224,12 @@ export default function DomainShiftPage() {
   const [pointsPerDataset, setPointsPerDataset] = useState(3000)
   const [workers, setWorkers] = useState(4)
   const [seed, setSeed] = useState(42)
-  const [jobId, setJobId] = useState("")
+  const [projectionMethod, setProjectionMethod] = useState<"tsne" | "pca">("tsne")
+  const [poolDim, setPoolDim] = useState(64)
+  const [pcaDim, setPcaDim] = useState(50)
+  const [perplexity, setPerplexity] = useState(30)
+  const [tsneIterations, setTsneIterations] = useState(1000)
+  const [activeJob, setActiveJob] = useState<{ id: string; key: string } | null>(null)
   const [tab, setTab] = useState<Tab>("overview")
   const [feature, setFeature] = useState("")
   const [groupBy, setGroupBy] = useState<"dataset" | "domain">("dataset")
@@ -188,6 +239,7 @@ export default function DomainShiftPage() {
   const selected = useMemo(() => [...new Set([...sourceIds, ...targetIds])], [sourceIds, targetIds])
   const config = useMemo<DomainShiftConfig>(
     () => ({
+      ...context,
       source_ids: sourceIds,
       target_ids: targetIds,
       stride,
@@ -199,17 +251,48 @@ export default function DomainShiftPage() {
       seed,
       points_per_dataset: pointsPerDataset,
       pca_fit: pcaFit,
+      ...(featureSpace === "model"
+        ? {
+            projection_method: projectionMethod,
+            pool_dim: poolDim,
+            pca_dim: pcaDim,
+            tsne_perplexity: perplexity,
+            tsne_iterations: tsneIterations,
+          }
+        : {}),
     }),
-    [sourceIds, targetIds, stride, maxCycles, minimumCoverage, level, seed, pointsPerDataset, pcaFit],
+    [
+      context,
+      sourceIds,
+      targetIds,
+      stride,
+      maxCycles,
+      minimumCoverage,
+      level,
+      seed,
+      pointsPerDataset,
+      pcaFit,
+      featureSpace,
+      projectionMethod,
+      poolDim,
+      pcaDim,
+      perplexity,
+      tsneIterations,
+    ],
   )
   const cache = useQuery({
-    queryKey: ["domain-shift-cache", selected, stride],
-    queryFn: () => api.domainShiftCacheStatus(selected, stride),
-    enabled: selected.length > 0,
+    queryKey: ["domain-shift-cache", selected, stride, context],
+    queryFn: () => api.domainShiftCacheStatus(selected, stride, context),
+    enabled: selected.length > 0 && modelReady,
   })
+  const buildKey = JSON.stringify({ context, selected, stride })
+  const jobId = activeJob?.key === buildKey ? activeJob.id : ""
   const build = useMutation({
-    mutationFn: () => api.startDomainShiftBuild(selected, stride, workers),
-    onSuccess: (job) => setJobId(job.id),
+    mutationFn: (_requestKey: string) =>
+      api.startDomainShiftBuild(selected, stride, workers, { ...context, batch_size: batchSize, device }),
+    onSuccess: (job, requestKey) => {
+      if (requestKey === buildKey) setActiveJob({ id: job.id, key: requestKey })
+    },
   })
   const job = useQuery({
     queryKey: ["domain-shift-job", jobId],
@@ -226,28 +309,57 @@ export default function DomainShiftPage() {
     }
   }, [job.data, queryClient])
   const analyze = useMutation({
-    mutationFn: (override?: DomainShiftConfig) => api.domainShiftAnalysis(override ?? config),
+    mutationFn: (body: DomainShiftConfig) => api.domainShiftAnalysis(body),
   })
+  const result = JSON.stringify(analyze.variables) === JSON.stringify(config) ? analyze.data : undefined
   useEffect(() => {
-    if (analyze.data?.features.length && !analyze.data.features.some((item) => item.name === feature)) {
-      setFeature(analyze.data.features[0].name)
+    if (result?.features.length && !result.features.some((item) => item.name === feature)) {
+      setFeature(result.features[0].name)
     }
-  }, [analyze.data, feature])
+  }, [result, feature])
   const distribution = useQuery({
     queryKey: ["domain-shift-distribution", config, feature, groupBy, bins, clip],
     queryFn: () => api.domainShiftDistribution({ ...config, feature, group_by: groupBy, bins, clip }),
-    enabled: Boolean(analyze.data && feature && tab === "distribution"),
+    enabled: Boolean(featureSpace === "physical" && result && feature && tab === "distribution"),
   })
   const sourceOptions = sources.data?.items ?? []
-  const ready = Boolean(sourceIds.length && targetIds.length && cache.data?.missing_files === 0)
+  const jobRunning = Boolean(job.data && ["queued", "running"].includes(job.data.state))
+  const projectionValid =
+    Number.isInteger(poolDim) &&
+    poolDim >= 0 &&
+    poolDim !== 1 &&
+    poolDim <= 4096 &&
+    Number.isInteger(pcaDim) &&
+    pcaDim >= 2 &&
+    pcaDim <= 256 &&
+    Number.isFinite(perplexity) &&
+    perplexity >= 1 &&
+    perplexity <= 100 &&
+    Number.isInteger(tsneIterations) &&
+    tsneIterations >= 250 &&
+    tsneIterations <= 5000
+  const ready = Boolean(
+    modelReady &&
+      (featureSpace === "physical" || projectionValid) &&
+      sourceIds.length &&
+      targetIds.length &&
+      cache.data?.missing_files === 0 &&
+      !jobRunning,
+  )
   const error =
-    sources.error ?? cache.error ?? build.error ?? job.error ?? analyze.error ?? distribution.error
+    sources.error ??
+    (featureSpace === "model" ? (modelSource === "direct" ? architectures.error : models.error) : null) ??
+    cache.error ??
+    build.error ??
+    job.error ??
+    analyze.error ??
+    distribution.error
 
   return (
     <>
       <PageHeader
         title="电池域差异分析"
-        description="比较源域与目标域的循环级物理特征分布，支持 PCA、Wasserstein 距离和单特征分布分析。"
+        description="比较电池统计与物理机理特征，或使用实验模型 embedding 观察源域和目标域的接近程度。"
       />
       <ErrorNotice error={error} />
       {sources.isPending ? (
@@ -259,6 +371,194 @@ export default function DomainShiftPage() {
               <h2>分析设置</h2>
               <span className="subtle">源域和目标域均可多选</span>
             </div>
+            <FormControl>
+              <FormControl.Label>特征来源</FormControl.Label>
+              <Select
+                aria-label="特征来源"
+                value={featureSpace}
+                onChange={(event) => {
+                  const value = event.target.value as "physical" | "model"
+                  setFeatureSpace(value)
+                  setLevel(value === "model" ? "cell" : "cycle")
+                  setTab("overview")
+                }}
+              >
+                <Select.Option value="physical">统计与物理机理特征</Select.Option>
+                <Select.Option value="model">模型特征</Select.Option>
+              </Select>
+            </FormControl>
+            {featureSpace === "model" && (
+              <section className="domain-model-settings">
+                <FormControl>
+                  <FormControl.Label>模型来源</FormControl.Label>
+                  <Select
+                    aria-label="模型来源"
+                    value={modelSource}
+                    onChange={(event) => setModelSource(event.target.value as "direct" | "experiment")}
+                  >
+                    <Select.Option value="experiment">加载已完成实验权重</Select.Option>
+                    <Select.Option value="direct">直接选择模型（随机初始化）</Select.Option>
+                  </Select>
+                </FormControl>
+                {modelSource === "direct" ? (
+                  <>
+                    <FormControl>
+                      <FormControl.Label>模型</FormControl.Label>
+                      <Select
+                        aria-label="模型"
+                        value={modelType}
+                        onChange={(event) => {
+                          setModelType(event.target.value)
+                          const item = architectures.data?.find(
+                            (option) => option.model_type === event.target.value,
+                          )
+                          setParametersText(JSON.stringify(item?.parameters ?? {}, null, 2))
+                        }}
+                      >
+                        <Select.Option value="">
+                          {architectures.isPending ? "加载模型…" : "选择模型"}
+                        </Select.Option>
+                        {architectures.data?.map((item) => (
+                          <Select.Option
+                            key={item.model_type}
+                            value={item.model_type}
+                            disabled={!item.supported}
+                          >
+                            {item.model_type}
+                            {item.supported ? "" : "（暂不支持特征提取）"}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    {architectures.data?.length === 0 && (
+                      <p className="subtle">BatteryLife 源码中暂无模型。</p>
+                    )}
+                    {selectedArchitecture?.reason && <p className="danger">{selectedArchitecture.reason}</p>}
+                    {modelType && (
+                      <FormControl>
+                        <FormControl.Label>模型参数（JSON）</FormControl.Label>
+                        <textarea
+                          aria-label="模型参数"
+                          rows={10}
+                          value={parametersText}
+                          onChange={(event) => setParametersText(event.target.value)}
+                          style={{ width: "100%", boxSizing: "border-box" }}
+                        />
+                        {!parsedParameters && <p className="danger">请输入有效的 JSON 对象。</p>}
+                        {parsedParameters && missingParameters.length > 0 && (
+                          <p className="danger">请填写必需模型参数：{missingParameters.join("、")}</p>
+                        )}
+                        <p className="subtle">
+                          默认值来自模型源码的运行入口及平台配置，窗口参数可调整；必需参数不能留空。
+                        </p>
+                      </FormControl>
+                    )}
+                    <FormControl>
+                      <FormControl.Label>初始化种子</FormControl.Label>
+                      <input
+                        aria-label="初始化种子"
+                        type="number"
+                        min={0}
+                        max={99999}
+                        value={initializationSeed}
+                        onChange={(event) => setInitializationSeed(Number(event.target.value))}
+                      />
+                      {!seedValid && <p className="danger">初始化种子须为 0 到 99999 的整数。</p>}
+                    </FormControl>
+                    <p className="subtle">
+                      无需创建实验或训练。使用随机初始化权重，源域和目标域共用同一模型；结果表示模型结构对数据的映射。
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <FormControl>
+                      <FormControl.Label>已完成实验</FormControl.Label>
+                      <Select
+                        aria-label="已完成实验"
+                        value={experimentId}
+                        onChange={(event) => {
+                          setExperimentId(event.target.value)
+                          const item = models.data?.find(
+                            (option) => option.experiment_id === event.target.value,
+                          )
+                          setCheckpointId(
+                            item?.checkpoints.find((checkpoint) => checkpoint.supported)?.id ??
+                              item?.checkpoints[0]?.id ??
+                              "",
+                          )
+                        }}
+                      >
+                        <Select.Option value="">
+                          {models.isPending ? "加载已完成实验…" : "选择实验"}
+                        </Select.Option>
+                        {models.data?.map((item) => (
+                          <Select.Option key={item.experiment_id} value={item.experiment_id}>
+                            {item.name}
+                            {item.model_type ? ` · ${item.model_type}` : ""}
+                            {` · ${item.experiment_id}`}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <FormControl>
+                      <FormControl.Label>权重文件</FormControl.Label>
+                      <Select
+                        aria-label="权重文件"
+                        value={checkpointId}
+                        onChange={(event) => setCheckpointId(event.target.value)}
+                        disabled={!selectedModel}
+                      >
+                        <Select.Option value="">选择权重</Select.Option>
+                        {selectedModel?.checkpoints.map((item) => (
+                          <Select.Option key={item.id} value={item.id}>
+                            {item.name}
+                            {item.run_id ? ` · ${item.run_id}` : ""}
+                            {item.supported ? "" : "（不可用）"}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    {selectedModel && <p className="subtle">实验编号：{selectedModel.experiment_id}</p>}
+                    {selectedCheckpoint && (
+                      <div style={{ overflowWrap: "anywhere" }}>
+                        <p>运行编号：{selectedCheckpoint.run_id ?? "未登记运行编号"}</p>
+                        <p>
+                          权重路径：<code>{selectedCheckpoint.relative_path}</code>
+                        </p>
+                      </div>
+                    )}
+                    {selectedCheckpoint?.reason && <p className="danger">{selectedCheckpoint.reason}</p>}
+                    {!models.isPending && models.data?.length === 0 && (
+                      <p className="subtle">暂无已完成实验。</p>
+                    )}
+                    {selectedModel && selectedModel.checkpoints.length === 0 && (
+                      <p className="subtle">
+                        未找到完整权重文件，请检查该实验的 runs/运行编号/checkpoint 目录。
+                      </p>
+                    )}
+                    <p className="subtle">加载实验保存的模型权重；源域与目标域共用同一模型提取 embedding。</p>
+                  </>
+                )}
+                <p className="subtle">特征层：模型原生 embedding。每个样本是从首循环开始的早期循环窗口。</p>
+                <FormControl>
+                  <FormControl.Label>推理批大小</FormControl.Label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={512}
+                    value={batchSize}
+                    onChange={(event) => setBatchSize(Number(event.target.value))}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormControl.Label>推理设备</FormControl.Label>
+                  <Select value={device} onChange={(event) => setDevice(event.target.value)}>
+                    <Select.Option value="cpu">CPU</Select.Option>
+                    <Select.Option value="cuda:0">CUDA 0</Select.Option>
+                  </Select>
+                </FormControl>
+              </section>
+            )}
             <FormControl>
               <FormControl.Label>源域数据集</FormControl.Label>
               <DatasetChecklist
@@ -281,8 +581,8 @@ export default function DomainShiftPage() {
               <FormControl>
                 <FormControl.Label>
                   <FieldLabel
-                    text="每 N 个循环取 1 个"
-                    help="1 = 使用全部循环。增大 N 可加快提取；改变步长会使用一套独立的特征缓存。"
+                    text={featureSpace === "model" ? "每 N 个窗口取 1 个" : "每 N 个循环取 1 个"}
+                    help="1 = 使用全部样本。增大 N 可加快提取；改变步长会使用一套独立的特征缓存。"
                   />
                 </FormControl.Label>
                 <input
@@ -296,7 +596,7 @@ export default function DomainShiftPage() {
               <FormControl>
                 <FormControl.Label>
                   <FieldLabel
-                    text="每电池最多循环数"
+                    text={featureSpace === "model" ? "每电池最多窗口数" : "每电池最多循环数"}
                     help="0 = 不限。超过上限时沿电池寿命等间隔抽取，避免长寿命电池主导整体分布。"
                   />
                 </FormControl.Label>
@@ -308,32 +608,36 @@ export default function DomainShiftPage() {
                   onChange={(event) => setMaxCycles(Number(event.target.value))}
                 />
               </FormControl>
-              <FormControl>
-                <FormControl.Label>
-                  <FieldLabel
-                    text="最低覆盖率"
-                    help="要求每个所选数据集都达到该非空比例。覆盖不足的特征会被剔除，避免缺失值填补影响结果。"
-                  />
-                </FormControl.Label>
-                <input
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={minimumCoverage}
-                  onChange={(event) => setMinimumCoverage(Number(event.target.value))}
-                />
-              </FormControl>
-              <FormControl>
-                <FormControl.Label>并行进程数</FormControl.Label>
-                <input
-                  type="number"
-                  min={1}
-                  max={32}
-                  value={workers}
-                  onChange={(event) => setWorkers(Number(event.target.value))}
-                />
-              </FormControl>
+              {featureSpace === "physical" && (
+                <>
+                  <FormControl>
+                    <FormControl.Label>
+                      <FieldLabel
+                        text="最低覆盖率"
+                        help="要求每个所选数据集都达到该非空比例。覆盖不足的特征会被剔除，避免缺失值填补影响结果。"
+                      />
+                    </FormControl.Label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={minimumCoverage}
+                      onChange={(event) => setMinimumCoverage(Number(event.target.value))}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormControl.Label>物理特征提取进程数</FormControl.Label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={32}
+                      value={workers}
+                      onChange={(event) => setWorkers(Number(event.target.value))}
+                    />
+                  </FormControl>
+                </>
+              )}
             </div>
             <FormControl>
               <FormControl.Label>随机种子</FormControl.Label>
@@ -348,11 +652,89 @@ export default function DomainShiftPage() {
             <FormControl>
               <FormControl.Label>分析粒度</FormControl.Label>
               <Select value={level} onChange={(event) => setLevel(event.target.value as "cycle" | "cell")}>
-                <Select.Option value="cycle">循环级</Select.Option>
-                <Select.Option value="cell">电池级（每电池取中位数）</Select.Option>
+                <Select.Option value="cycle">{featureSpace === "model" ? "窗口级" : "循环级"}</Select.Option>
+                <Select.Option value="cell">
+                  {featureSpace === "model" ? "电池级（窗口 embedding 取均值）" : "电池级（每电池取中位数）"}
+                </Select.Option>
               </Select>
             </FormControl>
-            {selected.length > 0 && (
+            {featureSpace === "model" && (
+              <section className="domain-model-settings">
+                <h3>模型特征可视化</h3>
+                <FormControl>
+                  <FormControl.Label>降维方法</FormControl.Label>
+                  <Select
+                    aria-label="降维方法"
+                    value={projectionMethod}
+                    onChange={(event) => setProjectionMethod(event.target.value as "tsne" | "pca")}
+                  >
+                    <Select.Option value="tsne">t-SNE（PCA 预降维）</Select.Option>
+                    <Select.Option value="pca">PCA</Select.Option>
+                  </Select>
+                </FormControl>
+                <div className="domain-field-grid">
+                  <FormControl>
+                    <FormControl.Label>池化维度</FormControl.Label>
+                    <input
+                      aria-label="池化维度"
+                      type="number"
+                      min={0}
+                      max={4096}
+                      value={poolDim}
+                      onChange={(event) => setPoolDim(Number(event.target.value))}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormControl.Label>PCA 预降维维度</FormControl.Label>
+                    <input
+                      aria-label="PCA 预降维维度"
+                      type="number"
+                      min={2}
+                      max={256}
+                      value={pcaDim}
+                      disabled={projectionMethod === "pca"}
+                      onChange={(event) => setPcaDim(Number(event.target.value))}
+                    />
+                  </FormControl>
+                  {projectionMethod === "tsne" && (
+                    <>
+                      <FormControl>
+                        <FormControl.Label>Perplexity</FormControl.Label>
+                        <input
+                          aria-label="Perplexity"
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={perplexity}
+                          onChange={(event) => setPerplexity(Number(event.target.value))}
+                        />
+                      </FormControl>
+                      <FormControl>
+                        <FormControl.Label>t-SNE 迭代次数</FormControl.Label>
+                        <input
+                          aria-label="t-SNE 迭代次数"
+                          type="number"
+                          min={250}
+                          max={5000}
+                          step={250}
+                          value={tsneIterations}
+                          onChange={(event) => setTsneIterations(Number(event.target.value))}
+                        />
+                      </FormControl>
+                    </>
+                  )}
+                </div>
+                <p className="subtle">
+                  全部源域和目标域联合拟合一次。池化按脚本对展平 embedding 分组取均值，0 表示保留原维度。
+                </p>
+                {!projectionValid && (
+                  <p className="danger">
+                    请填写范围内的降维参数；池化维度须为 0 或至少 2，PCA 维度和迭代次数必须是整数。
+                  </p>
+                )}
+              </section>
+            )}
+            {selected.length > 0 && modelReady && (
               <section className="cache-status">
                 <strong>特征缓存</strong>
                 {cache.isPending ? (
@@ -368,6 +750,11 @@ export default function DomainShiftPage() {
                       <progress max={Math.max(job.data.total, 1)} value={job.data.done} />
                     )}
                     {job.data?.error && <span className="danger">{job.data.error}</span>}
+                    {job.data?.failed.map(([dataset, file, message]) => (
+                      <span className="danger" key={`${dataset}/${file}`}>
+                        {file}：{message}
+                      </span>
+                    ))}
                   </>
                 )}
               </section>
@@ -376,8 +763,8 @@ export default function DomainShiftPage() {
               <Button
                 variant="primary"
                 loading={build.isPending}
-                disabled={!selected.length}
-                onClick={() => build.mutate()}
+                disabled={!selected.length || !modelReady || jobRunning}
+                onClick={() => build.mutate(buildKey)}
               >
                 提取剩余 {cache.data.missing_files} 个文件的特征
               </Button>
@@ -386,20 +773,22 @@ export default function DomainShiftPage() {
                 variant="primary"
                 loading={analyze.isPending}
                 disabled={!ready}
-                onClick={() => analyze.mutate()}
+                onClick={() => analyze.mutate(config)}
               >
                 开始分析
               </Button>
             )}
           </aside>
           <section className="domain-shift-results">
-            {!analyze.data ? (
+            {!result ? (
               <Empty title="选择源域和目标域后开始分析">
-                <p>首次分析需要先提取并缓存循环特征，后续可直接复用。</p>
+                <p>首次分析需要先提取并缓存特征；模型特征缓存按模型配置、权重和数据版本分别保存。</p>
               </Empty>
+            ) : featureSpace === "model" ? (
+              <ModelEmbeddingResults result={result} />
             ) : (
               <DomainResults
-                result={analyze.data}
+                result={result}
                 tab={tab}
                 setTab={setTab}
                 feature={feature}
@@ -510,6 +899,15 @@ function DomainResults({
       </div>
       {tab === "overview" && (
         <>
+          {result.representation?.feature_space === "model" && (
+            <p className="domain-model-summary">
+              模型：{result.representation.model_type} · 权重：{result.representation.checkpoint_name}
+              {result.representation.weight_source === "random"
+                ? `（种子 ${result.representation.initialization_seed}）`
+                : ""}{" "}
+              · 特征层：embedding · 表示维度：{result.summary.feature_count}
+            </p>
+          )}
           <div className="domain-metrics">
             <Metric label="源域数据集" value={result.summary.source_count} />
             <Metric label="目标域数据集" value={result.summary.target_count} />
@@ -524,7 +922,7 @@ function DomainResults({
                   <th>域</th>
                   <th>电池数</th>
                   <th>分析样本</th>
-                  <th>提取循环</th>
+                  <th>{result.representation?.feature_space === "model" ? "提取窗口" : "提取循环"}</th>
                   <th>额定容量 Ah</th>
                   <th>温度覆盖</th>
                 </tr>
@@ -719,7 +1117,11 @@ function DomainResults({
           <div className="domain-distribution-controls">
             <FormControl>
               <FormControl.Label>特征</FormControl.Label>
-              <Select value={feature} onChange={(event) => setFeature(event.target.value)}>
+              <Select
+                aria-label="单特征"
+                value={feature}
+                onChange={(event) => setFeature(event.target.value)}
+              >
                 {rankedFeatures.map((item) => (
                   <Select.Option key={item.name} value={item.name}>
                     {item.name} · {item.group}
@@ -803,14 +1205,6 @@ function DomainResults({
                   </tbody>
                 </table>
               </div>
-              <details className="domain-details">
-                <summary>该特征随循环次数的变化</summary>
-                {distribution.trend_series.length ? (
-                  <ChartView chart={distributionTrendChart(distribution)} />
-                ) : (
-                  <p className="subtle">电池级分析不包含循环次数，请切换为循环级分析。</p>
-                )}
-              </details>
             </>
           )}
         </>

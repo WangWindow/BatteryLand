@@ -4,7 +4,7 @@ import re
 
 import numpy as np
 
-FEATURE_VERSION = 3
+FEATURE_VERSION = 4
 
 SIGNAL_KEYS = {
     "current": "current_in_A",
@@ -20,6 +20,20 @@ STATS = tuple(_STAT_FUNCS)
 TIME_STATS = tuple(name for name in STATS if name != "min")
 CURVE_Q = (0.3, 0.7)
 CURRENT_THRESHOLD_RATIO = 0.05
+
+TEMPERATURE_KEYS = (
+    "temperature_in_C", "temperature_in_degC", "temperature_in_celsius",
+    "temperature_C", "temperature_c", "temperature", "Temperature", "T",
+)
+
+
+def temperature_signal(cycle: dict[str, object]) -> object:
+    """Prefer measured Celsius signals with finite values over empty aliases."""
+    for key in TEMPERATURE_KEYS:
+        value = cycle.get(key)
+        if _finite(value).size:
+            return value
+    return None
 
 
 def _finite(value: object) -> np.ndarray:
@@ -56,7 +70,12 @@ def _phase_features(
 ) -> None:
     voltage = np.array([], dtype=float)
     for short, key in SIGNAL_KEYS.items():
-        selected = _select(cycle.get(key), mask)
+        raw = temperature_signal(cycle) if short == "temperature" else cycle.get(key)
+        # A scalar temperature is a cycle measurement, valid in both active phases.
+        if short == "temperature" and _finite(raw).size == 1:
+            selected = _finite(raw) if mask.any() else np.array([], dtype=float)
+        else:
+            selected = _select(raw, mask)
         selected = selected[np.isfinite(selected)]
         if short == "time" and selected.size:
             selected = selected - selected[0]
@@ -118,7 +137,7 @@ def extract_cycle_features(
     times = _finite(cycle.get("time_in_s"))
     output["cycle_duration_s"] = float(times.max() - times.min()) if times.size else np.nan
 
-    temperature = _finite(cycle.get("temperature_in_C"))
+    temperature = _finite(temperature_signal(cycle))
     output["temperature_available"] = int(temperature.size > 0)
     output["temperature_mean_C"] = float(temperature.mean()) if temperature.size else np.nan
     output["temperature_std_C"] = float(temperature.std()) if temperature.size else np.nan
@@ -179,6 +198,8 @@ def is_comparable(name: str) -> bool:
 
 
 def feature_group(name: str) -> str:
+    if name.startswith("embedding_"):
+        return "模型表示"
     if "voltage_curve" in name:
         return "电压曲线形状"
     if "_voltage_" in name:

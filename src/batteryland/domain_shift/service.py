@@ -17,6 +17,7 @@ from batteryland.db.contracts import Record, UnitOfWorkFactory
 
 from . import analysis, data
 from .features import feature_group
+from .model_features import ModelFeatureExtractor
 
 
 def _finite(value: object) -> Any:
@@ -33,12 +34,15 @@ def _finite(value: object) -> Any:
 
 
 class DomainShiftService:
-    def __init__(self, settings: Settings, units: UnitOfWorkFactory) -> None:
+    def __init__(
+        self, settings: Settings, units: UnitOfWorkFactory, model_features: ModelFeatureExtractor
+    ) -> None:
         self.settings = settings
         self.units = units
+        self.model_features = model_features
         self.cache_dir = settings.data_dir / "domain-shift" / "features"
         self._jobs: dict[str, Record] = {}
-        self._job_keys: dict[tuple[tuple[str, ...], int], str] = {}
+        self._job_keys: dict[tuple[tuple[str, ...], int, str], str] = {}
         self._lock = threading.Lock()
         self._executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="domain-shift")
 
@@ -78,9 +82,15 @@ class DomainShiftService:
             names[identity] = source["name"]
         return datasets, names
 
-    def cache_status(self, source_ids: list[str], stride: int) -> Record:
+    def cache_status(
+        self, source_ids: list[str], stride: int, model: Record | None = None
+    ) -> Record:
         datasets, names = self._datasets(source_ids)
-        status = data.cache_status(datasets, source_ids, stride, self.cache_dir)
+        specification = self.model_features.resolve(model) if model else None
+        cache_dir = (
+            self.model_features.cache_dir(specification) if specification else self.cache_dir
+        )
+        status = data.cache_status(datasets, source_ids, stride, cache_dir)
         items: list[Record] = [
             {
                 "source_id": source_id,
@@ -96,10 +106,23 @@ class DomainShiftService:
             "missing_files": sum(int(item["missing_files"]) for item in items),
         }
 
-    def start_build(self, source_ids: list[str], stride: int, workers: int) -> Record:
+    def start_build(
+        self,
+        source_ids: list[str],
+        stride: int,
+        workers: int,
+        model: Record | None = None,
+        batch_size: int = 32,
+        device: str = "cpu",
+    ) -> Record:
         source_ids = list(dict.fromkeys(source_ids))
         datasets, names = self._datasets(source_ids)
-        key = (tuple(sorted(source_ids)), stride)
+        specification = self.model_features.resolve(model) if model else None
+        key = (
+            tuple(sorted(source_ids)),
+            stride,
+            specification["cache_key"] if specification else "physical",
+        )
         with self._lock:
             existing_id = self._job_keys.get(key)
             if existing_id and self._jobs[existing_id]["state"] in {"queued", "running"}:
@@ -113,6 +136,8 @@ class DomainShiftService:
                 "source_names": names,
                 "stride": stride,
                 "workers": workers,
+                "feature_space": "model" if model else "physical",
+                "model": model,
                 "done": 0,
                 "total": 0,
                 "current_file": None,
@@ -124,7 +149,17 @@ class DomainShiftService:
             }
             self._jobs[identity] = job
             self._job_keys[key] = identity
-        self._executor.submit(self._run_build, identity, datasets, source_ids, stride, workers)
+        self._executor.submit(
+            self._run_build,
+            identity,
+            datasets,
+            source_ids,
+            stride,
+            workers,
+            specification,
+            batch_size,
+            device,
+        )
         return dict(job)
 
     def _run_build(
@@ -134,6 +169,9 @@ class DomainShiftService:
         source_ids: list[str],
         stride: int,
         workers: int,
+        specification: Record | None = None,
+        batch_size: int = 32,
+        device: str = "cpu",
     ) -> None:
         def update(done: int, total: int, current: str) -> None:
             with self._lock:
@@ -145,17 +183,21 @@ class DomainShiftService:
                 )
 
         with self._lock:
-            self._jobs[identity].update(
-                state="running", updated_at=datetime.now(UTC).isoformat()
-            )
+            self._jobs[identity].update(state="running", updated_at=datetime.now(UTC).isoformat())
         try:
-            result = data.build_features(
-                datasets,
-                source_ids,
-                stride,
-                self.cache_dir,
-                workers=workers,
-                progress=update,
+            result = (
+                self.model_features.build(
+                    specification, datasets, source_ids, stride, batch_size, device, update
+                )
+                if specification
+                else data.build_features(
+                    datasets,
+                    source_ids,
+                    stride,
+                    self.cache_dir,
+                    workers=workers,
+                    progress=update,
+                )
             )
             with self._lock:
                 self._jobs[identity].update(
@@ -193,28 +235,44 @@ class DomainShiftService:
         level: str,
         feature_groups: list[str],
         excluded_features: list[str],
+        model: Record | None = None,
     ) -> tuple[pd.DataFrame, list[str], pd.DataFrame, dict[str, str], dict[str, int]]:
         selected = list(dict.fromkeys(source_ids + target_ids))
         if set(source_ids) & set(target_ids):
             raise DomainError("invalid_input", "同一数据集不能同时属于源域和目标域")
         datasets, names = self._datasets(selected)
-        status = data.cache_status(datasets, selected, stride, self.cache_dir)
+        specification = self.model_features.resolve(model) if model else None
+        cache_dir = (
+            self.model_features.cache_dir(specification) if specification else self.cache_dir
+        )
+        status = data.cache_status(datasets, selected, stride, cache_dir)
         missing = sum(total - done for done, total in status.values())
         if missing:
             raise DomainError(
                 "integration_precondition_failed",
-                f"仍有 {missing} 个电池文件尚未提取特征",
+                f"仍有 {missing} 个电池文件需要提取或重建特征缓存",
                 details={"missing_files": missing},
             )
-        raw = data.load_features(datasets, selected, stride, self.cache_dir)
+        raw = data.load_features(datasets, selected, stride, cache_dir)
         if raw.empty:
             raise DomainError("integration_precondition_failed", "没有可用的特征缓存")
         raw_counts = raw.groupby("dataset").size().astype(int).to_dict()
         frame = analysis.add_domain(raw, source_ids, target_ids)
         frame = analysis.cap_cycles_per_cell(frame, max_cycles)
-        features, dropped = analysis.select_features(
-            frame, analysis.comparable_columns(frame), minimum_coverage
-        )
+        if model:
+            # Constant embedding coordinates still belong to the vector geometry and pooling layout.
+            features = [column for column in frame.columns if column.startswith("embedding_")]
+            dropped = pd.DataFrame(columns=["feature", "reason"])
+            absent = set(selected) - set(frame["dataset"])
+            if absent:
+                raise DomainError(
+                    "invalid_input",
+                    "以下数据集没有有效模型样本：" + "、".join(names[item] for item in absent),
+                )
+        else:
+            features, dropped = analysis.select_features(
+                frame, analysis.comparable_columns(frame), minimum_coverage
+            )
         if feature_groups:
             features = [feature for feature in features if feature_group(feature) in feature_groups]
         excluded = set(excluded_features)
@@ -222,10 +280,13 @@ class DomainShiftService:
         if len(features) < 2:
             raise DomainError("invalid_input", "可用特征少于 2 个，请放宽筛选条件")
         if level == "cell":
-            frame = analysis.aggregate_cells(frame, features)
+            frame = analysis.aggregate_cells(frame, features, "mean" if model else "median")
         return frame, features, dropped, names, raw_counts
 
     def analyze(self, request: Record) -> Record:
+        specification = (
+            self.model_features.resolve(request["model"]) if request.get("model") else None
+        )
         frame, features, dropped, names, raw_counts = self._prepared(
             request["source_ids"],
             request["target_ids"],
@@ -235,6 +296,7 @@ class DomainShiftService:
             request["level"],
             request["feature_groups"],
             request["excluded_features"],
+            request.get("model"),
         )
         summaries = []
         for raw_dataset, group in frame.groupby("dataset", sort=False):
@@ -256,6 +318,44 @@ class DomainShiftService:
                         if "temperature_available" in group
                         else None
                     ),
+                }
+            )
+
+        if specification:
+            return _finite(
+                {
+                    "summary": {
+                        "source_count": len(request["source_ids"]),
+                        "target_count": len(request["target_ids"]),
+                        "feature_count": len(features),
+                        "sample_count": len(frame),
+                        "sample_unit": "电池" if request["level"] == "cell" else "窗口",
+                    },
+                    "representation": {
+                        "feature_space": "model",
+                        "model": request.get("model"),
+                        **{
+                            key: specification[key]
+                            for key in (
+                                "model_type",
+                                "checkpoint_name",
+                                "weight_sha256",
+                                "weight_source",
+                                "initialization_seed",
+                            )
+                        },
+                    },
+                    "datasets": summaries,
+                    "features": [
+                        {"name": feature, "group": feature_group(feature)} for feature in features
+                    ],
+                    "dropped_features": [],
+                    "model_analysis": analysis.model_embedding_analysis(
+                        frame, features, names, request
+                    ),
+                    "pca": {"points": [], "explained_variance": [], "loadings": {}},
+                    "shift": [],
+                    "pairwise": [],
                 }
             )
 
@@ -284,8 +384,7 @@ class DomainShiftService:
         for component in loadings.columns:
             top = loadings[component].abs().nlargest(10).index
             loading_payload[component] = [
-                {"feature": feature, "loading": loadings.at[feature, component]}
-                for feature in top
+                {"feature": feature, "loading": loadings.at[feature, component]} for feature in top
             ]
 
         shift = analysis.domain_shift(frame, features).sort_values("wd_norm", ascending=False)
@@ -313,7 +412,29 @@ class DomainShiftService:
                     "target_count": len(request["target_ids"]),
                     "feature_count": len(features),
                     "sample_count": len(frame),
-                    "sample_unit": "电池" if request["level"] == "cell" else "循环",
+                    "sample_unit": "电池"
+                    if request["level"] == "cell"
+                    else "窗口"
+                    if request.get("model")
+                    else "循环",
+                },
+                "representation": {
+                    "feature_space": request.get("feature_space", "physical"),
+                    "model": request.get("model"),
+                    **(
+                        {
+                            key: specification[key]
+                            for key in (
+                                "model_type",
+                                "checkpoint_name",
+                                "weight_sha256",
+                                "weight_source",
+                                "initialization_seed",
+                            )
+                        }
+                        if specification
+                        else {}
+                    ),
                 },
                 "datasets": summaries,
                 "features": [
@@ -340,6 +461,7 @@ class DomainShiftService:
             request["level"],
             request["feature_groups"],
             request["excluded_features"],
+            request.get("model"),
         )
         feature = request["feature"]
         if feature not in features:
@@ -416,9 +538,7 @@ class DomainShiftService:
                         "label": names.get(str(group_name), str(group_name)),
                         "points": [
                             {"x": row.cycle_number, "y": getattr(row, feature)}
-                            for row in group[["cycle_number", feature]].itertuples(
-                                index=False
-                            )
+                            for row in group[["cycle_number", feature]].itertuples(index=False)
                         ],
                     }
                 )

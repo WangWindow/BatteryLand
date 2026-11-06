@@ -1,17 +1,17 @@
 """Physical battery file discovery, feature extraction, and persistent feature cache."""
 
 import hashlib
-import os
 import pickle
-import warnings
 from collections.abc import Callable
 from pathlib import Path
-from typing import cast
 
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
 
+from batteryland.common.errors import DomainError
+
+from .cache import CACHE_FORMAT_VERSION, cache_usable, load_frame, save_frame
 from .features import FEATURE_VERSION, extract_cycle_features
 
 ProgressCallback = Callable[[int, int, str], None]
@@ -28,7 +28,7 @@ def extract_file(path: Path, dataset: str, stride: int = 1) -> pd.DataFrame:
     cell_id = str(value.get("cell_id", path.stem))
     try:
         nominal = float(value.get("nominal_capacity_in_Ah", np.nan))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         nominal = np.nan
     nominal = nominal if np.isfinite(nominal) and nominal > 0 else np.nan
 
@@ -52,10 +52,13 @@ def extract_file(path: Path, dataset: str, stride: int = 1) -> pd.DataFrame:
 
 def cache_file(cache_dir: Path, dataset: str, path: Path, stride: int) -> Path:
     stat = path.stat()
-    key = hashlib.sha256(
-        f"{path}|{stat.st_size}|{stat.st_mtime_ns}".encode()
-    ).hexdigest()[:16]
-    return cache_dir / f"v{FEATURE_VERSION}_s{stride}" / dataset / f"{path.stem}.{key}.pkl"
+    key = hashlib.sha256(f"{path}|{stat.st_size}|{stat.st_mtime_ns}".encode()).hexdigest()[:16]
+    return (
+        cache_dir
+        / f"v{FEATURE_VERSION}_npz{CACHE_FORMAT_VERSION}_s{stride}"
+        / dataset
+        / f"{path.stem}.{key}.npz"
+    )
 
 
 def cache_status(
@@ -63,7 +66,10 @@ def cache_status(
 ) -> dict[str, tuple[int, int]]:
     return {
         name: (
-            sum(cache_file(cache_dir, name, path, stride).exists() for path in datasets.get(name, [])),
+            sum(
+                cache_usable(cache_file(cache_dir, name, path, stride))
+                for path in datasets.get(name, [])
+            ),
             len(datasets.get(name, [])),
         )
         for name in selected
@@ -72,16 +78,13 @@ def cache_status(
 
 def _build_one(dataset: str, path: Path, stride: int, cache_dir: Path) -> tuple[str, str, str, str]:
     target = cache_file(cache_dir, dataset, path, stride)
-    if target.exists():
+    if cache_usable(target):
         return dataset, path.name, "cached", ""
     try:
         frame = extract_file(path, dataset, stride)
         if frame.empty:
             raise ValueError("提取结果为空")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        temporary = target.with_suffix(f".tmp{os.getpid()}")
-        frame.to_pickle(temporary)
-        os.replace(temporary, target)
+        save_frame(target, frame)
         return dataset, path.name, "built", f"{len(frame)} cycles"
     except Exception as exc:  # noqa: BLE001 -- isolate failures to individual files
         return dataset, path.name, "failed", f"{type(exc).__name__}: {exc}"
@@ -99,7 +102,7 @@ def build_features(
         (name, path)
         for name in selected
         for path in datasets.get(name, [])
-        if not cache_file(cache_dir, name, path, stride).exists()
+        if not cache_usable(cache_file(cache_dir, name, path, stride))
     ]
     total = len(tasks)
     built = 0
@@ -119,11 +122,8 @@ def build_features(
         for done, (name, path) in enumerate(tasks, 1):
             handle(_build_one(name, path, stride, cache_dir), done)
     elif tasks:
-        generated = Parallel(
-            n_jobs=workers, backend="loky", return_as="generator_unordered"
-        )(
-            delayed(_build_one)(name, path, stride, cache_dir)
-            for name, path in tasks
+        generated = Parallel(n_jobs=workers, backend="loky", return_as="generator_unordered")(
+            delayed(_build_one)(name, path, stride, cache_dir) for name, path in tasks
         )
         for done, result in enumerate(generated, 1):
             handle(result, done)
@@ -140,12 +140,11 @@ def load_features(
             if not target.exists():
                 continue
             try:
-                parts.append(
-                    cast(
-                        pd.DataFrame,
-                        pd.read_pickle(target),  # noqa: S301 -- cache created by this service
-                    )
-                )
+                parts.append(load_frame(target))
             except Exception as exc:  # noqa: BLE001
-                warnings.warn(f"缓存损坏，已跳过 {target}: {exc}", stacklevel=2)
+                raise DomainError(
+                    "integration_precondition_failed",
+                    f"特征缓存不可读，请重新提取：{path.name}",
+                    details={"source_id": name, "file": path.name, "reason": str(exc)},
+                ) from exc
     return pd.concat(parts, ignore_index=True) if parts else pd.DataFrame()

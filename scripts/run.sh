@@ -4,8 +4,6 @@ set -euo pipefail
 project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 ui_root="$project_root/src/batteryland_ui"
 python="$project_root/.venv/bin/python"
-backend_port="${BATTERYLAND_BACKEND_PORT:-8000}"
-ui_port="${BATTERYLAND_UI_PORT:-5173}"
 services_only=0
 
 if [[ $# -gt 0 ]]; then
@@ -16,12 +14,14 @@ Usage: scripts/run.sh [--services-only]
 Start the FastAPI backend and UI. The backend coordinates training subprocesses.
 Use --services-only while verifying backend HTTP contracts.
 Paths, including relative overrides, are based on the project root.
+Local settings are loaded from .env in the project root (Bash syntax).
 
 Environment:
   BATTERYLAND_BACKEND_PORT     API port (default: 8000)
   BATTERYLAND_UI_PORT          UI port (default: 5173)
   BATTERYLAND_DATA_DIR         Data directory (default: var)
   BATTERYLAND_TRAINING_PYTHON  Training Python (default: .venv-training/bin/python)
+  BATTERYLAND_BATTERYLIFE_ROOT BatteryLife source root for model features
   BATTERYLAND_SOURCE_ROOTS     JSON mapping of source aliases to existing dataset folders
 
 The fixed /data/BatteryLife_Processed pool is indexed automatically when present.
@@ -35,6 +35,14 @@ HELP
     exit 2
   fi
 fi
+
+if [[ -f "$project_root/.env" ]]; then
+  set -a
+  source "$project_root/.env"
+  set +a
+fi
+backend_port="${BATTERYLAND_BACKEND_PORT:-8000}"
+ui_port="${BATTERYLAND_UI_PORT:-5173}"
 
 if [[ ! -x "$python" ]]; then
   printf 'API environment missing. Run uv sync --locked in the project root.\n' >&2

@@ -45,7 +45,40 @@ export type NodeResources = {
   }
 }
 
-export type DomainShiftConfig = {
+export type DomainShiftFeatureSource = {
+  feature_space?: "physical" | "model"
+  model?:
+    | { experiment_id: string; checkpoint_id: string; layer: "embedding" }
+    | {
+        model_type: string
+        parameters: Record<string, unknown>
+        initialization_seed: number
+        layer: "embedding"
+      }
+    | null
+}
+export type DomainShiftArchitecture = {
+  model_type: string
+  parameters: Record<string, unknown>
+  required_parameters: string[]
+  supported: boolean
+  reason: string | null
+}
+export type DomainShiftModelOption = {
+  experiment_id: string
+  name: string
+  model_type: string
+  checkpoints: {
+    id: string
+    name: string
+    supported: boolean
+    reason: string | null
+    run_id: string | null
+    relative_key: string
+    relative_path: string
+  }[]
+}
+export type DomainShiftConfig = DomainShiftFeatureSource & {
   source_ids: string[]
   target_ids: string[]
   stride: number
@@ -57,6 +90,11 @@ export type DomainShiftConfig = {
   seed: number
   points_per_dataset: number
   pca_fit: "all" | "source"
+  projection_method?: "tsne" | "pca"
+  pool_dim?: number
+  pca_dim?: number
+  tsne_perplexity?: number
+  tsne_iterations?: number
 }
 export type DomainShiftCacheStatus = {
   items: {
@@ -79,6 +117,16 @@ export type DomainShiftJob = {
   error?: string | null
 }
 export type DomainShiftAnalysis = {
+  model_analysis?: DomainShiftModelAnalysis
+  representation?: {
+    feature_space: "physical" | "model"
+    model: DomainShiftFeatureSource["model"]
+    model_type?: string
+    checkpoint_name?: string
+    weight_sha256?: string | null
+    weight_source?: "random" | "checkpoint"
+    initialization_seed?: number | null
+  }
   summary: {
     source_count: number
     target_count: number
@@ -128,6 +176,43 @@ export type DomainShiftAnalysis = {
     target_id: string
     target_name: string
     mean_distance: number
+  }[]
+}
+export type DomainShiftModelAnalysis = {
+  method: "tsne" | "pca"
+  input_dimensions: number
+  pooled_dimensions: number
+  pca_dimensions: number
+  perplexity: number | null
+  explained_variance: number[]
+  reference_threshold: number | null
+  warnings: string[]
+  points: {
+    dataset: string
+    dataset_name: string
+    domain: string
+    cell_uid: string
+    x: number
+    y: number
+    cycle_number?: number | null
+  }[]
+  similarities: {
+    target_id: string
+    target_name: string
+    samples: number
+    centroid_cosine_distance: number | null
+    mean_nearest_source_distance: number | null
+    outside_source_fraction: number | null
+  }[]
+  matches: {
+    target_id: string
+    target_name: string
+    cell_uid: string
+    nearest_source_id: string
+    nearest_source_name: string
+    nearest_source_cell_uid: string
+    cosine_distance: number | null
+    outside_source: boolean | null
   }[]
 }
 export type DomainShiftDistribution = {

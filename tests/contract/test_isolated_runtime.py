@@ -47,6 +47,8 @@ def test_dynamic_control_uses_selected_training_environment(isolated_gateway, mo
 
     def run(command, **kwargs):
         commands.append(command)
+        if "-c" not in command:
+            assert kwargs["timeout"] == 120
         return bridge_response(command, identity(python))
 
     monkeypatch.setattr(subprocess, "run", run)

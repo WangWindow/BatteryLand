@@ -125,7 +125,7 @@ class DeeplatformGateway:
                 input=json.dumps(request, allow_nan=False),
                 text=True,
                 capture_output=True,
-                timeout=30,
+                timeout=120,
                 env=(
                     os.environ | self.environment()
                     if static

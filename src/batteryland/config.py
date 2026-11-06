@@ -16,6 +16,7 @@ class Settings:
     source_roots: dict[str, Path] = field(default_factory=dict)
     provider_root: Path = DEFAULT_PROVIDER_ROOT
     training_python: Path = DEFAULT_TRAINING_PYTHON
+    batterylife_root: Path | None = None
     component_limit: int = 1024 * 1024
     checkpoint_limit: int = 1024 * 1024 * 1024
     validation_secret: str = ""
@@ -34,6 +35,7 @@ class Settings:
             raise ValueError("BATTERYLAND_SOURCE_ROOTS must map aliases to directory paths")
         provider = os.environ.get("BATTERYLAND_PROVIDER_ROOT")
         training_python = os.environ.get("BATTERYLAND_TRAINING_PYTHON")
+        batterylife_root = os.environ.get("BATTERYLAND_BATTERYLIFE_ROOT")
         return cls(
             data_dir=(data_dir or Path(os.environ.get("BATTERYLAND_DATA_DIR", "var"))).resolve(),
             source_roots={key: Path(value).resolve() for key, value in roots.items()},
@@ -43,6 +45,7 @@ class Settings:
                 if training_python
                 else DEFAULT_TRAINING_PYTHON
             ),
+            batterylife_root=Path(batterylife_root).resolve() if batterylife_root else None,
             validation_secret=os.environ.get("BATTERYLAND_VALIDATION_SECRET", ""),
             auto_index_catalog=os.environ.get("BATTERYLAND_AUTO_INDEX_CATALOG", "1") != "0",
             catalog_scan_interval_seconds=max(

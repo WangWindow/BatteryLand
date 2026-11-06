@@ -25,6 +25,7 @@ def training_service(request: Request) -> TrainingRunService:
 def validate(
     body: ValidationRequest, service: Annotated[TrainingRunService, Depends(training_service)]
 ) -> dict[str, Any]:
+    print("00000valid0")
     return {
         "data": service.validate(body.config_text, body.split_id, body.split_version)
     }

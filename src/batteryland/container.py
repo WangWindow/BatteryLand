@@ -14,6 +14,7 @@ from batteryland.datasets.splits import SplitService
 from batteryland.db.database import Database
 from batteryland.documents.store import SQLiteDocumentStore
 from batteryland.domain_shift.service import DomainShiftService
+from batteryland.domain_shift.model_features import ModelFeatureExtractor
 from batteryland.experiments.validated import ValidatedExperimentService
 from batteryland.results.service import ResultService
 from batteryland.results.storage import LocalResultFiles
@@ -86,7 +87,8 @@ class Container:
             BasicDifferenceAnalyzer(),
             BasicChartBuilder(),
         )
-        self.domain_shift = DomainShiftService(settings, self.database.unit_of_work)
+        self.model_features = ModelFeatureExtractor(settings, self.database.unit_of_work)
+        self.domain_shift = DomainShiftService(settings, self.database.unit_of_work, self.model_features)
         self.single_model = SingleModelService(settings, self.database.unit_of_work)
 
     def close(self) -> None:

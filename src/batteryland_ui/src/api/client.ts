@@ -4,10 +4,13 @@ import type {
   Component,
   DataSource,
   DomainShiftAnalysis,
+  DomainShiftArchitecture,
   DomainShiftCacheStatus,
   DomainShiftConfig,
   DomainShiftDistribution,
+  DomainShiftFeatureSource,
   DomainShiftJob,
+  DomainShiftModelOption,
   Experiment,
   ExperimentSummary,
   NodeResources,
@@ -176,10 +179,17 @@ export const api = {
     send<Schema["LogicalDataset"]>("/logical-datasets", body),
   deleteLogicalDataset: (id: string) =>
     request<{ deleted: boolean }>(`/logical-datasets/${encodeURIComponent(id)}`, { method: "DELETE" }),
-  domainShiftCacheStatus: (source_ids: string[], stride: number) =>
-    send<DomainShiftCacheStatus>("/domain-shift/cache/status", { source_ids, stride }),
-  startDomainShiftBuild: (source_ids: string[], stride: number, workers: number) =>
-    send<DomainShiftJob>("/domain-shift/jobs", { source_ids, stride, workers }),
+  domainShiftModels: (signal?: AbortSignal) => get<DomainShiftModelOption[]>("/domain-shift/models", signal),
+  domainShiftArchitectures: (signal?: AbortSignal) =>
+    get<DomainShiftArchitecture[]>("/domain-shift/architectures", signal),
+  domainShiftCacheStatus: (source_ids: string[], stride: number, context: DomainShiftFeatureSource = {}) =>
+    send<DomainShiftCacheStatus>("/domain-shift/cache/status", { source_ids, stride, ...context }),
+  startDomainShiftBuild: (
+    source_ids: string[],
+    stride: number,
+    workers: number,
+    options: DomainShiftFeatureSource & { batch_size?: number; device?: string } = {},
+  ) => send<DomainShiftJob>("/domain-shift/jobs", { source_ids, stride, workers, ...options }),
   domainShiftJob: (id: string, signal?: AbortSignal) =>
     get<DomainShiftJob>(`/domain-shift/jobs/${encodeURIComponent(id)}`, signal),
   domainShiftAnalysis: (body: DomainShiftConfig) => send<DomainShiftAnalysis>("/domain-shift/analysis", body),
