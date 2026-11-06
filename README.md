@@ -68,4 +68,5 @@ export BATTERYLAND_SOURCE_ROOTS='{"battery_life":"/绝对路径/数据目录"}'
 `./scripts/run.sh --help`。
 
 侧栏“数据”组还提供 BatteryLife 数据层的电池详情、数据概览和多曲线对比。
-首次使用前的目录索引与核验准备见 [BatteryLife 数据层接入说明](docs/integrations/batterylife-data-layer.md)。
+首次使用这些页面前，需单独准备数据层目录索引和核验结果；上文所述的后台扫描不会生成这份索引。
+准备命令、数据目录设置和验证方法见 [BatteryLife 数据层接入说明](docs/integrations/batterylife-data-layer.md)。
