@@ -1,4 +1,4 @@
-# BatteryLife 数据层三页接入
+# BatteryLand 数据层技术说明
 
 ## 范围
 
@@ -36,7 +36,7 @@ ls -lh var/data-layer/catalog.sqlite3 var/data-layer/quality_flags.json \
 
 平台通用启动入口仍是根 README 中的 `./scripts/run.sh`。首次使用三页前，先按上节准备数据层索引；准备和启动须使用同一份 `BATTERYLAND_DATA_DIR` 与 `BATTERYLAND_SOURCE_ROOTS`。默认配置下，索引位于 `var/data-layer/catalog.sqlite3`。若启动时需要把平台运行状态放在另一个 `BATTERYLAND_DATA_DIR`，可设置 `BATTERYLAND_DATA_LAYER_CACHE_DIR` 指向已经准备好的索引目录；这样无需重新建立索引。
 
-当前服务器另有 `./scripts/run-batterylife-data-layer.sh` 演示入口。它先检查 `/data/BatteryLife_Processed` 和 `var/data-layer/catalog.sqlite3`，再设置数据来源、索引目录及默认端口，最后仍调用同一个 `run.sh`。它的默认网页端口是 `15173`、后端端口是 `18000`，可用 `BATTERYLAND_UI_PORT` 和 `BATTERYLAND_BACKEND_PORT` 覆盖。这个入口便于使用已准备的服务器索引，不是运行三个页面的唯一方式。按 Ctrl+C 关闭服务；从侧栏“数据”组进入三个页面，无须启动第二个公开站点。
+按 Ctrl+C 关闭服务；从侧栏“数据”组进入三个页面，无须启动第二个公开站点。
 
 如需同时保留旧版并预览新样式，应在不同代码目录分别启动，并为两套服务设置不同的网页和后端端口。页面版本由启动命令所在的代码目录决定；仅更换端口不会切换到另一版本。开发完成后关闭预览服务，再由验收人员按需启动。
 
@@ -50,3 +50,7 @@ ls -lh var/data-layer/catalog.sqlite3 var/data-layer/quality_flags.json \
 4. 检查原有电池目录、数据划分和实验入口仍可用；`/data-layer/intake` 和 `/data-layer/api/intake/*` 应返回 404。
 
 页面代码基于原 Web 已提交版本复制；原 BatteryLife_Web 工作区和服务器原始数据不参与改动。若未来更改原 Web 功能，需要选择性同步三页对应的页面、脚本与只读数据处理逻辑。
+
+## 历史服务器辅助脚本
+
+`./scripts/run-batterylife-data-layer.sh` 保留用于已有服务器环境。它先检查 `/data/BatteryLife_Processed` 和 `var/data-layer/catalog.sqlite3`，再设置数据来源、索引目录及默认端口，最后调用同一个 `run.sh`。其默认网页端口为 `15173`、后端端口为 `18000`，可用 `BATTERYLAND_UI_PORT` 和 `BATTERYLAND_BACKEND_PORT` 覆盖。一般部署直接按根 README 准备数据并运行 `./scripts/run.sh`，无需使用这个辅助脚本。
