@@ -15,7 +15,7 @@ SQLite，前端使用 React；训练由独立 Python 环境运行。
 使用递归克隆以同时获取 DeepPlatform 子模块：
 
 ```bash
-git clone --recurse-submodules https://github.com/JiaweiLab-HFUT/BatteryLand.git
+git clone --recurse-submodules https://github.com/WangWindow/BatteryLand.git
 cd BatteryLand
 ```
 
@@ -28,7 +28,7 @@ uv python install 3.14
 uv sync --python 3.14
 ```
 
-安装前端依赖：
+安装前端依赖前，先确认 `bun --version` 为 1.4 或更高；旧版无法读取当前锁文件：
 
 ```bash
 cd src/batteryland_ui
