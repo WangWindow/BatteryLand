@@ -176,3 +176,13 @@
 .app-shell{min-height:calc(100vh - var(--data-layer-header-height))}
 .sidebar{top:var(--data-layer-header-height);height:calc(100vh - var(--data-layer-header-height))}
 @media(max-width:760px){.sidebar{top:auto;height:auto}}
+
+/* Keep the battery selector readable on the light BatteryLand-style sidebar. */
+.sidebar{color:var(--color-text);border-right:1px solid var(--color-border)}
+.sidebar-section label,.sidebar-bottom strong{color:var(--color-heading)}
+.sidebar select,.sidebar input[type=search]{border-color:var(--color-control-border);background:var(--color-sidebar-control);color:var(--color-text)}
+.sidebar select option{background:var(--color-sidebar-control);color:var(--color-text)}
+.sidebar input[type=search]::placeholder,.section-hint,.cell-item .sub,.cell-item.active .sub,.sidebar-bottom span,.empty-list{color:var(--color-muted)}
+.count-pill{color:var(--color-heading)}
+.cell-item{color:var(--color-text)}
+.sidebar-bottom{border-top-color:var(--color-border)}
